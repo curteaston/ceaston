@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt; color: #222; padding: 32px 40px; }
+  h1 { font-size: 20pt; font-weight: 700; }
+  .contact { font-size: 9pt; color: #555; margin-top: 2px; }
+  hr { border: none; border-top: 1.5px solid #222; margin: 10px 0 6px; }
+  h2 { font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .section { margin-bottom: 14px; }
+  .job-header { display: flex; justify-content: space-between; }
+  .job-title { font-weight: 700; }
+  .job-dates { font-size: 9pt; color: #555; white-space: nowrap; }
+  .job-company { font-style: italic; color: #444; font-size: 9.5pt; }
+  ul { margin-left: 16px; margin-top: 3px; }
+  li { margin-bottom: 2px; }
+  .skills-list { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .skill-tag { background: #f0f0f0; border-radius: 3px; padding: 1px 6px; font-size: 9pt; }
+  .edu-row { display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<h1>{{ profile.full_name }}</h1>
+<div class="contact">
+  {{ profile.email }}
+  {% if profile.phone %} · {{ profile.phone }}{% endif %}
+  {% if profile.location %} · {{ profile.location }}{% endif %}
+  {% if profile.linkedin_url %} · {{ profile.linkedin_url }}{% endif %}
+</div>
+
+{% if resume.summary %}
+<div class="section">
+  <hr>
+  <h2>Summary</h2>
+  <p>{{ resume.summary }}</p>
+</div>
+{% endif %}
+
+{% if resume.experience %}
+<div class="section">
+  <hr>
+  <h2>Experience</h2>
+  {% for exp in resume.experience %}
+  <div style="margin-bottom: 10px;">
+    <div class="job-header">
+      <span class="job-title">{{ exp.title }}</span>
+      <span class="job-dates">{{ exp.dates }}</span>
+    </div>
+    <div class="job-company">{{ exp.company }}</div>
+    {% if exp.bullets %}
+    <ul>
+      {% for bullet in exp.bullets %}
+      <li>{{ bullet }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if resume.skills %}
+<div class="section">
+  <hr>
+  <h2>Skills</h2>
+  <div class="skills-list">
+    {% for skill in resume.skills %}
+    <span class="skill-tag">{{ skill }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if resume.education %}
+<div class="section">
+  <hr>
+  <h2>Education</h2>
+  {% for edu in resume.education %}
+  <div class="edu-row">
+    <span><strong>{{ edu.institution }}</strong> — {{ edu.degree }}</span>
+    <span style="font-size:9pt;color:#555;">{{ edu.dates }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if resume.certifications %}
+<div class="section">
+  <hr>
+  <h2>Certifications</h2>
+  <ul>
+    {% for cert in resume.certifications %}
+    <li>{{ cert }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+</body>
+</html>
