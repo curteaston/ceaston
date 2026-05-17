@@ -1,0 +1,331 @@
+{
+  "name": "HVAC Sponsored Ads Daily Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 30 5 * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "Daily 5:30am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "queries",
+              "name": "queries",
+              "type": "array",
+              "value": "={{ [\n  'hvac companies Atlanta GA',\n  'air conditioning repair Houston TX',\n  'heating and cooling companies Phoenix AZ',\n  'hvac service Dallas TX',\n  'ac repair Miami FL',\n  'hvac companies Chicago IL',\n  'air conditioning installation Los Angeles CA',\n  'hvac repair Denver CO',\n  'heating cooling companies Seattle WA',\n  'ac service Las Vegas NV',\n  'hvac companies Nashville TN',\n  'air conditioning repair Charlotte NC',\n  'hvac service Orlando FL',\n  'heating and cooling Austin TX',\n  'ac companies Minneapolis MN',\n  'hvac repair Portland OR',\n  'air conditioning companies San Antonio TX',\n  'hvac service Tampa FL',\n  'heating cooling companies Raleigh NC',\n  'ac repair Sacramento CA'\n] }}"
+            },
+            {
+              "id": "target_count",
+              "name": "target_count",
+              "type": "number",
+              "value": 50
+            },
+            {
+              "id": "collected_ads",
+              "name": "collected_ads",
+              "type": "array",
+              "value": "={{ [] }}"
+            }
+          ]
+        }
+      },
+      "id": "node-set-queries",
+      "name": "Set Search Queries",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        },
+        "batchSize": 1
+      },
+      "id": "node-split",
+      "name": "Loop Over Queries",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.queries[$node['Loop Over Queries'].context.currentRunIndex] }}"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.SERPAPI_KEY }}"
+            },
+            {
+              "name": "num",
+              "value": "10"
+            },
+            {
+              "name": "gl",
+              "value": "us"
+            },
+            {
+              "name": "hl",
+              "value": "en"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-serpapi",
+      "name": "SerpAPI Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract sponsored/paid ads from SerpAPI response\nconst response = $input.first().json;\nconst ads = response.ads || [];\nconst query = response.search_parameters?.q || '';\n\nconst extracted = ads.map(ad => {\n  // Normalize the domain for dedup\n  let domain = '';\n  try {\n    const url = ad.link || ad.displayed_link || '';\n    const cleaned = url.replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0];\n    domain = cleaned.toLowerCase();\n  } catch (e) {\n    domain = (ad.displayed_link || '').toLowerCase();\n  }\n\n  return {\n    company_name: ad.title || '',\n    domain: domain,\n    website: ad.link || ad.displayed_link || '',\n    phone: ad.extensions?.find(e => /^[\\(\\d]/.test(e)) || '',\n    description: ad.description || '',\n    search_query: query,\n    date_found: new Date().toISOString().split('T')[0]\n  };\n}).filter(ad => ad.domain !== '');\n\nreturn extracted.map(ad => ({ json: ad }));"
+      },
+      "id": "node-extract-ads",
+      "name": "Extract Sponsored Ads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_ads",
+        "include": "allFields"
+      },
+      "id": "node-aggregate",
+      "name": "Aggregate Ads",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "id": "has-more-queries",
+              "leftValue": "={{ $node['Loop Over Queries'].context.noItemsLeft }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "node-check-done",
+      "name": "All Queries Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "__rl": true,
+          "mode": "id"
+        },
+        "sheetName": {
+          "value": "HVAC Companies",
+          "__rl": true,
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "node-read-sheet",
+      "name": "Read Existing Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1540, 200],
+      "parameters_note": "Operation defaults to 'Read rows'"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pull all ads collected across loop iterations\nconst allAdsRaw = $('Aggregate Ads').all();\nlet allAds = [];\nfor (const item of allAdsRaw) {\n  const ads = item.json.all_ads || [];\n  allAds = allAds.concat(ads);\n}\n\n// Pull existing sheet rows for dedup\nconst existingRows = $('Read Existing Sheet').all();\nconst existingDomains = new Set(\n  existingRows.map(r => (r.json.domain || '').toLowerCase()).filter(Boolean)\n);\nconst existingNames = new Set(\n  existingRows.map(r => (r.json.company_name || '').toLowerCase()).filter(Boolean)\n);\n\n// Deduplicate: skip if domain OR name already exists in sheet\nconst seen = new Set();\nconst newAds = [];\n\nfor (const ad of allAds) {\n  const domainKey = ad.domain?.toLowerCase() || '';\n  const nameKey = ad.company_name?.toLowerCase() || '';\n\n  if (!domainKey && !nameKey) continue;\n\n  // Skip duplicates already in the sheet\n  if (existingDomains.has(domainKey) || existingNames.has(nameKey)) continue;\n\n  // Skip within-batch duplicates\n  const dedupKey = domainKey || nameKey;\n  if (seen.has(dedupKey)) continue;\n\n  seen.add(dedupKey);\n  newAds.push(ad);\n\n  if (newAds.length >= 50) break;\n}\n\nif (newAds.length === 0) {\n  return [{ json: { status: 'no_new_companies', count: 0 } }];\n}\n\nreturn newAds.map(ad => ({ json: ad }));"
+      },
+      "id": "node-dedup",
+      "name": "Deduplicate & Cap at 50",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "has-new",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "no_new_companies",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "node-has-new",
+      "name": "Has New Companies?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "__rl": true,
+          "mode": "id"
+        },
+        "sheetName": {
+          "value": "HVAC Companies",
+          "__rl": true,
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "domain": "={{ $json.domain }}",
+            "website": "={{ $json.website }}",
+            "phone": "={{ $json.phone }}",
+            "description": "={{ $json.description }}",
+            "search_query": "={{ $json.search_query }}",
+            "date_found": "={{ $json.date_found }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "node-append-sheet",
+      "name": "Append to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2200, 140]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "No new HVAC companies found today — all results were duplicates."
+            }
+          ]
+        }
+      },
+      "id": "node-no-new",
+      "name": "Log No New Companies",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2200, 300]
+    }
+  ],
+  "connections": {
+    "Daily 5:30am": {
+      "main": [
+        [{ "node": "Set Search Queries", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set Search Queries": {
+      "main": [
+        [{ "node": "Loop Over Queries", "type": "main", "index": 0 }]
+      ]
+    },
+    "Loop Over Queries": {
+      "main": [
+        [{ "node": "SerpAPI Search", "type": "main", "index": 0 }],
+        [{ "node": "All Queries Done?", "type": "main", "index": 0 }]
+      ]
+    },
+    "SerpAPI Search": {
+      "main": [
+        [{ "node": "Extract Sponsored Ads", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Sponsored Ads": {
+      "main": [
+        [{ "node": "Aggregate Ads", "type": "main", "index": 0 }]
+      ]
+    },
+    "Aggregate Ads": {
+      "main": [
+        [{ "node": "Loop Over Queries", "type": "main", "index": 0 }]
+      ]
+    },
+    "All Queries Done?": {
+      "main": [
+        [{ "node": "Read Existing Sheet", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Read Existing Sheet": {
+      "main": [
+        [{ "node": "Deduplicate & Cap at 50", "type": "main", "index": 0 }]
+      ]
+    },
+    "Deduplicate & Cap at 50": {
+      "main": [
+        [{ "node": "Has New Companies?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has New Companies?": {
+      "main": [
+        [{ "node": "Append to Google Sheet", "type": "main", "index": 0 }],
+        [{ "node": "Log No New Companies", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}
