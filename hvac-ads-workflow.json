@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract sponsored/paid ads from SerpAPI response\nconst response = $input.first().json;\nconst ads = response.ads || [];\nconst query = response.search_parameters?.q || '';\n\nconst extracted = ads.map(ad => {\n  // Normalize the domain for dedup\n  let domain = '';\n  try {\n    const url = ad.link || ad.displayed_link || '';\n    const cleaned = url.replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0];\n    domain = cleaned.toLowerCase();\n  } catch (e) {\n    domain = (ad.displayed_link || '').toLowerCase();\n  }\n\n  return {\n    company_name: ad.title || '',\n    domain: domain,\n    website: ad.link || ad.displayed_link || '',\n    phone: ad.extensions?.find(e => /^[\\(\\d]/.test(e)) || '',\n    description: ad.description || '',\n    search_query: query,\n    date_found: new Date().toISOString().split('T')[0]\n  };\n}).filter(ad => ad.domain !== '');\n\nreturn extracted.map(ad => ({ json: ad }));"
+        "jsCode": "// Extract sponsored/paid ads from SerpAPI response\nconst response = $input.first().json;\nconst ads = response.ads || [];\nconst query = response.search_parameters?.q || '';\n\nconst extracted = ads.map(ad => {\n  let domain = '';\n  try {\n    const url = ad.link || ad.displayed_link || '';\n    const cleaned = url.replace(/^https?:\\/\\//, '').replace(/^www\\./, '').split('/')[0];\n    domain = cleaned.toLowerCase();\n  } catch (e) {\n    domain = (ad.displayed_link || '').toLowerCase();\n  }\n\n  return {\n    company_name: ad.title || '',\n    domain: domain,\n    website: ad.link || ad.displayed_link || '',\n    phone: ad.extensions?.find(e => /^[\\(\\d]/.test(e)) || '',\n    description: ad.description || '',\n    search_query: query,\n    date_found: new Date().toISOString().split('T')[0]\n  };\n}).filter(ad => ad.domain !== '');\n\nreturn extracted.map(ad => ({ json: ad }));"
       },
       "id": "node-extract-ads",
       "name": "Extract Sponsored Ads",
@@ -174,12 +174,11 @@
       "name": "Read Existing Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1540, 200],
-      "parameters_note": "Operation defaults to 'Read rows'"
+      "position": [1540, 200]
     },
     {
       "parameters": {
-        "jsCode": "// Pull all ads collected across loop iterations\nconst allAdsRaw = $('Aggregate Ads').all();\nlet allAds = [];\nfor (const item of allAdsRaw) {\n  const ads = item.json.all_ads || [];\n  allAds = allAds.concat(ads);\n}\n\n// Pull existing sheet rows for dedup\nconst existingRows = $('Read Existing Sheet').all();\nconst existingDomains = new Set(\n  existingRows.map(r => (r.json.domain || '').toLowerCase()).filter(Boolean)\n);\nconst existingNames = new Set(\n  existingRows.map(r => (r.json.company_name || '').toLowerCase()).filter(Boolean)\n);\n\n// Deduplicate: skip if domain OR name already exists in sheet\nconst seen = new Set();\nconst newAds = [];\n\nfor (const ad of allAds) {\n  const domainKey = ad.domain?.toLowerCase() || '';\n  const nameKey = ad.company_name?.toLowerCase() || '';\n\n  if (!domainKey && !nameKey) continue;\n\n  // Skip duplicates already in the sheet\n  if (existingDomains.has(domainKey) || existingNames.has(nameKey)) continue;\n\n  // Skip within-batch duplicates\n  const dedupKey = domainKey || nameKey;\n  if (seen.has(dedupKey)) continue;\n\n  seen.add(dedupKey);\n  newAds.push(ad);\n\n  if (newAds.length >= 50) break;\n}\n\nif (newAds.length === 0) {\n  return [{ json: { status: 'no_new_companies', count: 0 } }];\n}\n\nreturn newAds.map(ad => ({ json: ad }));"
+        "jsCode": "// Pull all ads collected across loop iterations\nconst allAdsRaw = $('Aggregate Ads').all();\nlet allAds = [];\nfor (const item of allAdsRaw) {\n  const ads = item.json.all_ads || [];\n  allAds = allAds.concat(ads);\n}\n\n// Pull existing sheet rows for dedup\nconst existingRows = $('Read Existing Sheet').all();\nconst existingDomains = new Set(\n  existingRows.map(r => (r.json.domain || '').toLowerCase()).filter(Boolean)\n);\nconst existingNames = new Set(\n  existingRows.map(r => (r.json.company_name || '').toLowerCase()).filter(Boolean)\n);\n\nconst seen = new Set();\nconst newAds = [];\n\nfor (const ad of allAds) {\n  const domainKey = ad.domain?.toLowerCase() || '';\n  const nameKey = ad.company_name?.toLowerCase() || '';\n\n  if (!domainKey && !nameKey) continue;\n  if (existingDomains.has(domainKey) || existingNames.has(nameKey)) continue;\n\n  const dedupKey = domainKey || nameKey;\n  if (seen.has(dedupKey)) continue;\n\n  seen.add(dedupKey);\n  newAds.push(ad);\n\n  if (newAds.length >= 50) break;\n}\n\nif (newAds.length === 0) {\n  return [{ json: { status: 'no_new_companies', count: 0 } }];\n}\n\nreturn newAds.map(ad => ({ json: ad }));"
       },
       "id": "node-dedup",
       "name": "Deduplicate & Cap at 50",
@@ -211,6 +210,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// For each new company, call Apollo.io to find the owner/decision-maker contact.\n// Apollo is called per-company so we can handle failures gracefully without\n// losing the rest of the batch.\n\nconst apolloApiKey = $env.APOLLO_API_KEY;\nconst companies = $input.all();\nconst enriched = [];\n\n// Titles to match — ordered by preference (owner first, then exec fallbacks)\nconst targetTitles = [\n  'owner',\n  'co-owner',\n  'president',\n  'founder',\n  'co-founder',\n  'ceo',\n  'chief executive',\n  'general manager',\n  'partner'\n];\n\nfor (const item of companies) {\n  const company = item.json;\n  let ownerName    = '';\n  let ownerTitle   = '';\n  let ownerEmail   = '';\n  let ownerPhone   = '';\n  let ownerLinkedin = '';\n\n  if (company.domain) {\n    try {\n      const res = await this.helpers.request({\n        method: 'POST',\n        url: 'https://api.apollo.io/v1/people/search',\n        headers: {\n          'Content-Type': 'application/json',\n          'Cache-Control': 'no-cache'\n        },\n        body: JSON.stringify({\n          api_key: apolloApiKey,\n          q_organization_domains: [company.domain],\n          person_titles: targetTitles,\n          per_page: 5,\n          page: 1\n        })\n      });\n\n      const data = JSON.parse(res);\n      const people = data.people || [];\n\n      // Pick the best match: prefer titles earlier in targetTitles\n      let best = null;\n      let bestScore = Infinity;\n      for (const person of people) {\n        const title = (person.title || '').toLowerCase();\n        const score = targetTitles.findIndex(t => title.includes(t));\n        if (score !== -1 && score < bestScore) {\n          bestScore = score;\n          best = person;\n        }\n      }\n      // Fall back to first result if no title matched (still a contact)\n      const person = best || people[0];\n\n      if (person) {\n        ownerName     = `${person.first_name || ''} ${person.last_name || ''}`.trim();\n        ownerTitle    = person.title || '';\n        ownerEmail    = person.email || '';\n        ownerPhone    = person.phone_numbers?.[0]?.sanitized_number\n                        || person.phone_numbers?.[0]?.raw_number\n                        || '';\n        ownerLinkedin = person.linkedin_url || '';\n      }\n    } catch (e) {\n      // Apollo lookup failed for this domain — continue without owner info\n    }\n  }\n\n  enriched.push({\n    json: {\n      ...company,\n      owner_name:     ownerName,\n      owner_title:    ownerTitle,\n      owner_email:    ownerEmail,\n      owner_phone:    ownerPhone,\n      owner_linkedin: ownerLinkedin\n    }\n  });\n\n  // Respect Apollo rate limits (~1 req/sec on most plans)\n  await new Promise(resolve => setTimeout(resolve, 1100));\n}\n\nreturn enriched;"
+      },
+      "id": "node-apollo-enrich",
+      "name": "Enrich Owner via Apollo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 140]
+    },
+    {
+      "parameters": {
         "operation": "append",
         "documentId": {
           "value": "YOUR_GOOGLE_SHEET_ID_HERE",
@@ -225,13 +234,18 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "company_name": "={{ $json.company_name }}",
-            "domain": "={{ $json.domain }}",
-            "website": "={{ $json.website }}",
-            "phone": "={{ $json.phone }}",
-            "description": "={{ $json.description }}",
-            "search_query": "={{ $json.search_query }}",
-            "date_found": "={{ $json.date_found }}"
+            "company_name":  "={{ $json.company_name }}",
+            "domain":        "={{ $json.domain }}",
+            "website":       "={{ $json.website }}",
+            "phone":         "={{ $json.phone }}",
+            "description":   "={{ $json.description }}",
+            "search_query":  "={{ $json.search_query }}",
+            "date_found":    "={{ $json.date_found }}",
+            "owner_name":    "={{ $json.owner_name }}",
+            "owner_title":   "={{ $json.owner_title }}",
+            "owner_email":   "={{ $json.owner_email }}",
+            "owner_phone":   "={{ $json.owner_phone }}",
+            "owner_linkedin":"={{ $json.owner_linkedin }}"
           }
         },
         "options": {}
@@ -240,7 +254,7 @@
       "name": "Append to Google Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [2200, 140]
+      "position": [2440, 140]
     },
     {
       "parameters": {
@@ -312,8 +326,13 @@
     },
     "Has New Companies?": {
       "main": [
-        [{ "node": "Append to Google Sheet", "type": "main", "index": 0 }],
-        [{ "node": "Log No New Companies", "type": "main", "index": 0 }]
+        [{ "node": "Enrich Owner via Apollo", "type": "main", "index": 0 }],
+        [{ "node": "Log No New Companies",   "type": "main", "index": 0 }]
+      ]
+    },
+    "Enrich Owner via Apollo": {
+      "main": [
+        [{ "node": "Append to Google Sheet", "type": "main", "index": 0 }]
       ]
     }
   },
