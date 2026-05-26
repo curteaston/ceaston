@@ -1476,154 +1476,311 @@ p { margin: 0; text-wrap: pretty; }
 .divider { height: 1px; background: var(--slate-200); width: 100%; }
 .muted { color: var(--slate-500); }
 </style>
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel">
+  <script>function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 /* eslint-disable */
 // Icons — minimal stroked SVG. All 1.6 stroke, 24x24 viewBox.
-const Icon = ({ children, size = 18, stroke = 1.6, ...p }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" {...p}>
-    {children}
-  </svg>
-);
-
-const IconPhone = (p) => <Icon {...p}>
-  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/>
-</Icon>;
-
-const IconBolt = (p) => <Icon {...p}>
-  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-</Icon>;
-
-const IconCheckCircle = (p) => <Icon {...p} stroke={1.8}>
-  <circle cx="12" cy="12" r="10"/>
-  <polyline points="9 12 11 14 15 10"/>
-</Icon>;
-
-const IconCheck = (p) => <Icon {...p} stroke={2}>
-  <polyline points="20 6 9 17 4 12"/>
-</Icon>;
-
-const IconCalendar = (p) => <Icon {...p}>
-  <rect x="3" y="4" width="18" height="18" rx="2"/>
-  <line x1="3" y1="10" x2="21" y2="10"/>
-  <line x1="8" y1="2" x2="8" y2="6"/>
-  <line x1="16" y1="2" x2="16" y2="6"/>
-</Icon>;
-
-const IconAlert = (p) => <Icon {...p}>
-  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-  <line x1="12" y1="9" x2="12" y2="13"/>
-  <line x1="12" y1="17" x2="12.01" y2="17"/>
-</Icon>;
-
-const IconShield = (p) => <Icon {...p}>
-  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-</Icon>;
-
-const IconClipboard = (p) => <Icon {...p}>
-  <path d="M9 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/>
-  <rect x="9" y="3" width="6" height="4" rx="1"/>
-  <line x1="9" y1="12" x2="15" y2="12"/>
-  <line x1="9" y1="16" x2="13" y2="16"/>
-</Icon>;
-
-const IconChart = (p) => <Icon {...p}>
-  <line x1="3" y1="20" x2="21" y2="20"/>
-  <rect x="6" y="11" width="3" height="9"/>
-  <rect x="11" y="6" width="3" height="14"/>
-  <rect x="16" y="14" width="3" height="6"/>
-</Icon>;
-
-const IconRoute = (p) => <Icon {...p}>
-  <circle cx="6" cy="19" r="3"/>
-  <circle cx="18" cy="5" r="3"/>
-  <path d="M6.7 17.3a4 4 0 0 1-1.7-3.3v-2a4 4 0 0 1 4-4h6a4 4 0 0 0 4-4"/>
-</Icon>;
-
-const IconHvac = (p) => <Icon {...p}>
-  <rect x="3" y="4" width="18" height="12" rx="2"/>
-  <line x1="3" y1="9" x2="21" y2="9"/>
-  <line x1="3" y1="13" x2="21" y2="13"/>
-  <line x1="8" y1="20" x2="8" y2="16"/>
-  <line x1="16" y1="20" x2="16" y2="16"/>
-</Icon>;
-
-const IconSnow = (p) => <Icon {...p}>
-  <line x1="12" y1="2" x2="12" y2="22"/>
-  <line x1="2" y1="12" x2="22" y2="12"/>
-  <line x1="5" y1="5" x2="19" y2="19"/>
-  <line x1="19" y1="5" x2="5" y2="19"/>
-</Icon>;
-
-const IconFlame = (p) => <Icon {...p}>
-  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c0-1.66 1-2 1.5-3 1-2-1-4-2-5-1.5 1.5-3 3-3 5.5z"/>
-  <path d="M16 11c-.7-1.7-2-3-2-3s-1 1-1 2c-1-1-2-2-2-2-2 1.5-4 4-4 7a6 6 0 0 0 12 0c0-1.5-1-3-3-4z"/>
-</Icon>;
-
-const IconWrench = (p) => <Icon {...p}>
-  <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6a1.4 1.4 0 1 0 2 2l6-6a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.1-2.1z"/>
-</Icon>;
-
-const IconTruck = (p) => <Icon {...p}>
-  <path d="M1 6h13v11H1z"/>
-  <path d="M14 9h4l3 4v4h-7z"/>
-  <circle cx="5.5" cy="18.5" r="2"/>
-  <circle cx="17.5" cy="18.5" r="2"/>
-</Icon>;
-
-const IconTool = (p) => <Icon {...p}>
-  <path d="M14.7 6.3a4 4 0 1 0 5.7 5.7l-2.7-2.7L20 7l-3-3-2.3 2.3z"/>
-  <path d="M14 12 4 22"/>
-</Icon>;
-
-const IconUser = (p) => <Icon {...p}>
-  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-  <circle cx="12" cy="7" r="4"/>
-</Icon>;
-
-const IconArrow = (p) => <Icon {...p}>
-  <line x1="5" y1="12" x2="19" y2="12"/>
-  <polyline points="13 6 19 12 13 18"/>
-</Icon>;
-
-const IconPlus = (p) => <Icon {...p}>
-  <line x1="12" y1="5" x2="12" y2="19"/>
-  <line x1="5" y1="12" x2="19" y2="12"/>
-</Icon>;
-
-const IconClock = (p) => <Icon {...p}>
-  <circle cx="12" cy="12" r="10"/>
-  <polyline points="12 6 12 12 16 14"/>
-</Icon>;
-
-const IconMic = (p) => <Icon {...p}>
-  <rect x="9" y="2" width="6" height="12" rx="3"/>
-  <path d="M5 10a7 7 0 0 0 14 0"/>
-  <line x1="12" y1="17" x2="12" y2="22"/>
-</Icon>;
-
+const Icon = ({
+  children,
+  size = 18,
+  stroke = 1.6,
+  ...p
+}) => /*#__PURE__*/React.createElement("svg", _extends({
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: stroke,
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+}, p), children);
+const IconPhone = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"
+}));
+const IconBolt = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("polygon", {
+  points: "13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+}));
+const IconCheckCircle = p => /*#__PURE__*/React.createElement(Icon, _extends({}, p, {
+  stroke: 1.8
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "9 12 11 14 15 10"
+}));
+const IconCheck = p => /*#__PURE__*/React.createElement(Icon, _extends({}, p, {
+  stroke: 2
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "20 6 9 17 4 12"
+}));
+const IconCalendar = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("rect", {
+  x: "3",
+  y: "4",
+  width: "18",
+  height: "18",
+  rx: "2"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "3",
+  y1: "10",
+  x2: "21",
+  y2: "10"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "8",
+  y1: "2",
+  x2: "8",
+  y2: "6"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "16",
+  y1: "2",
+  x2: "16",
+  y2: "6"
+}));
+const IconAlert = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "9",
+  x2: "12",
+  y2: "13"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "17",
+  x2: "12.01",
+  y2: "17"
+}));
+const IconShield = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+}));
+const IconClipboard = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M9 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "9",
+  y: "3",
+  width: "6",
+  height: "4",
+  rx: "1"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "9",
+  y1: "12",
+  x2: "15",
+  y2: "12"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "9",
+  y1: "16",
+  x2: "13",
+  y2: "16"
+}));
+const IconChart = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("line", {
+  x1: "3",
+  y1: "20",
+  x2: "21",
+  y2: "20"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "6",
+  y: "11",
+  width: "3",
+  height: "9"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "11",
+  y: "6",
+  width: "3",
+  height: "14"
+}), /*#__PURE__*/React.createElement("rect", {
+  x: "16",
+  y: "14",
+  width: "3",
+  height: "6"
+}));
+const IconRoute = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "6",
+  cy: "19",
+  r: "3"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "18",
+  cy: "5",
+  r: "3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M6.7 17.3a4 4 0 0 1-1.7-3.3v-2a4 4 0 0 1 4-4h6a4 4 0 0 0 4-4"
+}));
+const IconHvac = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("rect", {
+  x: "3",
+  y: "4",
+  width: "18",
+  height: "12",
+  rx: "2"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "3",
+  y1: "9",
+  x2: "21",
+  y2: "9"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "3",
+  y1: "13",
+  x2: "21",
+  y2: "13"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "8",
+  y1: "20",
+  x2: "8",
+  y2: "16"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "16",
+  y1: "20",
+  x2: "16",
+  y2: "16"
+}));
+const IconSnow = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "2",
+  x2: "12",
+  y2: "22"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "2",
+  y1: "12",
+  x2: "22",
+  y2: "12"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "5",
+  y1: "5",
+  x2: "19",
+  y2: "19"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "19",
+  y1: "5",
+  x2: "5",
+  y2: "19"
+}));
+const IconFlame = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M8.5 14.5A2.5 2.5 0 0 0 11 17c0-1.66 1-2 1.5-3 1-2-1-4-2-5-1.5 1.5-3 3-3 5.5z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M16 11c-.7-1.7-2-3-2-3s-1 1-1 2c-1-1-2-2-2-2-2 1.5-4 4-4 7a6 6 0 0 0 12 0c0-1.5-1-3-3-4z"
+}));
+const IconWrench = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M14.7 6.3a4 4 0 0 0-5.4 5.4l-6 6a1.4 1.4 0 1 0 2 2l6-6a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.1-2.1z"
+}));
+const IconTruck = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M1 6h13v11H1z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M14 9h4l3 4v4h-7z"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "5.5",
+  cy: "18.5",
+  r: "2"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "17.5",
+  cy: "18.5",
+  r: "2"
+}));
+const IconTool = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M14.7 6.3a4 4 0 1 0 5.7 5.7l-2.7-2.7L20 7l-3-3-2.3 2.3z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M14 12 4 22"
+}));
+const IconUser = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("path", {
+  d: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "7",
+  r: "4"
+}));
+const IconArrow = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("line", {
+  x1: "5",
+  y1: "12",
+  x2: "19",
+  y2: "12"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "13 6 19 12 13 18"
+}));
+const IconPlus = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "5",
+  x2: "12",
+  y2: "19"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "5",
+  y1: "12",
+  x2: "19",
+  y2: "12"
+}));
+const IconClock = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "10"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "12 6 12 12 16 14"
+}));
+const IconMic = p => /*#__PURE__*/React.createElement(Icon, p, /*#__PURE__*/React.createElement("rect", {
+  x: "9",
+  y: "2",
+  width: "6",
+  height: "12",
+  rx: "3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M5 10a7 7 0 0 0 14 0"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "17",
+  x2: "12",
+  y2: "22"
+}));
 window.Icons = {
-  IconPhone, IconBolt, IconCheckCircle, IconCheck, IconCalendar, IconAlert,
-  IconShield, IconClipboard, IconChart, IconRoute, IconHvac, IconSnow,
-  IconFlame, IconWrench, IconTruck, IconTool, IconUser, IconArrow, IconPlus,
-  IconClock, IconMic
-};
-
-  </script>
-  <script type="text/babel">
-/* eslint-disable */
-const { useState, useEffect, useRef, useMemo } = React;
+  IconPhone,
+  IconBolt,
+  IconCheckCircle,
+  IconCheck,
+  IconCalendar,
+  IconAlert,
+  IconShield,
+  IconClipboard,
+  IconChart,
+  IconRoute,
+  IconHvac,
+  IconSnow,
+  IconFlame,
+  IconWrench,
+  IconTruck,
+  IconTool,
+  IconUser,
+  IconArrow,
+  IconPlus,
+  IconClock,
+  IconMic
+};</script>
+  <script>/* eslint-disable */
 const {
-  IconPhone, IconBolt, IconCheckCircle, IconCheck, IconCalendar, IconAlert,
-  IconShield, IconClipboard, IconChart, IconRoute, IconHvac, IconSnow,
-  IconFlame, IconWrench, IconTruck, IconTool, IconUser, IconArrow, IconPlus,
-  IconClock, IconMic
+  useState,
+  useEffect,
+  useRef,
+  useMemo
+} = React;
+const {
+  IconPhone,
+  IconBolt,
+  IconCheckCircle,
+  IconCheck,
+  IconCalendar,
+  IconAlert,
+  IconShield,
+  IconClipboard,
+  IconChart,
+  IconRoute,
+  IconHvac,
+  IconSnow,
+  IconFlame,
+  IconWrench,
+  IconTruck,
+  IconTool,
+  IconUser,
+  IconArrow,
+  IconPlus,
+  IconClock,
+  IconMic
 } = window.Icons;
 
 /* =========================================================
@@ -1639,193 +1796,275 @@ function Nav() {
   }, []);
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [menuOpen]);
   const close = () => setMenuOpen(false);
-  return (
-    <div className={`nav-wrap ${scrolled ? 'scrolled' : ''}`}>
-      <div className="container nav">
-        <a href="#top" className="nav-logo" aria-label="RunWise Systems" onClick={close}>
-          <img src="data:image/png;base64,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" alt="RunWise Systems" />
-        </a>
-        <nav className="nav-links">
-          <a href="#what">What it does</a>
-          <a href="#how">How it works</a>
-          <a href="#pilot">Pilot</a>
-          <a href="#faq">FAQ</a>
-        </nav>
-        <div className="nav-cta">
-          <a href="#challenge" className="btn btn-ghost btn-sm">See the demo</a>
-          <a href="#audit" className="btn btn-primary btn-sm">Get the audit</a>
-        </div>
-        <button
-          className={`nav-burger ${menuOpen ? 'open' : ''}`}
-          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen(o => !o)}
-        >
-          <span /><span /><span />
-        </button>
-      </div>
-      <div className={`mobile-menu ${menuOpen ? 'open' : ''}`} onClick={close}>
-        <div className="mobile-menu-inner" onClick={e => e.stopPropagation()}>
-          <a href="#what" onClick={close}>What it does</a>
-          <a href="#how" onClick={close}>How it works</a>
-          <a href="#pilot" onClick={close}>Pilot</a>
-          <a href="#faq" onClick={close}>FAQ</a>
-          <div className="mobile-menu-cta">
-            <a href="#challenge" className="btn btn-ghost" onClick={close}>See the demo</a>
-            <a href="#audit" className="btn btn-primary" onClick={close}>Get the audit</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: `nav-wrap ${scrolled ? 'scrolled' : ''}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container nav"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#top",
+    className: "nav-logo",
+    "aria-label": "RunWise Systems",
+    onClick: close
+  }, /*#__PURE__*/React.createElement("img", {
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAY0AAAB4CAYAAAAOj67PAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsQAAA7EAZUrDhsAAENfSURBVHhe7Z0JfJxV1f/vuTPpkqUUFLCobLIWmhRbmjRJqQgICMKfV8rWpBVFXhRQeRFlaRKSFIoCIiiLyCJNylbcQBAElNIsk9LSJpUdWRSQtVumaUlm7vn/7jM3k0wyM88zM89k6/P9fCZzz51nJs9y7z3nbueQ2IHY3Fb5mXFKFrDq4dyye9822R4eHh4eDtkhlEZny1nThJS1RHSKyRIs+C0p6Gd5xQ23mSwPDw8PDxvGtNIIrqo8jFnU4yJPMFmDYCHeE8zX5antt8nSh7aZbA8PDw+POIxJpbE1ML9ECboSPYtjTZY9LD7G3fhlt2/7r3eZuXyzyfXw8PDw6MeYUhpbVlXOlSyqkfxqJCcNWGxmEjeHw+Oun1x65waT6+Hh4eEBxoTS6GytOIakVhZUbrIyhgVvJ0F3CKmuzj982X9NtoeHh8cOzahWGtacheKbiWi2ycoKzPxbP/uunjj7nrdMloeHh8cOyahVGsFARRETteICJpqsrIPeR4MivmqnWcteMVkeHh4eOxTSvI9GrhtKhaEhQZU+li8H2yoftJbxenh4eOxgjMqexpbVZ35Whv0fGXHYYCEelawW55UsC5gsDw8PjzHN6Oxp9PjmmtSwAo17ApNsDQYqntzceub+JtvDw8NjzDIqlYaUNMckRwZER0vyr93SWnmwyfHw8PAYk4xKpcFCjCylAYhEniS+yYgeHh4eY5Jhn9P4qOnbBRNyus/GqexCrLqFT9ydbF+EPn5iTs8WI444un3bJ3s7yj08PMYqw9bT2LB63k6dgYo6KIB3SNCN0F41guRVQsn3goHKS8xhg8DxpSY5IvGL3Ckm6eHh4THmGHKlod2TBwMV140LT3iHiKqQNSnyST9I/Lyzdf4PjRQDM4+4oan+bOvsesckPTw8PMYcQ6Y0tjadsUewreIGKfgdQXQxsvIjnyRAyiVqXUWekaKgR+KaqxC30Utwdz9yedCIHh4eHmOOrM9pdLYtOIRYXQpFUWGyHBMmLttpVmOLES2CbZVom0ckG0NhnjW5tPF1IydEO1Yk5ouIxWRcTBcJvjm/ZNmj5mMPDw+PEUvWlMbWtsqZSogr8Q8SxrKwh4/PL2583Ahi86qKUh9TsxFHDMzicb/g708saXzTZMVla+v8k5SUl+GelJisPphfYCmvKZi1tNHkeHh4eIw4XFcaWwLzp0qSdUh+M5KTPqS4JG92Y5sRdS/jUrwtiUgjAOY/ENGSvOKG1SYnLsFAxQLcaZw72e7jYMHv4s/1XlAoDw+PkYhrSmNTS8V+fikWC6LTTVbG5HXJiXTkPduNKDrbKh4lQV834rDh1HHhlraK7+F8L8FN3sdkOYf5Eyb6dbg7fOPkOfduNLkeHh4ew0rGSkO7J0crehmS8yI5rrEyv7jhCJO2CLZVbMEpFxhxSGEhtuFm3Sl94trcmQ3/NtmDiOwj6f4+zvMiiLtHctOHmbv0/yXBP88rWeatzPLwyIBpZTUlROpWIybkwCkvz1y+fHnYiB79SFtp6PF5lvLHSGZlCSway6sKShoXGVF0ti4oJMntRswCvAGaYSOUw0Yi2miliWHh0wYp6Llg17Ynk62M2vL82btST+gi3NDzIQ5eRuwGzI0hn7xy8uFL/2VyPDw8UmB6ec3RLPhJIybkgCkv+T2lEZ+UlYZeDYXWaxm+WGSysgPTsfklS/9mJNEZqLgAjfmvjJiAhA3/J8S8WSBPMW3EuX8CBbTJF5Ybt+V0bcxkB3fXqm99UXH4p0hqZZF1dI+HBR03qXjpsybLw8PDIZ7SyJyUlMbGtQsn53QrPY6/WyQne2zt2l7Q37IPBiruHzhfggZ0qWTxByHUmqEeutmyeuFBFApfCuW00GQNGbjuNwuKG/Y14pAxrbTmJJJKb8jMEIIuFxtwHR8R8QdQ6M8LCj+5rmnJsLu7H4sUzak6gVlcacTEMH3Q0Vx3opFcYVp51QwU2Eh7IeUH61fWPm+lXaKovOp+lKMvGTEhkuQP162sbfGURuakpDTQcNeg4bYvfBnCzKsLShoPN6IFehr/RQP9OUvQk8QsziyY3Wj78N0mspSYF5Ggk03WsIBG9//llTT82YhDQlF59dl4uysiuQ7qvtANym/8297/3Zo1t/dYuR4Zc2jxZbv7cvzvodTYbuZFL/bAjqbaV42YEfsdd+H43ODO76KR+YyWUWc/Cm2kL7z4Ym23dUCGRK4rR/upS9qOoWBty9lGn12zprbLUxqZk9KOcNx8V62QRKAExAy9bHpuwZeiCkNDomKoFUZna8UxwbaKv+MePDfcCkOD8zjWJMcKuuLPwOv2nomfe62wrPo7Vq5HxvyzbckHeIvZJJsY5Vodh8I4rVdhaIjErjm7hE8zYsb4xvmOx1tShaHBAU9phWFEjwxxrDRUy6kT0XDPNGJ2kRSzwc0fUtFVVLAS7uq/4S/bbGmt+GZnW8VqkvQ3FL8jTfbwQ1xmUmMOVPK90MDcoYceps6tSe5uxsMRzPQnk0wKsXtL2vEcv2uSUZjleSaZMfgtrTSc8Ih593ABx0qj0z/hMJPMLiyezp/VsNZIFiwp2kCykPeYZFYJtlUuDAYqX5aSHkLPQlvAEZg/gpW/RLs40fMuYRU6ALK2nu6PHDBUUOHHgfnZWaU1YqDT/SFepYchTIZHmoQ57EhpMIkjZs2qybhcTS+vmYq3QSsrYQyUTS9blPEimrlza/yoi18zYhJYhXt6HjaChws4VhqSabZJZg29J8EneJB1AovF6mnoz7O5akj3pjoDlT/qDFTofRi/wz8+MPJJBCiHu7cL3q+guOFy7RNLT9TvNPu+1yAvzy9uOBNHaMvnw8jR2WcC0Yh2E+8GaGQOln7/wyUlF000WR5p8ELLVf9CAV5vxISgruV8mhM+zohpw0Kda5KDUETfM8m02RxWZUQ02YgJYRYBMzxnQUptRe4/7V8eiUAZcUawrWI5Dj/ViFlCfTe/eNkdRrDobD1jd5I571sCi4/zSxp2tdIuomN7jAtPuAAl7IdopeL/Poub8L/jumvvT2dzxW7kEy34HdsVHZmCCrG4oKTBhdVMzsjyRHhSoLAf7Giqc83bwI5IUXlVHeqwk/KytL2pLu1VgXvNrZkwOazexf/axWTFwhzcztv3eKXl2k6TkzKFZdU/g0HxEyMmhsWl7c11PzOShws47mmwyK5Vi0bh0YEKQ8M0rl8XF51nF9EKqTe2B0TtAiWBwuCXnSgMTUFZ44c+9h2NXlFE0WURVJoR6ybebfDgT9MrX4zokQaKpLMhKhboMdektEimPzuHGMo9gcLQEOVPlBMqjZQWKA+O5jPCioZ0heGOgKOCsTUw/wt4SHsYMRts5By/tmIHIUW/oEtEn9nceub+RkqbbYGKfToDFbdaPRgHsT2g0G42SUdMnH3PW4Lk0ah9m0xWVsB5FZvkDoESfF0mjdmOjt4jgTLzthETAmNk12llYpYRU4aJzzHJhOA80h6imlFWsye0xjQjJuOVf7bWvmzSHi7hyHLfElhwqiRebkTXIaVOzpu9LO5kFRr354mobxKe+cr8ksZaI6WEie1xOWrFWSbLEWEhDtypuCHltetQtiVK0NM4/1yT5TokqTjv8KWrjJhVUhieOjccppUmPQgpxWeJ1FT0XqehAOphEMf+xBTz19c31//ViGMevXpMdosvkE99noScyEL9V/jkB+tX1Ka1mbWorPpG1PofGDEh2o1PR3N91I2PU4rKFh2CQuloTkApPmJ9S33CcpKIwtKq81Dubf1H4RquxTXYD2G5hJ6c3xBWRSQYhq3cmZg/o0goyfQJrlY7HX2hvXnxi3iHzsweM2acm9OTt9uhxLQHDK0pkuXu6D1uJxbv41+/R35+Z92zi18zh6eMI6Whh3CMRe46egltQXFj3DX5H/xjXn5e7oSYcU/c7W047cMLipe+YLJsMY33FWi801qDvp3VTp8tWbbFiCkRbKs4DuebtUYO9+PiguKGXxgxqzhVGqk07IeV1uwRlnwDCqLT9fu3tTfVxViphx2x6GCl6H+NmJBNPnnp2ytqo16TnVA0t2ayCCvbDa1KyJvWN9W+YUSLwvKaE9FmxBtSCx0w5eWfJtg8RoVlNWVQqqfCZP8f1NAvmvwY8Nzfxd+/kBIPtLfU/8Nk21JUVvMVQWx7POrluo6m+pRXTBaVVd2EtuJCIyaH+b725vqUDDhNUXnVn3GbTjJiEri8vak+Jv7OtNJFB0ppPxHPE7uu6Hjy+q1GTMiMGTW53bnhs4glroOLSdgYiBE3R89KyXevWykfEaJWmU8yIlJOw2jf6ERmOg69xZ3MR3HB8/03jn1YMj+8k1/+Y8WK2pD5yBanSqMJBcH1fQE48bfyxotD5fTGuA8nuGrB8ShYjxmxD+Z/KaZvTJrd8JLJiUuwtfLrQuo4Fpk5VUR3e1rBrMa0V1R0tlacAcvoPiO6CqypPxaUNP6PEbNKNpSGgQrLq59GYbTdB4My8x4asy9YScO0sqrjJdHgcjIQH+3cvqI2pSHDaXNrviDD/B8jJgQVdU5Hc22TES0Ky6oWw1C5wogxoEyd2rGy/vdGtNDuPvDB9UjGrNpzwF8Fq0tgxdoaUvPmzfO98t5B7+O8PmuyEhKi8J4vrLzK9tp70SvctvkK3kWrsrPJsoG7wz2hPfuvbrJD7zLP69z5E/yPQaGgY+EP25vklIGNstMd4X4f7bpmRe3HRhyE7lVsDCntsPWnuJe2q7jiwuJNRfQTGBsPmZyUMYsOfoByc6nz+z4A5ldZissHlsdEOBofZrJ26roOK6pMpDA0rFR8RUX0JSnFizrmuA76ZHKjdLbNP62zrXIdrk6HULUUBhrXVhSWOnz36+jiw/rjKsiw1uxBNy+j5cYFsxvvRzfx+0Z0FRTYsbDslslH30Yl+tTICYElt8ehxZdl3fdZtiHVZ+3q3pZlPTP9BWKqCkNzPH5xNaz8U4yckEjvxvo/tviVL6WNftty8k5PreGicdKf820jOCI3uMuR9gpDo6/RHSt+INOPWLT/phCvQt1bkrbC0JDYRwpeXlRWfV/hMRc7uKZYppXXnDo5pF7DD/0sbYWhIToAbdxDhWXVTYWzaw41uQmxVRo6XgYq6gQjugYa8WvQU4ixzAaCBxITT2Mw9CNJ8oVgW2VnZ6CiBT2iZ/DaSEI+AKvV2kCE//MEsZoNa7y0oLixJn/W0r8WFC97Or+4cTFkbbF+Cy89zpgQ/EbCNedOmVTcqMdgqyOSq+y+bdVZQ+680G3QA3gL1rftPgKNHO/L5qKMoYHEUXpY7ZDSK76kSK1EhoPhliQQTWBBywvLFi0wOQlBvXK2oohSC9UMI3DQHit7dN1yvriB2NoLZQsRZ2VDnx7eUoqewb1xb7MziTPEtrxHdK/B5NiCnjluGj+IC9VtmCsQiTLhU83TS2uSGgv2D4vF503KRbgDjbgO3JQQ/sdCfQOdDivloyLMxlXPxcvS/CzEo1Ach+P/HJdXsixgHRWH/OKGe/A6RDsAhBh3Ug6/PVP3XoyYNvg/9Tgx2wm8VAkr35hwKYLn5Sheip7gM8lRjVLyZz7yrUQBc0Xpo9L7BMnbzG7shEwMbXkC5dB2vB516GinmyqnHbFoGupJyr1efGfvwjLlWDnhnGyVBgvumtATjIZVcIsDSy8p0O6EdG/XZLmGHppFr6HBiAnRk9zavQ6O1/NseHMXXNskBYU7vbwq4ciIAw0vXXc5zkJPGiWnc2IoxsutU5jF45ayKG440S52d3+0x1gdKVB/Fz/yB5PdB9Pdem7CSGmTX9KgH4ajscMUyPpu/aEBzZ4TlBhnUqOdb+CKp5i0K+AGTmTWjU9i6z0QuGEbNO8TRkyI/q0u/6SjjJgUcrAQITHOvltYXnMA7pf9knumJ61rdJnxcsISNKp7GtF9iE6dPqcqqTPU0ITdb8SBWd3kqo0P9Fp/XVhWE3eu1FZp5Bffsw5PIemEcyrAUvixk5VPOLGUJq/7ehYNx6eiLAaiv5tf0vhNH4W/BIvlNyZbW0S5ejK7s63yz5tXzU9n3DkKlNOpUEzuuUMZO84LHfkkUiwSTlB6AKIvF5WppI0PemuOhm+Ile28htUbYTHfiClDxMcXzrnCNo6+k3MxuO6gUM87oX1JcW8Jpzyngm/83CQHUVRe/V3crLT3t6QI9KO6Ww/HGTmKg56GEGHiU2DB23ZnbUFDiR6AXh1iC3ojjpSGpSwUl6Tas7Bj4qx73ygobjyPVc/n8D+uRpa15BYF5yQfy5eDgcoH4k3CO6Xb/+lJOHmXfNxQoY5NboRRSdHcmr1xP2wn4TQyRzpe0TOaQbnbhpdeWpt642OzF6M7TI8ws+0yS/yO7dBRly/vTBhV6U8I6zgfLG17G0xOPPDiXilyXWkoae1yt20vcU9X4QzO8DPtdcCUl8fpFXtQdtPxHBfj0w3msMQQHQAFNcibuLX/hYVN5NIY8C/FK3jTxsF1aL9vQcaTMIS1Xz1H6KEq7bDVcg7ZD0dKY6dZy14hoTLtEm2R0l9h0rbA+khqPccMQ81ubDPZrlMw+/4P8D+uyPNNnIKbfjEKRaTBInGanoTvbKv4U2fLWU52p8agQ8wy9xyN33zPZGXEBF93iUmORojDfBfu6XgjJwTP/SM9aW7EscgHKGOXhFR4v46muly8vjAxFMynMM9CWfm1OcYWVPivWDunE/BioHYDjllhxITo4ZhDy2sKjRgXKIw0JsAHwPTtqVNrEg476tVFxBHHpTa0dLTWZsNp6DHmPSF4bk/lbP+gvKOl7oE1zbX/1ivV9BLvdc2L2/Ecq0JKzcJRtopDSTVoWIhJ1jupHxYsnmCpZrQ31R3U3lR/Mt4v6WiuOx/n8LWOpvq9SNEJUB4ODWw6dIMK68VCURwpDU1+ybJHUWgTdp1sYb4wd9bvHFmIwbaF03GycS1nrSxw876c6TBUqtDM27ugPH5RUNK4J05iIR6M1UtApTqZfL4OKI9HdVQ/62CHaIWkSH0Vv5exuxEiMSqX3up9EIXl1Xq1m6NYJTAm/m6SYw/mv4zvpgM6muuvs7zSGvT4/LrW+udQ6S9UgubhOEcbFEPczwVPXNhZjI0kgZkibs4pY4MF5TdpgCbaln+Mo0aTnA27pQ7H3WTZH/TKrkkWcVI/U5RzW4eRLGg/k7SYPrvqcHzPdjk1wFfV2e3Ndcd1PLs4JrxEf9a11D4G5XE4FEeNyUoKlMwVegLeiM6VhgaN5k9RYG2tk4FA2fwpv6RxqRFtYREeZFHgNx7uVRYD420MNfpa8ksapukVVzgva8UPlMfXkX6uM1DxuN6Bbh3oAN2Lk4663TZkYfNlukhB+xaV1kxP9JpWXnVUUVn1+UXl1bfKkHoJFWKe+aotLGRMgK6xAwcm++Upq1bVJvU8oDeCoWVw5mlYJndoGZJKL71FsU0OJQnMpIS0X47O4mlnlm3iCXF2OJ/BnDUHhfZ7gxTbLhpSYWk7l0kDFJSS8TeIDgQ9ncvbVy7+nRFtgeKow3duMGJC9Aq37tzdol6PU1IaGuUPn4oC4GhTnOEDJYStA7P+oAGOFnZclI6aVwyFdfJwK4uB6BVXOK/pOMdoYCjc4GPRlWwNtlU+CwXyVZOdlNzihlZY0Jmt0xc8coanSPxaSF6b6AWl8pR1jBDn4YalEpnvlQOnvDgm/U4pkj916sqBia5Hj9s2fjW0QVL3/Hq3N46xbcxRNmdPL79skAdo7UIDb/YT4CzuhmHwWyMlgcoTDYXh+/ZLbVm85FZ884Hgt20XX5C0j0rY0Vr7Tz3Pkey1XW2PBpfS9xjXbh/fhMUT6KFeYyTH4DsX49piXK3EA4ZDtKeTstKYNPO+j6WUKbit4G/tVNzwiRGc0ht0aXX+Nt+coXLIly75/tzv48brAPf9mQMF8rQOFWu5M7Ehb1bjI2g6MhgbpoKu5rP2MsKYhImvGKPB/h9Zv7LW8Wo6y8cVxcbRj4d2mGeSCUGD5MAyJ6nYiscdg+VzycbHERqzjZty6Pc9PnkvKnTQ5CbEJ3jQ6iBrCMzJJrYsbejTwJC1HVrHvfxRYXn13wrLamD0Jl7yrOc5kr36xxkJ5ypnw3KSU5kk7w86ruRA2dCRvZsPU1YaGt2IQ/PYalX0SFKO572ppUKP51nhPWGxX0xH3pOSg7nhQM93oMDcZsQYUNhm4C4/qpXH1tb5SXsTOp4ILL/TcOX2qyzi0OP3OZsoG4WgLN3s1DfOaAO19haTdAwUgu3KO/RIHCgN+qNJJgUG0CDDhxzsAGcSy7STyBdX1EJhkJOQyPMHxoVXQjoamvIpJwowPVD+OkwyKWgHjkHPbGVhGb8PBfJgYVnVpUWlNV87/PBLbZ9FPJRyNHT9r/aV9fa+1xKA3tlfoNCTXh+ua+LOPcIaOUlLaWjySpb+Bjcy6Q5Gn49SdmHul1HXIR9mM7Sr28DiSvrQtPJgKf8cbKtoT7a7vKC4YXmoW+0H5bEEL+cblJg/Scd9+2gAvbhHD5zysqMgWKMQntAtWkzaOUT2Tv6Ybf0ZrWuqfRHH2ZYb7Tm1/9LLwiMWHQZFYhtzA4rlTpNEmm83yWQU+MMcE6AJdcuJ65AP1rbUJ/T8kClKSWfzSAY9sY+Gdh7u0RL0Ap7oHj/u48LyqtcsP1PlVf/nNE46FFDSlWuGfaGcuvHqSfeFf2S7AjQs1XT9nrbS0OR3+c5FcUqgofgfuTMbHK8J7gUNZcTBoBBZKwDZILKSix2Er6RC7Rsr2Fb5QmdbZdyd8ZPn3LsRyuNy9oX2hGK+Fi/b3hbu11UmObZgfj7kpzPG6LAULo8/sZv8jodiYTvU4xSUHVsLXQ9DbQr1TayTsp8AR7ld3d5Su86IQq8AQ6btvCRx3ya6qSU1u8BosF8ZyNaGPlxKdtDBnLTxYsS0gOG4H/6cgffrmeQ6KJA3isqqrpwxtyahx2H8z8+ZZDKgm8ifyUv/RuSnEiOZrBGgjJSGHjryKd/JuLLBS0bT3LiGwmkVTBL8nJUxikCJTSWgzFQ8pWXBQMUrnW0VcScT9fxRQXHjT4QK7Q0xcfRAZr0U2HYVxOiC0S6KX04MB8sjQxtjFdLBeVJGCnZNifpYOBqigqawlt7qPRNQCA7iYAxe5cXkYEKcxLTIvADOzc/Hok3wWflJwPlkbT6jFxXq+Q7KZCqLgJJDYh80eDWhEL8FBfJTK2cAyHCiNIYGYnulsbWt8jxYw2tgFbN+6RCpwbaFMRcRCW1Kg3wy4eam7BnX/La1RpmVyNqGvWwBC8lxMJwo2i2xoEbc5zeCgcq4bqL1fo784oYLKGxNBlrKA/d3G5TFUzA5v51f0piVAFnDyCt4HdHRVHdRNnwIjSSI2NYdfLbRwzpxFnLEw9odTtvyzkKZnWTlJECXT/INjiEzoZuW4UN77xIUmRCXTrza4vc2+6VtjIxM0XE/JKsTUO9igm1ljHb1TuKaovLqR/t7utUOElFAUm5HswYLawVdQqWhdzrjwd8KTfdlk4Xz15Pf4ReCLfOjeRo0aNprZsxGEXwvZf9MzKHoBq9wSA3Zxj23IJn6HpZecL9gdYg7cd/f0craZMeQV7r0Xa088KKC4oZcKItj8mc33m0+HkPwLwZGXPPIKoxG2oGlTgcdVlKzH6x626EpYn5IrwQyYhRrKI7EA0ZMCAk+dercms8hcazJSgzxE6lGZEwXvbtbUY/exLsUitbtIdPjJ4f7/N0Vfv6tLjyarMQESROcTwKlAav3/2BJJHB4RruwTz7S2XqG1VXpJb+koQ5Kpm/Mj+iIrS0LUnOrTrK3x/K6Htc36VFD3qxlz+EhJ53XYOZWlIMr8DoRwjmorjchNzovhPv+ea2s8QzehQL5gXERP6rA+b+Av02DXizeNIfYUW+Fr3SZ8PbulFeX+T9Nvcc8GkED6GjlkfJzFcqorecDggFkkoOA0nEwIU7j/GG+Be/2m+qIXfc1lYz1TddsbG+qW8isDsG1/Ab37iPzkRssmF5ebW12NfN4I8Y5JywLywhI1NO4yLzHBVbxHiRzlhsxSmicrMANjHbdlGTb2Mq9bA0snIHfjSxJZR7R+zKSgetPEFiKO3qDQeWXLLtau2VBT+FOKNsf5hc36pUU5+K70W67dY8F3bg1V72llbhqOdVRXIORABTjJegpzBn4Yhk+Ch86sAhpNw47c3Gg8aHomWRScnz+lONWKCkcfQeK0nGM5ZHIuO0fPIXyt9mIybAN8oSG9PV1TfUJe90dTfVtKAe2S1hRB2xdZ+Ccw37pcxSJ0G3Wtyx+Bddy3oF7vDRFh/vV5R7l4EG8Z+QbDV2Lvr0qLN43qcSgV4fvnJXtl4/pRv3v8Fxi6WxbcAi6hk4nsW/ML274kUlbaOd92heTEfVDvaigpOGXRoxLZ3PFbuQnPRwRmc9g/r/ROrEbbKvUMcmXRKQo67t92+doJ4VGjkvSe693pJL4Ze54/mWyELnZxI0Y4UVl1VfhOi43YkJQBkK4F9OdxL3Wrkn0TnMjJoRYfGtdc110974TdDAaWFiJFyEYtIPB/v6iNIVJYoT3wf+EQk3Z4WVRWdUFMOeTbujCPfy4o7l+0E7uROjloHg2GceMwf+9zG53spPzdwTzs+3N9XONZItbMcLtKJxdsxusmS8TcxEKXinq79dwvY57rTIc3ntt61Vv4z49gu8l9P2lQRvb3NFcF13Zlm0G9TQkJ4jLHZ8fDgxMVFB673omiq6zRjf1hmCgIqHViEb2ROEjvSwv6qQLWnvUrZzqBb2JZ0wyimJ1hp3C0Jg4I/EjGpLQy/IWd22nd4NtFYs2rJ6XfCfuCIVzt16NSmvr2VcvA0RjndTY6MXn67HfswAU8cEm6RjFdIhJJsWXt93eIhzhoPFx5MAwGVrZ+1ja+5nzy0aUA2uMPBNQRrK+aiodtKfdjqbax9ub634Go+Bkzu36LG7OhU6vmaU8QL8r7XLHBrSxpUUll2chwmp8Bvc0ApV34yRiXOEmA90xHQVsVsGsxhgLGcpA+xY6PyJZx70NS+8uFKpXSdAWqKtC5J6JUxi0eSU3vC1Xlj40alfN4B4GcQ97N1b9Hr2xU03aFl59bu7WUNe7KAl2Y/pB3NNfodt4fRpuWtLCjZ6GZnpZ9UIm4cixGhOfarcTXG862xji7bjnNkszeUNPSO6v3YKbjKToidgcHbjfzj8WcxDW7iCvzKOtp6FX60ygiR+hVcjAswA/rBtJIySlsLzqd2gLoo7w0kGGaP+1gdrXjWhLOj2NSPhcTmo8kKI317bU2i7e0b1ilrwKDW/Ua2w8oMDPQe/hTr3wQPn5NZOdEBxfjePrjZgS00prTvJJTvrMoZx72ptqLaNiUE8DFS8lb6m4+Ikw4f78cWB+zBI8vcoHjVp02SyO2wt/anX0O/xXPWG+JJ7CwHfaR7PCiKAnfqOkNEmnXZLgHrQaMRn5uKeXSeZ/d7ZV/mzL82c7bhyGm3XNdUvxoJ0tqVbiOruA+xFHf+zg92gXv08tMoIt/pCqs1UYFtbQ6qhH+zxC2bO1bJMjHa/mkySd7BBPCM71hVQURrqEmY/B/3ow2UtJ5Wg43Wx2jG54TARJsYt+N9enl6Anh0RV796WVIDi/oGU/Od419T/Ba0UjacUozRMw2Mfg3cAUDT7TqDBLkNkmL6JJ5vauCCLUTs01Qusy+gQlWKV8ppufN/xd3Cs9oL5E9kT+jDYVnHDwH00IxRGt1vPhaE8JgfXt/dOYdYbn5KCe+DM+y3RBdqNg05FMgYzb948X2FZdRUOibtvZjCckn+1kQzqctr+m2Dt/neyTzielF63srYF30prE7CGhmBDn4YcTUaLmda+CltqJM47qfdhDSsVHXJVLG41yYSgMOegu/PAIXOusI370UthafXp+N61RkyKYr2SLUKM0vD1hDOZTBm0qkLvK1BSOB6a0chRuBN8ILip0ZUjsKZSn3tgTtigJUc3xOq/wUBF/HmREcT65lq9oWyZEe346WGzr0jqwZd97MjFg65cJOj6orLqJ6eV1ZT090YaURY15a+8d/AKNJ519sNdEVChxoy79nBPDxriNPcGEC916t69F1gNDlymxwffzZqDwv5IUi+bZGKIJkyQE1GeE3u31RSV83dwsNWLSIr0RWNzbCvYeBsu1oGXXdrDz74XYPBctt9xFyYcbooEPqu6Db2Z+/GthNES++DA+pb6qLeLmAtUgjOI/ka7bGlbMCh40qRZDSvwcH9sRFtYjt5J8F50fAxmM+HFfJD1nhqZ9RaIrg62VWYegjPLUDh0KSqD7UowNPQTlZTXGTEuVqQyTiGqH4mjJHFrUZnajEr2qn69+t7Bm7WH0hSHaB/RSy9NetSjdz3jLXUHihapOfXThEKyEc8t5Y15ulfT0VQ/JEvz9YY+/EMnvf9vFJbx33WQMSNHOay0Zo+i8qqrceZxvWH3B+3ltpAU0Wt7/fFffYry6nS+ogDl9+q8zsmv4//dD+Ootqh8UYWej4SiqEY5/wuF+C0oGNuY7Brc5zAsiAuMaDFQK2a0bEuyijsBVlDccD3+/UNGTAgL3j7SAi2lDZn9GiSKrffUSHk3/UDwsFP2MDzUtAeufhdn6ixwDNGp8Spjf5SQjiKcxUCUj0q2v37hWdl6hR0AEyvb8J2jDZSdlC14fGdFOgGQ9KIEFmTbNsQhqw4KB+L0HFGO5uogY2iktxSVVbWjkX4GjfVrYVJv49PL8EraE9EQ86MD/a0dMOWlu3ASTxvRHiv+CJ2OMl2Nlll7I78LiqIW53cCXo560BoSfMv6pvo1RrSIXoDeeQyLLqPob7ix/88kB5E7XnwLJSt5N8+BB8zRAh68NUSFe5J6742cLfNMBgrGlC2B+TYxooefTX55HXpljjZDodDf2N8990CsIS8h7jVi9mFxp2WFjjHCrJw5MOwHGpK03dng+ac8IU5yaOYzesnx07U401Ti3Gi/UYVaiaDc7kcRT7JOYPSqB62K07vD/X46w2ldcQdu2lqw6RIjRIkqjc58McMk0wY3aN/Nq+bHtZL1hrQwh0+CRZJwOAI3d9QPTfWiOBILGIp4j1TcqZggVK4gSQ4aLhxpaJ9BsGZsJ7o1uJeHbAhxdBl3PHJDneegx5p1v2Uox81bCzbGdNvHCtYmRRbrjWgL7sXmCeHOB42YMnq8HL/xkhHtYQ5uzduU4Sqv1NDLb1mJ1HuyKcN3JYriaC0B9rGOmuogBEPG/ItE6H+sobEBRJWGDKsM5jP68Cn6hkkOYqfZ971GQkWXbg1kLMxn9DJpdkOTHm7T6bAUs61MB/h9lM4cSFxQEYdsl2gmtDcvfhDn6sjZIxTMldZu2wRor7g+JU/OpkWG5/q6UBS3Qo0ZiB1v9IOxeF+m3ojxG6lMiD8+HPe+o6X+Njx7W+8A6WIZOz6ZdP5Xz90Rqzk4NuVYRSmwRio6Yl3Tkrg+tfqGpwQ7btiSQpQ8pGnJskdZiJ8bMQY1in1OxYOYntfvUijnw34sUt61nAgiTmnPzXCCe/UjXLztqh108yeTT11txLisbal9L8cvD0c5c91dNurJY6GQLNY7fk3WmESRdKw00MAkdE7olHGfduu9O44UAZ7BkDoo7E9HU/2FeLOdzE4ZFm0ser4WzzPwQPSQaMgni1G+neznShF+wL+NjtB1yGQMIqo00PV3yyqds7mtMmk83ILihp/i5AbFnhhr4UqZhPHUS44VMlNaq60SQAWdrQuchIscdvSmJ/Q2nDY+Z0+fXXW4ScdFd+U7mug4/GY1xIy78/idzei9XIZG40SnO8pHM+tX1j6PRultIyYEx7Q72Qltx3PPXfMJ6ottDHg8g9D47lBGEfQyhNub6r6H9vI0nIsLHmi5G/fwSv/29+do77km05YXV9S+v7OPjsB3v4+bkrkLGxZv4npOam+qP2PNmtqkrk4spbGtdeHeMOFc21HsY2EbDF35wqfhgqNrkXHhthp2tIGCZfmPgSKIiT+SDFjcLioN/G+Zki+x4UXJRbpxNlISSLJPu5TXtzgZtUq7VugJ0d64E/V4pdzY64YBlm0N+Wlv44QPxXbHgBytouKUl9kmQjpxmU60UisYIw0b65rqlo/v7jlIGxIoEbZ7KAbBMCiZf8VCTutoqqtds+b2HvOJY/SeGHz3Vs7t2s8YRzEOM52A81+F756zyU9TUb4d9eCsStcZmH8mkXRz1cny/OKG00w6IVufWzCLVZ/7B+kTe6UTV3wkMtBjLZGaFYm3kZxgoGIjDnYvlgTzvfkljXHDye5o6M17r7970Kww0dEo+Xpl2R54RrsyE3rG+EuExog/gpZ/VxE/K0k+1b5SwIquTW+zm8cOgV7RtzmsyhTTEWhQy2BV7EvEerQlUo+ZYAjxRuTrvR66vWvLDQefykZUyqKyRYcoopNhfJbiXPbA/9R7vnaLlG+xAQriY+S3o0VqhpX2jBMv0gOxlAYaqpvQUOmxOrfYAqXhaCe0jlKHC7O2ycOiu9aKiT0G6AxUrEUjNN2I2jz9QUFxQ1IHc9qNi3YHYkRXwD19F/dUh4n1SIxVDwAek4eHW+jd4bW6TA1zubLOwzXDxxqewhW5Mwnex6TO1opjTDopecUNekWC3nyCmkuXbGmtHBUrfpKhY6n3VxgatEr297i729WhKQ3u6ee3BuZ7SiM5I6Bie4w9rIZ6BJQrd3vK0trUR/bhG1OFZPJVVP2BJbwA99YK3CSJH+lqPiupn6GRTGSoT8dSjwUlx3YFlU+Qayun+oMSM+I3+Xl4eIwOZFc+Z2V1DRpJvQnFMdJH38CXNuvxfOX3PTaawpv2gl4SGn26w4gxoKexz5bVZ+pASglhcm+5bX+I5OiZDPfw8BjRyLBSGe8EjwcayT106Fcj2hKZAKfeyfOpW30T7zfpUYEOnoRe0h/Qy8g1WYPwhfxJG292cY9Gf/C7s0zSw8PDIyOkNMtCswHJxLvD45FfsvRv6G1YoWGhdE7qDFSmFYlqONga3nYnTPqkcxJKsN0QVZZ6GmJnk/Tw8PDICOgMShp2MBOYpON5jV7ySxrq8E3LQywau0WdbfNtl+4ON1sDC7SbYduA/OiFJFQaal1FHj7f04hu86Z59/Dw8MgIySyyFi4RvYXiztYzdjeic4h+YFJA/i7YMt/x5rihRp8bk72PfA0zJxwm2rbd5/rKqV5YOIvH7eHh4WGHFGG+F61Z1nZYEvlPNEnH6JgaaGCtOLpQPBNZyr+MxDCmG1bP24l9ZOv6oBc934HriFmK24uSnJWhKXB/QXHD0LkL9/DwGNPIgrLGDxUnjoORKUwipXmNKERR54VEYgqzGlL/+U7ICY9/kIR2UeEcSuS8kN1XGlrx5hc3nGlEDw8Pj4yxNvdpN96KRNI4BRlwrHlPEY7xQQTFcXgwUNloxGGns63yYiiMrxnRglm8gT/NSCV0kKcSbfJzW2kwfySVTLmX5+Hh4ZEMS2loJs1quIUziL6VCDSsE4KtlbYODAdDg92QkJgfDFQMu5uRLc8tLCMhojGrcd+upjB9oaCk4Uv5JY3l+cWNk5h4Giz9QXMdxPFXUOH3XFUaJPikvNKl7xrRw8PDwxXQVsXSGahcpa16I7oCGs8/FpQ0prTZD72Kl3F28WNlszpRx+Uw0pCi/UNRd08HEX0OJ7KBw+orBaX3JoxyZjkuZPUPdJWiXoRD4XGfmVx6Z4zH1WBbJXSPO0Ax/W9eSWPKITQ9PDw87Ij2NKJwzzfQevW5LHcBNLCnBFdVHmZEW7T324QKQ0Py/i2B+VONNKTI7p57IwpDa1w6NpnC0BQUL31BSDqWTRQ/jZ+6Y3obboZ4xbNb6ikMDw+PbDFIaRTMvv8DCquT+zdybsCKb/vgH/PyjZiQTSvP2hnWu52P/nwS8pFNLd/ZxchDQmdb5ZXQgEdbAosFecUNjoLP6NVggik6H8MUO0TllyLPJDMCPbq1+V1S7xnx8PDwyAqDexogv3TZ87Dmv2tEV4B1Pisvd8JjWimYrEFopeIf5/sDDj7EZCWESOzr9336kBGzTjAw/wQSkd3q4Ib8kgbLM69TpJDR+Q3cixilsXXbpykHT4nDRl9YnUJH3uOqsvfw8PDoz6A5jf4E2yp/gbeLIpJrbGQWdULyU3njxJtyeuPWbavO2jfMvtNgKv8YLWrSULFx+H2eb+ICmnl70hCF6aIdJ3bJ8RdBiV5lZbB4Ggoj0ttIkb55C+7Uk+WRdAR8pr38OvbVNQimYy03LB4eHh5ZJKnS0HS2VTwxcGnpSAMt8Xu4kD8oxc+QjzaTUuOVlOMpzONI0nhiHq+EGAeFhLQazyTHQUGNh8U/Xr+zIHwGmQmf4bi+z3z4jl7VtJv1f1i8Ee4Jz5w8517HsXz709lW+R+cpxXbQrE6ZFLJshetDwA++w0+O9eIqXJZfnGDDkXq4eHhkVVslYb23mo543PgW2ksY83xkDi8YFZjNIRrKui4JVtzVb/wjuq7+cXLom7Ug4HKb+P39X1OiXRWpnl4eHiki63S6GVrW+VMWOuRzWLMfvyFFS58xPqdfJaMNCz1SDoyX2I+N3mw3K3PI3lSv+MEIp+zdbyf9W/1fodZwuKP/rbOQ69C55vP0Y+IHBc5Rn+ufzOJe/J0QW/llLySxj8ZMWU2r6ooxcU3GxGnLO4oKGmIzhttWb3wIBlWLxnRIfzS1q5PZ+1+5PKgyfDw8PDIKo6VxmjG8vfE4UIopNNwwSeYbOcwX5lf0lhrpLQItlX8Hbf7SCPq33wBv3mokSyCgYqNUMCRYPQ2QOlsVRw6bKfZ971msjw8PDyyzg6hNPrT2VYxHz2U36CH4miZK3o2fyoobjjFiGmBXtp5+J1bjRhlW0/OpF3L74q6HOkMVP4V53WcEZMzjBscPTw8dlziLrkdyxQUNy7DVTt00MgvdXVtrzRCWqD38J14CkMzYVxPsUlaQIO3mmRSmLneUxgeHh7DQdZ6GtqVueLQ/tacRhLyt/sDw7G3AFb9b2HVn2PEwTBvwol/eWJJY1oBjDpXVRyKbspiEnSyyYpHdX5xQzQ64bZAxT5hojeMGBdm8XhBScPxRvTw8PAYUlxXGp2t878iiG4gorhxIwYCK/wdnMTNyhe6Y9LM+z422Vln4MT0QJjEMQWzGp4yomMs31Q9oSW4pu+YrISw4MfQ84mZY0m+N4Zf6hnnK935sHs2mQwPDw+PIcVVpdHVVjk7LMTT+NGJJitV7leCbp1UvPRZI2cV9DaC8eY2oMguLihu0I23Y8yS2kuY+VLHq7eYP8kvafyskaIEA5W34Ml8z4gWUDC/CYfHXz7Q0aGHh4fHUOKq0ugMVLyNBjPzONfML6PxvS00wX9PNq3qYKDiQ/SKot5nLZgb0ZCnNI8RbK04myUtxs3cw2Q5Bkr2wJ2KG141YpTNrWfu7yPfEQwF5AuFH84tu/dt89GIp/CIRYeRkl9hFtqxo7UxEjd2IzTfq5LFmnWtco0QtSqSnzlFJZd/nv3+aDz6UIgeeDFQm7JyLSyvORHn+UWdJkWt7S21VvRIN5lRVrNniNRxuDeoJ7QrCdYG1iYh6T8saE1OlwisWVPrmneDA0svKRgvJ1YYMSOI1bPtzYtfMGJGTCuvOooEHWDElEn3GSejsGzRAkEyT7LavK55sSvRLgtLq08XUuyCtmF7e1Od66EnBjIUdc81pdEZWHAkEf/diK4Bq/9uPMTb80qWBUyWawx0Rw5rfk1BceNMI9qyZVXlXKn4ZigeW19ZCWFeCCW11EijGZo2Z9F3iKkKjUFSwwE3/V1c972SQteua1rykclOm3nz5vle+e9Bq/F/rSFRVJjbO5rrUnLcWFS26BAmuRYVIgcGyyYVCh30z7YlH5iPM2banJojUFZ+jhoXs/hhEMxBJvFnEZbXdLTWprWRtD+Fc67Yh9iXdJ7MKXhu3+9oqou7qCNVCsurl+Fen2XElFFSFa5/dnFSD9OpgnPSQ+WftwRFx8JoyMgtz7TSqjlSkjVqgnv3Ce7doFEFlxjSuufa6ikSal+TdBU8xLNRmVuDgcr1W9oqvqfjcpuPMgK9oq+aZAQd6Y7Z0aoq3QsItlUsh+Z+JiOFYRHrvHA0st9xF44vKqv+q2T5W7tCq9EVEz3SS1j4/zl1as04k502y5cvD/uU+D6SlhEA4+Wcojk1s3TaKSzkzVph6DTeq9xUGLg3tShbK2wVhoYoH/dwvpC8Dtb4DJPrMdRIdeOMGeda5SE9aqAv6EYjZI3hqHvuLbmV8j2Tyg4kDpWCbhkXnrAJPYR7O1srjjGfpAeJH5iUhRXprmRZ0jgial1FXjBQcZ1P+l/FN0412RmB3k388K+jiNzOne/ADYyG9dUT/EKJCinVVA7T7spHX5SKDteWKj59GO895sCnX3yxtttKZ8jalvpW/KBxqU8SRsAtuuJG5ORML6teSCTmWgLz8+3NEt91B1iA5+DeVBtRX/N6vC5Qgmfinnw+3NPzOcHqUJSuSnx4p+7l6MNQud87aMrLGQ+PhaRfW5Pap1mCFz+Adws8Fz30FOeYyMsn1TN4dx1cs15wEvd/JnqFu31ZjkpJB4Um7p62s9bCcv5fPETHMYTSZTjqHsqmO2hvsFvlhDegxawARUMBbsDb+HuPX/nunjj7nrdMti2dgflnEsm+MUvmc/JLGpP6fUJPpxIP5OfZuL7c8LZcWfpQP79Uo4fp5TVTcV/0MEpvWTq3vanutyYdl0OLL9td+nOq0SO4t72pPuEKtlSZMbfmsz1hfhknEvGUjMa5vbnuZiudgKK5NZMFvoPk7nixYipd31zrylCotlRDE3Z/A70Hy0kl7tM9B055+Tu6Z2QdEAdtOeYGJ5+P29nT0VT3K5OdNYrKq3XDGFn0weIJ3C9nm0szJGZ4isVN+L8/tNLDSMzwVIROEQod3B64OiUFNbWkZhe/T72CtqLfcBRvQFlP1YN3Uoar7rnW09CNnpSWFTBk4E7thS5ZdViqN7WbDvQCFmjlZT6OS+eqytNjFIYQNydTGPjNos62ylb8s6XZUohbabz9sMUIRTHrfSi9hfavdoVWo4d+OprrzndTYWjWrKj9GCdymRF1I71YVxIjxiekrsZf6xhYvHe4pTA0avzuM3sVBk5m42afPC+ZwtC8/vivPu1oqv/FUCgMD1sKhM93rUk7xu/j+liFkR2Gq+65uiM8b1bjI6h40c1qQwsdiQp6T5dv4oedgYpbO1vOiolNEVy14Hg0/n8hFvebLN1KrMgvbrjASDHo/RadbRV34jfX4alkdd6BpBzF8xq8j0nohnGtSQ0bqDh3oAy26DQq7mSf35+w0ltzBiSsCXP0Wj8Z390TVThuoARF5/nw+y++vaLWC5A1SmDWCxsB0Zl6EYOVdsC0IxbpdieyCIPFp9Z71hieuueq0tAUlDRW44Y/YsThIB+NxXnk83Wg0d8GRbHGWiXF/Bga/+hGOjQs/w4TfdOIMUDpXCS7Q6+hF/Ntk5VVcHKjVmngXvdZzsQHmdRwwsTy/H6VvnJ6eVVkviKGGgkD4hYcYNUB3UN57rlrPrE+cgmWKnpviMR+c+fWaO/QHqMB6nP9Q8w36RV6RkwKKXkjnrV1LOr1dVamhpHrMsNV91xXGpqubdvPQqusx4mHFTT6E/CkvmzEKHiY25F/0k7FDTGNhN4lHgxUvoyH8Qt82ZVVWo5gSmmlz8iC+1k4dEpR+SJX9gRkgt5fQcS/NiKet/j1wAZbT1TiOVv3HZ+36h6K9YGr+J43Cc3um0LKcePjMbygjb8bf62hSrQVRa/892C9Oi8pek8Gju31ZL3S5+NlJp0lhqfuZUVp6PgOISW+gdq42WSNMKy9Ee1GsNB7Liy3IiQONFlDBmyQKSY5+vDJB2HV9673Rp2RDUXl1Q8Xzak6wY3ltOmyXW2vgnFgVvTRoRtD6keRNCr37Jrd0MuwwvdaPRKpztdJLbtJR1PtqziHvrX+RN9D47MG9+dsPVlqcj1GIDDiWZFEuWBrIxzKS60uN9aHcSgpuWiikPxzndZlilhd2NOjw/9EQDlA3XCZYap77l9IP4KBBV/D3X7CiCMCPMUlBcUNlxvRYtNzC77kD6vVKCmOYlm4DQrUWwXFjX3jk6OMovKqMtSJR1CadjZZEVhsRVVpQSFbgWt8qqNJPufmTnA7ppctOotJRqw95qDyy4PXr6h9p7C86nfohS40+b9qb66PWX7tJl+ec/mUsPI9jrJVaLIsLGVF4nkS/Kxi8fS47XKFmzvBnTJCVk/9B38HeUWID7+K52Vr9adD/9VTLNWXO55dvLaorOoWreytA4S4Cz3SuD7lUAfq0JxW6bTu2XY01V04rXTRgVJKa8SFmTd1NNfH1g8XGI66l5WeRi/5JUv/hpP/iRGHHdy8xwYqjI8D8yf5w/zocCmMCOSKy4LhQq/EUKxmoyGMdddOIg+FVu+n0d5+A4Xl/GFRWfVvDyutGpK9KdoVBCprxOmk3jQX5l8UltWU41wWWHnM74/vkYusdJZ4fuXV/xV+OVc3JPiH0XXxetwb9+ZwpC6WRI+FJvCGwrLqPxWVLTpNfxw5ageBxBfxOsrZa2iHcnvCclE/a/5sGByDVjoWza3ZmwX9WKf1sSy6+/blZJnhqHtZVRqa/JIGvXqlb8XScMHila6uT083UpQJJB/CDR7yIal+fPgpq5+Z9KhlfcviVzqa605EAT0EDeSVaKxXWdZ0P1CIP4M/5yhJLbCQfm/tkcgyOI8Lehtr/P95SD8YSeq/fMmqVbVbrHQWaV9Ru0lbnuGe0J7oWZyPk3ocBkxsr4LEeCiSkwXJB2Dxri2cXRMT1XGMg8ckwk5eqMch850hQfu3wnO5wogoN6SXQkfKTy8hvg4ZvUv9L1vfdM1GnSDZNzwFKfY7LjLUdS9rFzKQzkDFWnLoLt1tcAO3Kqlm7DRr2SsmyyIYqLgJz/JCIw4LSok5k2Y3NBlxTDGt/NKdJed8Bckj0VU+HoV6v8gnBuYOWPpzst1ww8K6CiU9poeJRvuZjqb6vvC7Q4wec87ZWZQy8VFQJEejKmoLtq8+stjIPnWUHiIxOVnB29zXR7zhKesDPBc0tC14613lGN1Epx0vSkEmhAIHYPmX6oSWCstrDsCztdoctEGb0bAP2WhGNute1nsavfj8dDJu5bBMjJOkeYMURtv8c4ZbYaAgXTRWFYZGW1ztzfV/1HMGaKD31+4MkP3XyKeAqPDTcarOSFljYrhzMcpeNJgWanQPWT2Q4UO7cGhvroXiqqtCQzM7ROG9cGY34hUZdyaxM4VlUi8FHkOGfii6x2o9G9Tbq3SjrFfkoQH9pXUEPpNK6vYk2ruQMtyvpzG0ZLPuDZnSyJ3Z8G90m+YZcSi5LH/W0r6bBba2VsCqk7a7J7PM7wtKGkyB2zFY21K7Ghba12HlR5ciMpMew88qgcAN22Bt3WNEXa3/5paLb7d4YeVV/4Hy+BFq83kmSyuOw/RkqpE8hpH1TfVr8EBu12kisSuJnPoNIdbuXqxhRJTjO3T51um4EErgMOJm3RsypaEpmN34JM40ZpggqzA/kF/ccI2Roqh+G3eGiddyx3Nk9c4OiGSO7tJGBZyy19yaCUbMHiz6rxwZ0nHxVLCGPVhYY+Ian/B9ySQ9hpmeEF0BwzcSXZTpPCI2ljpvyPFT77xHFOruP6cxMnCj7g2p0tDklzQuwZ2MnenPBiz+mau2n22kKFtWLzyIiLLufTIJwVCYvy6nN2418g5HmHydJqkV+/a3V9Rm2d3C6IKJ++6PT3ihfUcIkUlxsoxeNLg+EjRJp1mJK7TfM50e6bhR94ZcaWi6urafgRP+lxGzAG+Q0vf1eJ5jqSdsRWYbLmCdnDW5tPF1I456ikprvlZUVvVIso1PAyHmvlVsRHqYaMRZZG6gN/AVllevmjanZpBXgkToJZFojKy4CLBqQ909Ytg9K3j0gZ7gHXgy/Z1arulokdaw1UC6ZSharvFMXR+eGq66NyxKQ+8YV0zfwNlmxR24EvKU3Fm/0xuGBsE5vrj5QwGu9zrt1NGIYwKWfCkK34nCp14rKq++9pDSKxIOp2gXGtPLq74PxXmlyULDOOxDhVnD7+cL0VIcTopXFZVX3W/WyCdsPArn1Hw1LMVDRtQH3ud2SFOPjOk/Kc5S8YVDuWG1P8NV94Z1cmZLa8U3paRoJXEDReL8SbMakgbRCbZVag07NSINGSvzixsce8scDUydW5PvD6n16LLvbbIiML/BJFpRuN6HptyEgp2HzH2Qnot0f/fyf53so5NWrKjN+hxDYVl1FWw9awwaleXPHc11jqI0ZgKswOW43phgXTActL+zZ2HxvYN7pF25+3E+2n16Me5jtEziuLcpFCpLNZZDqoyMJbf8PpqilGLgK+KH1zfVa7f2rpFkye0gps+pKVWwTjuaaxOufpxWXrOvFNERlU70UqzhLDcYzro3LD2NXibNbvw9i76JmUxBRbvTTmFYMKUdkSsd0Ci8wapnOFaOZZUXV9QGJ/TIIiRvw0X2uf0m2hfd8flIXIy0dpV/KdKn9yu0uCW8zL+NTh0KhTFctDfL03GdFyMZDR2LyvwZvE7BvUAvhGqRA2VGZ/dXGLg9ASnVMdlWGCMGXS50KNwUXlLQsC4QWLeytiWZwhgEu7t6ajjr3rAqDU1BceNP0NhnbjEwX19Q3HCOkZKi3ZvgGX4V/7fNZGUPFsvIp8oLZt/vWszpkYTeHAQL6nt+v/wiSuOP8Rz0bue4G4aQ/x7+3okufVlHU33FcPhaGlpqlQ6o1LOB9kRZW4BrfyByD+LSiWP+qGB96w1i655d/JrJ9xilEPXNaWSD4ap7rmq/TNi4duFkXzcXkgqnpMhY+pTqDq2fPOfe6DLFVNCR/raPm7gr9UjXFein7N8yufTOHW5MWo+fvvqf/T8nZM6uQqo8EnKjCouPO1prPzSH7NBML79sV2bfbmhVJhNzkMPq48njcz4Yy70uj6Eh+3VPiP8PvCamJ1xGK+0AAAAASUVORK5CYII=",
+    alt: "RunWise Systems"
+  })), /*#__PURE__*/React.createElement("nav", {
+    className: "nav-links"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#what"
+  }, "What it does"), /*#__PURE__*/React.createElement("a", {
+    href: "#how"
+  }, "How it works"), /*#__PURE__*/React.createElement("a", {
+    href: "#pilot"
+  }, "Pilot"), /*#__PURE__*/React.createElement("a", {
+    href: "#faq"
+  }, "FAQ")), /*#__PURE__*/React.createElement("div", {
+    className: "nav-cta"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#challenge",
+    className: "btn btn-ghost btn-sm"
+  }, "See the demo"), /*#__PURE__*/React.createElement("a", {
+    href: "#audit",
+    className: "btn btn-primary btn-sm"
+  }, "Get the audit")), /*#__PURE__*/React.createElement("button", {
+    className: `nav-burger ${menuOpen ? 'open' : ''}`,
+    "aria-label": menuOpen ? 'Close menu' : 'Open menu',
+    "aria-expanded": menuOpen,
+    onClick: () => setMenuOpen(o => !o)
+  }, /*#__PURE__*/React.createElement("span", null), /*#__PURE__*/React.createElement("span", null), /*#__PURE__*/React.createElement("span", null))), /*#__PURE__*/React.createElement("div", {
+    className: `mobile-menu ${menuOpen ? 'open' : ''}`,
+    onClick: close
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mobile-menu-inner",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#what",
+    onClick: close
+  }, "What it does"), /*#__PURE__*/React.createElement("a", {
+    href: "#how",
+    onClick: close
+  }, "How it works"), /*#__PURE__*/React.createElement("a", {
+    href: "#pilot",
+    onClick: close
+  }, "Pilot"), /*#__PURE__*/React.createElement("a", {
+    href: "#faq",
+    onClick: close
+  }, "FAQ"), /*#__PURE__*/React.createElement("div", {
+    className: "mobile-menu-cta"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#challenge",
+    className: "btn btn-ghost",
+    onClick: close
+  }, "See the demo"), /*#__PURE__*/React.createElement("a", {
+    href: "#audit",
+    className: "btn btn-primary",
+    onClick: close
+  }, "Get the audit")))));
 }
 
 /* =========================================================
    HERO — Animated live-call card
 ========================================================= */
-const transcriptLines = [
-  { who: 'RunWise', ai: true,  text: "Hi, this is Alex with Pioneer Heating & Air, calling back about your AC request. Is now a good time?" },
-  { who: 'Caller',  ai: false, text: "Yeah — it stopped cooling around noon. House is at 84." },
-  { who: 'RunWise', ai: true,  text: "Sorry about that. I can get a tech out today. Are you the homeowner, and is this for a single‑family home?" },
-  { who: 'Caller',  ai: false, text: "Homeowner, yes. Single family." },
-  { who: 'RunWise', ai: true,  text: "Got it. I have an arrival window between 2pm and 4pm today. Want me to lock that in?" },
-];
-
+const transcriptLines = [{
+  who: 'RunWise',
+  ai: true,
+  text: "Hi, this is Alex with Pioneer Heating & Air, calling back about your AC request. Is now a good time?"
+}, {
+  who: 'Caller',
+  ai: false,
+  text: "Yeah — it stopped cooling around noon. House is at 84."
+}, {
+  who: 'RunWise',
+  ai: true,
+  text: "Sorry about that. I can get a tech out today. Are you the homeowner, and is this for a single‑family home?"
+}, {
+  who: 'Caller',
+  ai: false,
+  text: "Homeowner, yes. Single family."
+}, {
+  who: 'RunWise',
+  ai: true,
+  text: "Got it. I have an arrival window between 2pm and 4pm today. Want me to lock that in?"
+}];
 function LiveCallCard() {
   const [step, setStep] = useState(1);
   const [timer, setTimer] = useState(12);
   useEffect(() => {
     const i = setInterval(() => {
-      setStep(s => (s >= transcriptLines.length ? 1 : s + 1));
-      setTimer(t => (t >= 95 ? 12 : t + 18));
+      setStep(s => s >= transcriptLines.length ? 1 : s + 1);
+      setTimer(t => t >= 95 ? 12 : t + 18);
     }, 2600);
     return () => clearInterval(i);
   }, []);
   const visible = transcriptLines.slice(0, step);
   const mm = String(Math.floor(timer / 60)).padStart(2, '0');
   const ss = String(timer % 60).padStart(2, '0');
-
-  return (
-    <div className="hero-preview-frame">
-      <div className="hero-preview-chrome">
-        <span className="dot" /><span className="dot" /><span className="dot" />
-        <span className="url">runwise.app/calls/live</span>
-      </div>
-      <div className="live-call">
-        <div className="live-call-head">
-          <span className="live-badge"><span className="live-pulse" />Live call · qualifying</span>
-          <span className="call-timer">{mm}:{ss}</span>
-        </div>
-        <div className="lead-row">
-          <div className="lead-avatar">MR</div>
-          <div className="lead-meta">
-            <div className="lead-name">Maria Reyes &nbsp;·&nbsp; AC not cooling</div>
-            <div className="lead-sub">GHL form · arrived 00:09 ago</div>
-          </div>
-          <span style={{ color: 'var(--accent)', display: 'inline-flex' }}>
-            <IconPhone size={18} />
-          </span>
-        </div>
-
-        <div className="transcript">
-          {visible.map((l, i) => (
-            <div key={i} className="t-line">
-              <div className={`t-who ${l.ai ? 'ai' : ''}`}>{l.who}</div>
-              <div className="t-text">
-                {l.text}
-                {i === visible.length - 1 && <span className="cursor" />}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="call-actions">
-          <div className="pill">
-            <IconBolt className="ic" /> <span>Urgency&nbsp;·&nbsp;<strong>Same‑day</strong></span>
-          </div>
-          <div className="pill">
-            <IconWrench className="ic" /> <span>Type&nbsp;·&nbsp;<strong>AC repair</strong></span>
-          </div>
-          <div className="pill">
-            <IconShield className="ic" /> <span>Safety&nbsp;·&nbsp;<strong>Clear</strong></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "hero-preview-frame"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "hero-preview-chrome"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "url"
+  }, "runwise.app/calls/live")), /*#__PURE__*/React.createElement("div", {
+    className: "live-call"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "live-call-head"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "live-badge"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "live-pulse"
+  }), "Live call \xB7 qualifying"), /*#__PURE__*/React.createElement("span", {
+    className: "call-timer"
+  }, mm, ":", ss)), /*#__PURE__*/React.createElement("div", {
+    className: "lead-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lead-avatar"
+  }, "MR"), /*#__PURE__*/React.createElement("div", {
+    className: "lead-meta"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lead-name"
+  }, "Maria Reyes \xA0\xB7\xA0 AC not cooling"), /*#__PURE__*/React.createElement("div", {
+    className: "lead-sub"
+  }, "GHL form \xB7 arrived 00:09 ago")), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--accent)',
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(IconPhone, {
+    size: 18
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "transcript"
+  }, visible.map((l, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "t-line"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `t-who ${l.ai ? 'ai' : ''}`
+  }, l.who), /*#__PURE__*/React.createElement("div", {
+    className: "t-text"
+  }, l.text, i === visible.length - 1 && /*#__PURE__*/React.createElement("span", {
+    className: "cursor"
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: "call-actions"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pill"
+  }, /*#__PURE__*/React.createElement(IconBolt, {
+    className: "ic"
+  }), " ", /*#__PURE__*/React.createElement("span", null, "Urgency\xA0\xB7\xA0", /*#__PURE__*/React.createElement("strong", null, "Same\u2011day"))), /*#__PURE__*/React.createElement("div", {
+    className: "pill"
+  }, /*#__PURE__*/React.createElement(IconWrench, {
+    className: "ic"
+  }), " ", /*#__PURE__*/React.createElement("span", null, "Type\xA0\xB7\xA0", /*#__PURE__*/React.createElement("strong", null, "AC repair"))), /*#__PURE__*/React.createElement("div", {
+    className: "pill"
+  }, /*#__PURE__*/React.createElement(IconShield, {
+    className: "ic"
+  }), " ", /*#__PURE__*/React.createElement("span", null, "Safety\xA0\xB7\xA0", /*#__PURE__*/React.createElement("strong", null, "Clear"))))));
 }
-
 function Hero() {
-  return (
-    <section className="hero" id="top">
-      <div className="container hero-grid">
-        <div>
-          <div className="eyebrow"><span className="dot" />AI speed‑to‑lead for HVAC</div>
-          <h1 className="h1">
-            Call every new HVAC lead{' '}
-            <span style={{ color: 'var(--gold-600)' }}>in under 30&nbsp;seconds.</span>
-          </h1>
-          <div style={{ height: 22 }} />
-          <p className="lede">
-            RunWise calls new HVAC leads fast, qualifies the request, books arrival windows when possible,
-            and alerts your team when a dispatcher needs to step in.
-          </p>
-          <div className="hero-cta">
-            <a href="#audit" className="btn btn-primary">Request a 48-Hour Audit <IconArrow size={16} /></a>
-            <a href="#challenge" className="btn btn-ghost">
-              <IconBolt size={15} /> See the 30-second callback demo
-            </a>
-          </div>
-          <div className="hero-support">
-            {[
-              'Calls new leads quickly',
-              'Books arrival windows when available',
-              'Escalates urgent & safety calls',
-              'Logs every call, recording, and outcome',
-            ].map((t) => (
-              <div className="hero-support-item" key={t}>
-                <span className="check"><IconCheck size={11} /></span>
-                <span>{t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="hero-preview">
-          <LiveCallCard />
-          <div className="float-card booking">
-            <div className="ic-wrap"><IconCalendar size={15} /></div>
-            <div>
-              <div className="label">Arrival booked</div>
-              <div className="val">Today · 2–4pm</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "hero",
+    id: "top"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container hero-grid"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "AI speed\u2011to\u2011lead for HVAC"), /*#__PURE__*/React.createElement("h1", {
+    className: "h1"
+  }, "Call every new HVAC lead", ' ', /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--gold-600)'
+    }
+  }, "in under 30\xA0seconds.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 22
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "lede"
+  }, "RunWise calls new HVAC leads fast, qualifies the request, books arrival windows when possible, and alerts your team when a dispatcher needs to step in."), /*#__PURE__*/React.createElement("div", {
+    className: "hero-cta"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#audit",
+    className: "btn btn-primary"
+  }, "Request a 48-Hour Audit ", /*#__PURE__*/React.createElement(IconArrow, {
+    size: 16
+  })), /*#__PURE__*/React.createElement("a", {
+    href: "#challenge",
+    className: "btn btn-ghost"
+  }, /*#__PURE__*/React.createElement(IconBolt, {
+    size: 15
+  }), " See the 30-second callback demo")), /*#__PURE__*/React.createElement("div", {
+    className: "hero-support"
+  }, ['Calls new leads quickly', 'Books arrival windows when available', 'Escalates urgent & safety calls', 'Logs every call, recording, and outcome'].map(t => /*#__PURE__*/React.createElement("div", {
+    className: "hero-support-item",
+    key: t
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "check"
+  }, /*#__PURE__*/React.createElement(IconCheck, {
+    size: 11
+  })), /*#__PURE__*/React.createElement("span", null, t))))), /*#__PURE__*/React.createElement("div", {
+    className: "hero-preview"
+  }, /*#__PURE__*/React.createElement(LiveCallCard, null), /*#__PURE__*/React.createElement("div", {
+    className: "float-card booking"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "ic-wrap"
+  }, /*#__PURE__*/React.createElement(IconCalendar, {
+    size: 15
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "label"
+  }, "Arrival booked"), /*#__PURE__*/React.createElement("div", {
+    className: "val"
+  }, "Today \xB7 2\u20134pm"))))));
 }
 
 /* =========================================================
    TRUST STRIP
 ========================================================= */
 function TrustStrip() {
-  return (
-    <div className="trust-strip">
-      <div className="container trust-strip-inner">
-        <span className="trust-label">Built for HVAC operators</span>
-        <div className="trust-stats">
-          <div className="trust-stat"><span className="n">&lt; 30s</span><span className="l">Typical first‑touch on inbound leads</span></div>
-          <div className="trust-stat"><span className="n">24/7</span><span className="l">After‑hours & overflow coverage</span></div>
-          <div className="trust-stat"><span className="n">5+</span><span className="l">Lead sources connected per account</span></div>
-          <div className="trust-stat"><span className="n">100%</span><span className="l">Calls logged with recording & notes</span></div>
-        </div>
-      </div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "trust-strip"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container trust-strip-inner"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "trust-label"
+  }, "Built for HVAC operators"), /*#__PURE__*/React.createElement("div", {
+    className: "trust-stats"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "trust-stat"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "n"
+  }, "< 30s"), /*#__PURE__*/React.createElement("span", {
+    className: "l"
+  }, "Typical first\u2011touch on inbound leads")), /*#__PURE__*/React.createElement("div", {
+    className: "trust-stat"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "n"
+  }, "24/7"), /*#__PURE__*/React.createElement("span", {
+    className: "l"
+  }, "After\u2011hours & overflow coverage")), /*#__PURE__*/React.createElement("div", {
+    className: "trust-stat"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "n"
+  }, "5+"), /*#__PURE__*/React.createElement("span", {
+    className: "l"
+  }, "Lead sources connected per account")), /*#__PURE__*/React.createElement("div", {
+    className: "trust-stat"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "n"
+  }, "100%"), /*#__PURE__*/React.createElement("span", {
+    className: "l"
+  }, "Calls logged with recording & notes")))));
 }
 
 /* =========================================================
@@ -1835,118 +2074,187 @@ function Problem() {
   const [animated, setAnimated] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
-    const ob = new IntersectionObserver(([e]) => e.isIntersecting && setAnimated(true), { threshold: 0.3 });
+    const ob = new IntersectionObserver(([e]) => e.isIntersecting && setAnimated(true), {
+      threshold: 0.3
+    });
     if (ref.current) ob.observe(ref.current);
     return () => ob.disconnect();
   }, []);
-
-  return (
-    <section className="section" id="problem">
-      <div className="container problem-grid">
-        <div>
-          <div className="eyebrow"><span className="dot" />The problem</div>
-          <h2 className="h2">Most HVAC leads do not wait around.</h2>
-          <div style={{ height: 20 }} />
-          <p className="lede">
-            When a homeowner submits a form, they are usually still shopping. If they do not hear back quickly,
-            they may call the next contractor. RunWise helps protect expensive leads by responding while the
-            customer is still engaged.
-          </p>
-          <div className="pain-list">
-            <div className="pain">
-              <span className="pain-num">01</span>
-              <span className="pain-text">
-                <strong>Missed form leads</strong> after hours or during busy dispatch periods.
-              </span>
-            </div>
-            <div className="pain">
-              <span className="pain-num">02</span>
-              <span className="pain-text">
-                <strong>Slow callback times</strong> on paid leads — by the time you call, they've already booked someone.
-              </span>
-            </div>
-            <div className="pain">
-              <span className="pain-num">03</span>
-              <span className="pain-text">
-                <strong>Dispatchers stuck chasing leads</strong> instead of handling booked work and existing customers.
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="speed-viz" ref={ref}>
-          <div className="speed-title">
-            <h4>Speed‑to‑lead, by responder</h4>
-            <span className="tag">Avg. first contact</span>
-          </div>
-          <div className="speed-bars">
-            <div className="speed-bar runwise">
-              <span className="who"><strong>RunWise</strong></span>
-              <div className="track"><div className="fill" style={{ width: animated ? '6%' : '0%' }} /></div>
-              <span className="val">&lt; 60s</span>
-            </div>
-            <div className="speed-bar you">
-              <span className="who"><strong>Fast contractor</strong></span>
-              <div className="track"><div className="fill" style={{ width: animated ? '32%' : '0%' }} /></div>
-              <span className="val">5 min</span>
-            </div>
-            <div className="speed-bar typical">
-              <span className="who">Typical shop</span>
-              <div className="track"><div className="fill" style={{ width: animated ? '68%' : '0%' }} /></div>
-              <span className="val">47 min</span>
-            </div>
-            <div className="speed-bar afterhours">
-              <span className="who">After hours</span>
-              <div className="track"><div className="fill" style={{ width: animated ? '100%' : '0%' }} /></div>
-              <span className="val">Next day</span>
-            </div>
-          </div>
-          <div className="speed-foot">Industry benchmarks — actual times vary by shop & lead source</div>
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section",
+    id: "problem"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container problem-grid"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "The problem"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2"
+  }, "Most HVAC leads do not wait around."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 20
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "lede"
+  }, "When a homeowner submits a form, they are usually still shopping. If they do not hear back quickly, they may call the next contractor. RunWise helps protect expensive leads by responding while the customer is still engaged."), /*#__PURE__*/React.createElement("div", {
+    className: "pain-list"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pain"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pain-num"
+  }, "01"), /*#__PURE__*/React.createElement("span", {
+    className: "pain-text"
+  }, /*#__PURE__*/React.createElement("strong", null, "Missed form leads"), " after hours or during busy dispatch periods.")), /*#__PURE__*/React.createElement("div", {
+    className: "pain"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pain-num"
+  }, "02"), /*#__PURE__*/React.createElement("span", {
+    className: "pain-text"
+  }, /*#__PURE__*/React.createElement("strong", null, "Slow callback times"), " on paid leads \u2014 by the time you call, they've already booked someone.")), /*#__PURE__*/React.createElement("div", {
+    className: "pain"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pain-num"
+  }, "03"), /*#__PURE__*/React.createElement("span", {
+    className: "pain-text"
+  }, /*#__PURE__*/React.createElement("strong", null, "Dispatchers stuck chasing leads"), " instead of handling booked work and existing customers.")))), /*#__PURE__*/React.createElement("div", {
+    className: "speed-viz",
+    ref: ref
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "speed-title"
+  }, /*#__PURE__*/React.createElement("h4", null, "Speed\u2011to\u2011lead, by responder"), /*#__PURE__*/React.createElement("span", {
+    className: "tag"
+  }, "Avg. first contact")), /*#__PURE__*/React.createElement("div", {
+    className: "speed-bars"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "speed-bar runwise"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "who"
+  }, /*#__PURE__*/React.createElement("strong", null, "RunWise")), /*#__PURE__*/React.createElement("div", {
+    className: "track"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fill",
+    style: {
+      width: animated ? '6%' : '0%'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "val"
+  }, "< 60s")), /*#__PURE__*/React.createElement("div", {
+    className: "speed-bar you"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "who"
+  }, /*#__PURE__*/React.createElement("strong", null, "Fast contractor")), /*#__PURE__*/React.createElement("div", {
+    className: "track"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fill",
+    style: {
+      width: animated ? '32%' : '0%'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "val"
+  }, "5 min")), /*#__PURE__*/React.createElement("div", {
+    className: "speed-bar typical"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "who"
+  }, "Typical shop"), /*#__PURE__*/React.createElement("div", {
+    className: "track"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fill",
+    style: {
+      width: animated ? '68%' : '0%'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "val"
+  }, "47 min")), /*#__PURE__*/React.createElement("div", {
+    className: "speed-bar afterhours"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "who"
+  }, "After hours"), /*#__PURE__*/React.createElement("div", {
+    className: "track"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "fill",
+    style: {
+      width: animated ? '100%' : '0%'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "val"
+  }, "Next day"))), /*#__PURE__*/React.createElement("div", {
+    className: "speed-foot"
+  }, "Industry benchmarks \u2014 actual times vary by shop & lead source"))));
 }
 
 /* =========================================================
    FEATURES — What RunWise Does
 ========================================================= */
-const features = [
-  { ic: <IconPhone size={18} />,     title: 'Instant Lead Follow‑Up',  body: 'Calls new leads quickly after they submit a form or inbound request, while the homeowner is still engaged.', tag: 'Speed‑to‑lead' },
-  { ic: <IconMic size={18} />,        title: 'Smart Qualification',     body: 'Identifies service type, urgency, safety concerns, and customer intent — in plain conversation.',          tag: 'Conversation' },
-  { ic: <IconCalendar size={18} />,   title: 'Appointment Booking',     body: 'Offers real arrival windows when calendar access is available. No exact‑time promises you can\u2019t keep.', tag: 'Booked work' },
-  { ic: <IconRoute size={18} />,      title: 'Dispatcher Handoff',      body: 'Routes urgent, safety, or unclear calls to a human — and pushes booked jobs to your FSM via API, Zapier, Make, calendar, or booking link, depending on access.', tag: 'Routing' },
-  { ic: <IconClipboard size={18} />,  title: 'Call Log & Lead Record',  body: 'Every call lands in your RunWise/GHL workspace with outcome, transcript, recording, and notes — a complete record of how each lead was handled.', tag: 'Source of truth' },
-  { ic: <IconChart size={18} />,      title: 'Owner Reporting',         body: 'Visibility into calls made, booked appointments, no‑answers, and review‑needed leads.',                     tag: 'Reporting' },
-];
-
+const features = [{
+  ic: /*#__PURE__*/React.createElement(IconPhone, {
+    size: 18
+  }),
+  title: 'Instant Lead Follow‑Up',
+  body: 'Calls new leads quickly after they submit a form or inbound request, while the homeowner is still engaged.',
+  tag: 'Speed‑to‑lead'
+}, {
+  ic: /*#__PURE__*/React.createElement(IconMic, {
+    size: 18
+  }),
+  title: 'Smart Qualification',
+  body: 'Identifies service type, urgency, safety concerns, and customer intent — in plain conversation.',
+  tag: 'Conversation'
+}, {
+  ic: /*#__PURE__*/React.createElement(IconCalendar, {
+    size: 18
+  }),
+  title: 'Appointment Booking',
+  body: 'Offers real arrival windows when calendar access is available. No exact‑time promises you can\u2019t keep.',
+  tag: 'Booked work'
+}, {
+  ic: /*#__PURE__*/React.createElement(IconRoute, {
+    size: 18
+  }),
+  title: 'Dispatcher Handoff',
+  body: 'Routes urgent, safety, or unclear calls to a human — and pushes booked jobs to your FSM via API, Zapier, Make, calendar, or booking link, depending on access.',
+  tag: 'Routing'
+}, {
+  ic: /*#__PURE__*/React.createElement(IconClipboard, {
+    size: 18
+  }),
+  title: 'Call Log & Lead Record',
+  body: 'Every call lands in your RunWise/GHL workspace with outcome, transcript, recording, and notes — a complete record of how each lead was handled.',
+  tag: 'Source of truth'
+}, {
+  ic: /*#__PURE__*/React.createElement(IconChart, {
+    size: 18
+  }),
+  title: 'Owner Reporting',
+  body: 'Visibility into calls made, booked appointments, no‑answers, and review‑needed leads.',
+  tag: 'Reporting'
+}];
 function Features() {
-  return (
-    <section className="section features" id="what">
-      <div className="container">
-        <div className="feature-head">
-          <div>
-            <div className="eyebrow"><span className="dot" />What RunWise does</div>
-            <h2 className="h2">Your AI speed‑to‑lead assistant for HVAC.</h2>
-          </div>
-          <p className="lede">
-            Six things RunWise handles end‑to‑end, so your dispatcher can focus on booked work
-            instead of chasing fresh leads.
-          </p>
-        </div>
-        <div className="feature-grid">
-          {features.map((f, i) => (
-            <div className="feature" key={i}>
-              <div className="feature-ic">{f.ic}</div>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
-              <span className="feature-tag">{f.tag}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section features",
+    id: "what"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "feature-head"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "What RunWise does"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2"
+  }, "Your AI speed\u2011to\u2011lead assistant for HVAC.")), /*#__PURE__*/React.createElement("p", {
+    className: "lede"
+  }, "Six things RunWise handles end\u2011to\u2011end, so your dispatcher can focus on booked work instead of chasing fresh leads.")), /*#__PURE__*/React.createElement("div", {
+    className: "feature-grid"
+  }, features.map((f, i) => /*#__PURE__*/React.createElement("div", {
+    className: "feature",
+    key: i
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "feature-ic"
+  }, f.ic), /*#__PURE__*/React.createElement("h3", null, f.title), /*#__PURE__*/React.createElement("p", null, f.body), /*#__PURE__*/React.createElement("span", {
+    className: "feature-tag"
+  }, f.tag))))));
 }
 
 /* =========================================================
@@ -1958,190 +2266,285 @@ function HowItWorks() {
     const i = setInterval(() => setActive(a => (a + 1) % 4), 2200);
     return () => clearInterval(i);
   }, []);
-  const steps = [
-    { t: 'Lead comes in',          d: 'Form, email, GHL, or call — RunWise picks it up the moment it lands.' },
-    { t: 'RunWise calls the lead', d: 'Within seconds. The homeowner is still in front of their phone.' },
-    { t: 'AI qualifies & books',   d: 'Service type, urgency, safety check, arrival window — or escalation.' },
-    { t: 'Your team sees the outcome', d: 'Logged with transcript and recording. Booked jobs handed off to your FSM where access allows; review‑needed leads flagged for a human.' },
-  ];
-  return (
-    <section className="section how" id="how">
-      <div className="container how-inner">
-        <div style={{ maxWidth: 640 }}>
-          <div className="eyebrow on-dark"><span className="dot" />How it works</div>
-          <h2 className="h2" style={{ color: 'white' }}>Four steps from inbound form to booked job.</h2>
-        </div>
-        <div className="how-steps">
-          <div className="how-line" />
-          {steps.map((s, i) => (
-            <div className={`how-step ${active === i ? 'active' : ''}`} key={i}>
-              <div className="how-step-num">{String(i + 1).padStart(2, '0')}</div>
-              <h4>{s.t}</h4>
-              <p>{s.d}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  const steps = [{
+    t: 'Lead comes in',
+    d: 'Form, email, GHL, or call — RunWise picks it up the moment it lands.'
+  }, {
+    t: 'RunWise calls the lead',
+    d: 'Within seconds. The homeowner is still in front of their phone.'
+  }, {
+    t: 'AI qualifies & books',
+    d: 'Service type, urgency, safety check, arrival window — or escalation.'
+  }, {
+    t: 'Your team sees the outcome',
+    d: 'Logged with transcript and recording. Booked jobs handed off to your FSM where access allows; review‑needed leads flagged for a human.'
+  }];
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section how",
+    id: "how"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container how-inner"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 640
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow on-dark"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "How it works"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2",
+    style: {
+      color: 'white'
+    }
+  }, "Four steps from inbound form to booked job.")), /*#__PURE__*/React.createElement("div", {
+    className: "how-steps"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "how-line"
+  }), steps.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    className: `how-step ${active === i ? 'active' : ''}`,
+    key: i
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "how-step-num"
+  }, String(i + 1).padStart(2, '0')), /*#__PURE__*/React.createElement("h4", null, s.t), /*#__PURE__*/React.createElement("p", null, s.d))))));
 }
 
 /* =========================================================
    BUILT FOR HVAC
 ========================================================= */
 function BuiltForHVAC() {
-  const items = [
-    { ic: <IconSnow size={16} />,   label: 'Cooling repair' },
-    { ic: <IconFlame size={16} />,  label: 'Heating repair' },
-    { ic: <IconTool size={16} />,   label: 'Maintenance & tune‑ups' },
-    { ic: <IconHvac size={16} />,   label: 'Replacement estimates' },
-    { ic: <IconBolt size={16} />,   label: 'No‑cooling / no‑heat',  cls: 'urgent' },
-    { ic: <IconAlert size={16} />,  label: 'Safety concerns',       cls: 'safety' },
-    { ic: <IconUser size={16} />,   label: 'Dispatcher review' },
-    { ic: <IconTruck size={16} />,  label: 'Truck routing handoff' },
-  ];
-  return (
-    <section className="section hvac" id="hvac">
-      <div className="container hvac-grid">
-        <div>
-          <div className="eyebrow"><span className="dot" />Built for HVAC</div>
-          <h2 className="h2">Built around real HVAC workflows.</h2>
-          <div style={{ height: 18 }} />
-          <p className="lede">
-            RunWise speaks contractor — not generic SaaS. Call flows are tuned for the way HVAC shops
-            actually triage, book, and escalate.
-          </p>
-          <div className="hvac-note">
-            <strong>Arrival windows, not exact times.</strong> RunWise commits to realistic windows your
-            techs can hit — not promises that blow up your reputation.
-          </div>
-        </div>
-        <div className="hvac-chips">
-          {items.map((it, i) => (
-            <div className={`hvac-chip ${it.cls || ''}`} key={i}>
-              <span className="ic">{it.ic}</span>
-              <span>{it.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  const items = [{
+    ic: /*#__PURE__*/React.createElement(IconSnow, {
+      size: 16
+    }),
+    label: 'Cooling repair'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconFlame, {
+      size: 16
+    }),
+    label: 'Heating repair'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconTool, {
+      size: 16
+    }),
+    label: 'Maintenance & tune‑ups'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconHvac, {
+      size: 16
+    }),
+    label: 'Replacement estimates'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconBolt, {
+      size: 16
+    }),
+    label: 'No‑cooling / no‑heat',
+    cls: 'urgent'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconAlert, {
+      size: 16
+    }),
+    label: 'Safety concerns',
+    cls: 'safety'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconUser, {
+      size: 16
+    }),
+    label: 'Dispatcher review'
+  }, {
+    ic: /*#__PURE__*/React.createElement(IconTruck, {
+      size: 16
+    }),
+    label: 'Truck routing handoff'
+  }];
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section hvac",
+    id: "hvac"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container hvac-grid"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "Built for HVAC"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2"
+  }, "Built around real HVAC workflows."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 18
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "lede"
+  }, "RunWise speaks contractor \u2014 not generic SaaS. Call flows are tuned for the way HVAC shops actually triage, book, and escalate."), /*#__PURE__*/React.createElement("div", {
+    className: "hvac-note"
+  }, /*#__PURE__*/React.createElement("strong", null, "Arrival windows, not exact times."), " RunWise commits to realistic windows your techs can hit \u2014 not promises that blow up your reputation.")), /*#__PURE__*/React.createElement("div", {
+    className: "hvac-chips"
+  }, items.map((it, i) => /*#__PURE__*/React.createElement("div", {
+    className: `hvac-chip ${it.cls || ''}`,
+    key: i
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "ic"
+  }, it.ic), /*#__PURE__*/React.createElement("span", null, it.label))))));
 }
 
 /* =========================================================
    ROI
 ========================================================= */
 function Roi() {
-  const [leads, setLeads] = useState(50);      // monthly inbound leads
+  const [leads, setLeads] = useState(50); // monthly inbound leads
   const [recoverPct, setRecoverPct] = useState(15); // % of leads recovered
-  const [gp, setGp] = useState(450);           // avg gross profit / recovered job
+  const [gp, setGp] = useState(450); // avg gross profit / recovered job
 
   const recovered = Math.round(leads * (recoverPct / 100));
   const monthly = recovered * gp;
   const annual = monthly * 12;
-
-  return (
-    <section className="section roi" id="roi">
-      <div className="container roi-grid">
-        <div>
-          <div className="eyebrow"><span className="dot" />ROI</div>
-          <h2 className="h2">Designed to pay for itself by recovering opportunities.</h2>
-          <div style={{ height: 20 }} />
-          <p className="lede">
-            RunWise is priced around recovered opportunity value, not AI novelty. If faster response
-            helps recover a few jobs each month that would have otherwise gone cold, the system can
-            become an obvious operational win.
-          </p>
-          <p className="lede" style={{ marginTop: 16, fontSize: 15 }}>
-            We model the math on <strong style={{ color: 'var(--ink)' }}>gross profit</strong> — not revenue —
-            and we don't guarantee outcomes. Use the calculator as a sanity check, not a quote.
-          </p>
-        </div>
-
-        <div className="roi-calc">
-          <h4>Recovery sanity check</h4>
-          <div className="sub">Tune the inputs to your shop</div>
-
-          <div className="roi-row">
-            <label>Monthly inbound leads</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <input type="range" min="10" max="300" step="5" value={leads}
-                     onChange={e => setLeads(+e.target.value)} className="roi-slider" />
-              <span className="num">{leads}</span>
-            </div>
-          </div>
-          <div className="roi-row">
-            <label>Jobs recovered vs. without RunWise</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <input type="range" min="2" max="20" step="1" value={recoverPct}
-                     onChange={e => setRecoverPct(+e.target.value)} className="roi-slider" />
-              <span className="num">{recoverPct}%</span>
-            </div>
-          </div>
-          <div className="roi-row">
-            <label>Avg. gross profit per recovered job</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <input type="range" min="150" max="2000" step="50" value={gp}
-                     onChange={e => setGp(+e.target.value)} className="roi-slider" />
-              <span className="num">${gp}</span>
-            </div>
-          </div>
-
-          <div className="roi-out">
-            <div>
-              <div className="lbl">Recovered GP</div>
-              <div className="lbl-sub">{recovered} jobs/mo &middot; illustrative</div>
-            </div>
-            <div className="val">${monthly.toLocaleString()}<span style={{ fontSize: 14, color: 'var(--slate-400)', fontFamily: 'var(--font-mono)', marginLeft: 6 }}>/mo</span></div>
-          </div>
-          <div className="roi-disclaimer">
-            Illustrative only. Real results depend on lead quality, close rates, ticket size, and how
-            well RunWise is tuned to your dispatch process. Annualized: ${annual.toLocaleString()}.
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section roi",
+    id: "roi"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container roi-grid"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "ROI"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2"
+  }, "Designed to pay for itself by recovering opportunities."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 20
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "lede"
+  }, "RunWise is priced around recovered opportunity value, not AI novelty. If faster response helps recover a few jobs each month that would have otherwise gone cold, the system can become an obvious operational win."), /*#__PURE__*/React.createElement("p", {
+    className: "lede",
+    style: {
+      marginTop: 16,
+      fontSize: 15
+    }
+  }, "We model the math on ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: 'var(--ink)'
+    }
+  }, "gross profit"), " \u2014 not revenue \u2014 and we don't guarantee outcomes. Use the calculator as a sanity check, not a quote.")), /*#__PURE__*/React.createElement("div", {
+    className: "roi-calc"
+  }, /*#__PURE__*/React.createElement("h4", null, "Recovery sanity check"), /*#__PURE__*/React.createElement("div", {
+    className: "sub"
+  }, "Tune the inputs to your shop"), /*#__PURE__*/React.createElement("div", {
+    className: "roi-row"
+  }, /*#__PURE__*/React.createElement("label", null, "Monthly inbound leads"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "10",
+    max: "300",
+    step: "5",
+    value: leads,
+    onChange: e => setLeads(+e.target.value),
+    className: "roi-slider"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, leads))), /*#__PURE__*/React.createElement("div", {
+    className: "roi-row"
+  }, /*#__PURE__*/React.createElement("label", null, "Jobs recovered vs. without RunWise"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "2",
+    max: "20",
+    step: "1",
+    value: recoverPct,
+    onChange: e => setRecoverPct(+e.target.value),
+    className: "roi-slider"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, recoverPct, "%"))), /*#__PURE__*/React.createElement("div", {
+    className: "roi-row"
+  }, /*#__PURE__*/React.createElement("label", null, "Avg. gross profit per recovered job"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "150",
+    max: "2000",
+    step: "50",
+    value: gp,
+    onChange: e => setGp(+e.target.value),
+    className: "roi-slider"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, "$", gp))), /*#__PURE__*/React.createElement("div", {
+    className: "roi-out"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "lbl"
+  }, "Recovered GP"), /*#__PURE__*/React.createElement("div", {
+    className: "lbl-sub"
+  }, recovered, " jobs/mo \xB7 illustrative")), /*#__PURE__*/React.createElement("div", {
+    className: "val"
+  }, "$", monthly.toLocaleString(), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      color: 'var(--slate-400)',
+      fontFamily: 'var(--font-mono)',
+      marginLeft: 6
+    }
+  }, "/mo"))), /*#__PURE__*/React.createElement("div", {
+    className: "roi-disclaimer"
+  }, "Illustrative only. Real results depend on lead quality, close rates, ticket size, and how well RunWise is tuned to your dispatch process. Annualized: $", annual.toLocaleString(), "."))));
 }
 
 /* =========================================================
    PILOT
 ========================================================= */
 function Pilot() {
-  const checks = [
-    'Launch in one client location',
-    'Connect your lead sources',
-    'Configure call flow and booking behavior',
-    'Test normal, urgent, safety, voicemail, and failed‑call scenarios',
-    'Review reporting and outcomes',
-    'Tune before expanding',
-  ];
-  return (
-    <section className="section pilot" id="pilot">
-      <div className="container pilot-inner">
-        <div>
-          <div className="eyebrow on-dark"><span className="dot" />Pilot offer</div>
-          <h2 className="h2" style={{ color: 'white' }}>Start with a focused paid pilot.</h2>
-          <div style={{ height: 18 }} />
-          <p className="pilot-lede">
-            One location. One call flow. A small, deliberate test that proves out the response
-            mechanics in your actual environment before anyone talks about rollout.
-          </p>
-          <div style={{ height: 28 }} />
-          <a href="#audit" className="btn btn-accent">Request the audit <IconArrow size={16} /></a>
-        </div>
-        <div className="pilot-checks">
-          {checks.map((c, i) => (
-            <div className="pilot-check" key={i}>
-              <span className="n">{String(i + 1).padStart(2, '0')}</span>
-              <span className="t">{c}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  const checks = ['Launch in one client location', 'Connect your lead sources', 'Configure call flow and booking behavior', 'Test normal, urgent, safety, voicemail, and failed‑call scenarios', 'Review reporting and outcomes', 'Tune before expanding'];
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section pilot",
+    id: "pilot"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container pilot-inner"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow on-dark"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "Pilot offer"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2",
+    style: {
+      color: 'white'
+    }
+  }, "Start with a focused paid pilot."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 18
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "pilot-lede"
+  }, "One location. One call flow. A small, deliberate test that proves out the response mechanics in your actual environment before anyone talks about rollout."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 28
+    }
+  }), /*#__PURE__*/React.createElement("a", {
+    href: "#audit",
+    className: "btn btn-accent"
+  }, "Request the audit ", /*#__PURE__*/React.createElement(IconArrow, {
+    size: 16
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "pilot-checks"
+  }, checks.map((c, i) => /*#__PURE__*/React.createElement("div", {
+    className: "pilot-check",
+    key: i
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "n"
+  }, String(i + 1).padStart(2, '0')), /*#__PURE__*/React.createElement("span", {
+    className: "t"
+  }, c))))));
 }
 
 /* =========================================================
@@ -2156,320 +2559,405 @@ function Challenge() {
     s.async = true;
     document.body.appendChild(s);
   }, []);
-
-  return (
-    <section className="section challenge" id="challenge">
-      <div className="container">
-        <div className="challenge-card">
-          <div className="challenge-head">
-            <div className="eyebrow" style={{ justifyContent: 'center', display: 'inline-flex' }}>
-              <span className="dot" />30‑second challenge
-            </div>
-            <h2 className="h2">Want to see how fast your leads could be called?</h2>
-            <p className="lede" style={{ margin: '12px auto 0' }}>
-              Submit a test request and experience the response flow for yourself.
-            </p>
-          </div>
-
-          <div className="ghl-form-wrap">
-            <iframe
-              src="https://api.leadconnectorhq.com/widget/form/GSuMKD7GFMhd0SUdlyAC"
-              style={{ width: '100%', height: '560px', border: 'none', borderRadius: 10, display: 'block' }}
-              id="inline-GSuMKD7GFMhd0SUdlyAC"
-              data-layout='{"id":"INLINE"}'
-              data-trigger-type="alwaysShow"
-              data-trigger-value=""
-              data-activation-type="alwaysActivated"
-              data-activation-value=""
-              data-deactivation-type="neverDeactivate"
-              data-deactivation-value=""
-              data-form-name="RunWise 30-Second Challenge"
-              data-height="560"
-              data-layout-iframe-id="inline-GSuMKD7GFMhd0SUdlyAC"
-              data-form-id="GSuMKD7GFMhd0SUdlyAC"
-              title="RunWise 30-Second Challenge"
-            />
-          </div>
-
-          <div className="challenge-foot">
-            <IconShield size={14} />
-            <span>We'll call the number you provide. RunWise only uses it to demo the response flow.</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section challenge",
+    id: "challenge"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "challenge-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "challenge-head"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      justifyContent: 'center',
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "30\u2011second challenge"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2"
+  }, "Want to see how fast your leads could be called?"), /*#__PURE__*/React.createElement("p", {
+    className: "lede",
+    style: {
+      margin: '12px auto 0'
+    }
+  }, "Submit a test request and experience the response flow for yourself.")), /*#__PURE__*/React.createElement("div", {
+    className: "ghl-form-wrap"
+  }, /*#__PURE__*/React.createElement("iframe", {
+    src: "https://api.leadconnectorhq.com/widget/form/GSuMKD7GFMhd0SUdlyAC",
+    style: {
+      width: '100%',
+      height: '560px',
+      border: 'none',
+      borderRadius: 10,
+      display: 'block'
+    },
+    id: "inline-GSuMKD7GFMhd0SUdlyAC",
+    "data-layout": "{\"id\":\"INLINE\"}",
+    "data-trigger-type": "alwaysShow",
+    "data-trigger-value": "",
+    "data-activation-type": "alwaysActivated",
+    "data-activation-value": "",
+    "data-deactivation-type": "neverDeactivate",
+    "data-deactivation-value": "",
+    "data-form-name": "RunWise 30-Second Challenge",
+    "data-height": "560",
+    "data-layout-iframe-id": "inline-GSuMKD7GFMhd0SUdlyAC",
+    "data-form-id": "GSuMKD7GFMhd0SUdlyAC",
+    title: "RunWise 30-Second Challenge"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "challenge-foot"
+  }, /*#__PURE__*/React.createElement(IconShield, {
+    size: 14
+  }), /*#__PURE__*/React.createElement("span", null, "We'll call the number you provide. RunWise only uses it to demo the response flow.")))));
 }
 
 /* =========================================================
    FAQ
 ========================================================= */
-const faqs = [
-  { q: 'Does RunWise replace my dispatcher?',
-    a: 'No. It supports the team by handling fast lead response and routing the right calls to humans. Your dispatcher focuses on booked work and exceptions; RunWise handles the noisy top of the funnel.' },
-  { q: 'Can it book appointments?',
-    a: 'Yes, when calendar or booking access is available. RunWise offers arrival windows you actually control — not vague promises.' },
-  { q: 'What happens with urgent or safety‑related calls?',
-    a: 'They are flagged and escalated based on the client\u2019s rules. Gas smells, electrical concerns, no‑heat in extreme weather, anything you tell us to treat as urgent — routed to a human immediately.' },
-  { q: 'What if we use ServiceTitan or Housecall Pro?',
-    a: 'RunWise can often support these workflows through approved APIs, Zapier, Make, calendar syncs, or booking links, depending on the access available in your account. We scope this during the pilot — no universal promise.' },
-  { q: 'What lead sources can it handle?',
-    a: 'GHL forms, website forms, email lead notifications, and other structured lead sources. If a lead has a phone number and arrives in a known format, RunWise can act on it.' },
-  { q: 'Where does call data live?',
-    a: 'In your RunWise/GHL workspace — outcome, transcript, recording, and notes for every call. Booked appointments are pushed to your FSM (ServiceTitan, Housecall Pro, etc.) where API, Zapier, Make, calendar, or booking‑link access is available.' },
-];
-
+const faqs = [{
+  q: 'Does RunWise replace my dispatcher?',
+  a: 'No. It supports the team by handling fast lead response and routing the right calls to humans. Your dispatcher focuses on booked work and exceptions; RunWise handles the noisy top of the funnel.'
+}, {
+  q: 'Can it book appointments?',
+  a: 'Yes, when calendar or booking access is available. RunWise offers arrival windows you actually control — not vague promises.'
+}, {
+  q: 'What happens with urgent or safety‑related calls?',
+  a: 'They are flagged and escalated based on the client\u2019s rules. Gas smells, electrical concerns, no‑heat in extreme weather, anything you tell us to treat as urgent — routed to a human immediately.'
+}, {
+  q: 'What if we use ServiceTitan or Housecall Pro?',
+  a: 'RunWise can often support these workflows through approved APIs, Zapier, Make, calendar syncs, or booking links, depending on the access available in your account. We scope this during the pilot — no universal promise.'
+}, {
+  q: 'What lead sources can it handle?',
+  a: 'GHL forms, website forms, email lead notifications, and other structured lead sources. If a lead has a phone number and arrives in a known format, RunWise can act on it.'
+}, {
+  q: 'Where does call data live?',
+  a: 'In your RunWise/GHL workspace — outcome, transcript, recording, and notes for every call. Booked appointments are pushed to your FSM (ServiceTitan, Housecall Pro, etc.) where API, Zapier, Make, calendar, or booking‑link access is available.'
+}];
 function Faq() {
   const [open, setOpen] = useState(0);
-  return (
-    <section className="section faq" id="faq">
-      <div className="container faq-grid">
-        <div>
-          <div className="eyebrow"><span className="dot" />FAQ</div>
-          <h2 className="h2">Straight answers.</h2>
-          <div style={{ height: 14 }} />
-          <p className="lede">
-            The questions we get from owners and dispatch managers, answered without spin.
-          </p>
-        </div>
-        <div className="faq-list">
-          {faqs.map((f, i) => (
-            <div className={`faq-item ${open === i ? 'open' : ''}`} key={i}>
-              <button className="faq-q" onClick={() => setOpen(open === i ? -1 : i)}>
-                <span>{f.q}</span>
-                <span className="chev"><IconPlus size={12} /></span>
-              </button>
-              <div className="faq-a">
-                <div className="faq-a-inner">{f.a}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "section faq",
+    id: "faq"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container faq-grid"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "FAQ"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2"
+  }, "Straight answers."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 14
+    }
+  }), /*#__PURE__*/React.createElement("p", {
+    className: "lede"
+  }, "The questions we get from owners and dispatch managers, answered without spin.")), /*#__PURE__*/React.createElement("div", {
+    className: "faq-list"
+  }, faqs.map((f, i) => /*#__PURE__*/React.createElement("div", {
+    className: `faq-item ${open === i ? 'open' : ''}`,
+    key: i
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "faq-q",
+    onClick: () => setOpen(open === i ? -1 : i)
+  }, /*#__PURE__*/React.createElement("span", null, f.q), /*#__PURE__*/React.createElement("span", {
+    className: "chev"
+  }, /*#__PURE__*/React.createElement(IconPlus, {
+    size: 12
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "faq-a"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "faq-a-inner"
+  }, f.a)))))));
 }
 
 /* =========================================================
    AUDIT CTA — Primary conversion section
 ========================================================= */
-const spendOptions = [
-  { value: '',      label: 'Select range…' },
-  { value: '<1k',   label: 'Less than $1,000/mo' },
-  { value: '1k-3k', label: '$1,000–$3,000/mo' },
-  { value: '3k-5k', label: '$3,000–$5,000/mo' },
-  { value: '5k-10k',label: '$5,000–$10,000/mo' },
-  { value: '10k+',  label: '$10,000+/mo' },
-];
-const timeOptions = [
-  { value: '',          label: 'Select a time…' },
-  { value: 'morning',   label: 'Morning (8am–12pm)' },
-  { value: 'afternoon', label: 'Afternoon (12pm–4pm)' },
-  { value: 'evening',   label: 'Evening (4pm–7pm)' },
-  { value: 'flexible',  label: 'Flexible' },
-];
-const sourceOptions = [
-  'Google Search / PPC', 'Google LSA', 'Facebook / Instagram',
-  'Angi / HomeAdvisor', 'Website forms', 'Other',
-];
-
+const spendOptions = [{
+  value: '',
+  label: 'Select range…'
+}, {
+  value: '<1k',
+  label: 'Less than $1,000/mo'
+}, {
+  value: '1k-3k',
+  label: '$1,000–$3,000/mo'
+}, {
+  value: '3k-5k',
+  label: '$3,000–$5,000/mo'
+}, {
+  value: '5k-10k',
+  label: '$5,000–$10,000/mo'
+}, {
+  value: '10k+',
+  label: '$10,000+/mo'
+}];
+const timeOptions = [{
+  value: '',
+  label: 'Select a time…'
+}, {
+  value: 'morning',
+  label: 'Morning (8am–12pm)'
+}, {
+  value: 'afternoon',
+  label: 'Afternoon (12pm–4pm)'
+}, {
+  value: 'evening',
+  label: 'Evening (4pm–7pm)'
+}, {
+  value: 'flexible',
+  label: 'Flexible'
+}];
+const sourceOptions = ['Google Search / PPC', 'Google LSA', 'Facebook / Instagram', 'Angi / HomeAdvisor', 'Website forms', 'Other'];
 function AuditCta() {
-  const blank = { name:'', company:'', website:'', phone:'', email:'', spend:'', sources:[], time:'' };
+  const blank = {
+    name: '',
+    company: '',
+    website: '',
+    phone: '',
+    email: '',
+    spend: '',
+    sources: [],
+    time: ''
+  };
   const [form, setForm] = useState(blank);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-
   const set = (field, val) => {
-    setForm(f => ({ ...f, [field]: val }));
-    setErrors(e => ({ ...e, [field]: false }));
+    setForm(f => ({
+      ...f,
+      [field]: val
+    }));
+    setErrors(e => ({
+      ...e,
+      [field]: false
+    }));
   };
-  const toggleSource = (src) => setForm(f => ({
+  const toggleSource = src => setForm(f => ({
     ...f,
-    sources: f.sources.includes(src) ? f.sources.filter(s => s !== src) : [...f.sources, src],
+    sources: f.sources.includes(src) ? f.sources.filter(s => s !== src) : [...f.sources, src]
   }));
-
-  const handleSubmit = (evt) => {
+  const handleSubmit = evt => {
     evt.preventDefault();
     const errs = {};
-    if (!form.name.trim())    errs.name    = true;
+    if (!form.name.trim()) errs.name = true;
     if (!form.company.trim()) errs.company = true;
     if (!form.website.trim()) errs.website = true;
-    if (!form.phone.trim())   errs.phone   = true;
+    if (!form.phone.trim()) errs.phone = true;
     if (!form.email.trim() || !form.email.includes('@')) errs.email = true;
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
     setSubmitting(true);
     // Wire to GHL webhook: fetch('YOUR_WEBHOOK_URL', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
-    setTimeout(() => { setSubmitted(true); setSubmitting(false); }, 700);
+    setTimeout(() => {
+      setSubmitted(true);
+      setSubmitting(false);
+    }, 700);
   };
-
   if (submitted) {
-    return (
-      <section className="audit-cta" id="audit">
-        <div className="container audit-submitted">
-          <div className="eyebrow on-dark" style={{ justifyContent:'center', display:'inline-flex' }}>
-            <span className="dot" />Audit requested
-          </div>
-          <h2 className="h2" style={{ color:'white', margin:'16px 0 14px' }}>You're on the list.</h2>
-          <p style={{ color:'var(--slate-300)', fontSize:17, maxWidth:'46ch', margin:'0 auto' }}>
-            We'll be in touch within one business day to schedule your 5–7 minute intake call.
-            No system access needed before then.
-          </p>
-        </div>
-      </section>
-    );
+    return /*#__PURE__*/React.createElement("section", {
+      className: "audit-cta",
+      id: "audit"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "container audit-submitted"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow on-dark",
+      style: {
+        justifyContent: 'center',
+        display: 'inline-flex'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "dot"
+    }), "Audit requested"), /*#__PURE__*/React.createElement("h2", {
+      className: "h2",
+      style: {
+        color: 'white',
+        margin: '16px 0 14px'
+      }
+    }, "You're on the list."), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: 'var(--slate-300)',
+        fontSize: 17,
+        maxWidth: '46ch',
+        margin: '0 auto'
+      }
+    }, "We'll be in touch within one business day to schedule your 5\u20137 minute intake call. No system access needed before then.")));
   }
-
-  return (
-    <section className="audit-cta" id="audit">
-      <div className="container">
-        <div className="audit-head">
-          <div className="eyebrow on-dark" style={{ justifyContent:'center', display:'inline-flex' }}>
-            <span className="dot" />48-Hour Paid Lead Leak Audit
-          </div>
-          <h2 className="h2 audit-headline">
-            Are Your Paid HVAC Leads Turning Into Booked Jobs Fast Enough?
-          </h2>
-          <p className="audit-sub">
-            You're already paying for the leads. We show you where slow response, missed calls,
-            after-hours gaps, or weak follow-up may be costing you booked jobs.
-          </p>
-          <p className="audit-qualify">
-            Best fit for HVAC contractors spending $5K+/month on Google, LSA, Facebook, Angi,
-            or other paid lead sources.
-          </p>
-        </div>
-
-        <div className="audit-body">
-          <form className="audit-form" onSubmit={handleSubmit} noValidate>
-            <p className="audit-credibility">
-              No system access required. No ad account access required. We start with a short intake
-              call and one controlled test — with your permission.
-            </p>
-            <div className="audit-form-grid">
-              <div className={`afield ${errors.name ? 'err' : ''}`}>
-                <label>Name *</label>
-                <input type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Jane Smith" />
-              </div>
-              <div className={`afield ${errors.company ? 'err' : ''}`}>
-                <label>Company *</label>
-                <input type="text" value={form.company} onChange={e => set('company', e.target.value)} placeholder="Pioneer Heating & Air" />
-              </div>
-              <div className={`afield ${errors.website ? 'err' : ''}`}>
-                <label>Website *</label>
-                <input type="url" value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://" />
-              </div>
-              <div className={`afield ${errors.phone ? 'err' : ''}`}>
-                <label>Phone *</label>
-                <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(555) 000-0000" />
-              </div>
-              <div className={`afield full ${errors.email ? 'err' : ''}`}>
-                <label>Email *</label>
-                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@pioneerair.com" />
-              </div>
-              <div className="afield">
-                <label>Monthly paid lead spend</label>
-                <select value={form.spend} onChange={e => set('spend', e.target.value)}>
-                  {spendOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="afield">
-                <label>Best time to talk</label>
-                <select value={form.time} onChange={e => set('time', e.target.value)}>
-                  {timeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              <div className="afield full">
-                <label>Main lead sources</label>
-                <div className="source-checks">
-                  {sourceOptions.map(src => (
-                    <label key={src} className="check-label">
-                      <input type="checkbox" checked={form.sources.includes(src)} onChange={() => toggleSource(src)} />
-                      <span>{src}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="audit-submit-row">
-              <button type="submit" className="btn btn-gold" disabled={submitting}>
-                {submitting ? 'Sending…' : <>Request My 48-Hour Audit <IconArrow size={16} /></>}
-              </button>
-              <p className="audit-foot-note">
-                No system access required. No ad account access required. We begin with a 5–7 minute
-                intake call and one controlled test, with your permission.
-              </p>
-            </div>
-          </form>
-
-          <div className="audit-what-next">
-            <p className="awn-title">What happens next</p>
-            {[
-              { n:'01', t:'Intake call',          d:'5–7 minutes. We map your lead flow before recommending anything.' },
-              { n:'02', t:'Controlled test',       d:'One controlled test using agreed-upon test contact info, with your permission.' },
-              { n:'03', t:'48-hour findings',      d:'We show where response delays or visibility gaps may be leaking booked jobs.' },
-              { n:'04', t:'Clear recommendation',  d:'A clear fix plan, not a vague AI pitch.' },
-            ].map(s => (
-              <div className="awn-step" key={s.n}>
-                <span className="awn-num">{s.n}</span>
-                <div>
-                  <div className="awn-t">{s.t}</div>
-                  <div className="awn-d">{s.d}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return /*#__PURE__*/React.createElement("section", {
+    className: "audit-cta",
+    id: "audit"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "audit-head"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow on-dark",
+    style: {
+      justifyContent: 'center',
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dot"
+  }), "48-Hour Paid Lead Leak Audit"), /*#__PURE__*/React.createElement("h2", {
+    className: "h2 audit-headline"
+  }, "Are Your Paid HVAC Leads Turning Into Booked Jobs Fast Enough?"), /*#__PURE__*/React.createElement("p", {
+    className: "audit-sub"
+  }, "You're already paying for the leads. We show you where slow response, missed calls, after-hours gaps, or weak follow-up may be costing you booked jobs."), /*#__PURE__*/React.createElement("p", {
+    className: "audit-qualify"
+  }, "Best fit for HVAC contractors spending $5K+/month on Google, LSA, Facebook, Angi, or other paid lead sources.")), /*#__PURE__*/React.createElement("div", {
+    className: "audit-body"
+  }, /*#__PURE__*/React.createElement("form", {
+    className: "audit-form",
+    onSubmit: handleSubmit,
+    noValidate: true
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "audit-credibility"
+  }, "No system access required. No ad account access required. We start with a short intake call and one controlled test \u2014 with your permission."), /*#__PURE__*/React.createElement("div", {
+    className: "audit-form-grid"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `afield ${errors.name ? 'err' : ''}`
+  }, /*#__PURE__*/React.createElement("label", null, "Name *"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: form.name,
+    onChange: e => set('name', e.target.value),
+    placeholder: "Jane Smith"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `afield ${errors.company ? 'err' : ''}`
+  }, /*#__PURE__*/React.createElement("label", null, "Company *"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: form.company,
+    onChange: e => set('company', e.target.value),
+    placeholder: "Pioneer Heating & Air"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `afield ${errors.website ? 'err' : ''}`
+  }, /*#__PURE__*/React.createElement("label", null, "Website *"), /*#__PURE__*/React.createElement("input", {
+    type: "url",
+    value: form.website,
+    onChange: e => set('website', e.target.value),
+    placeholder: "https://"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `afield ${errors.phone ? 'err' : ''}`
+  }, /*#__PURE__*/React.createElement("label", null, "Phone *"), /*#__PURE__*/React.createElement("input", {
+    type: "tel",
+    value: form.phone,
+    onChange: e => set('phone', e.target.value),
+    placeholder: "(555) 000-0000"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: `afield full ${errors.email ? 'err' : ''}`
+  }, /*#__PURE__*/React.createElement("label", null, "Email *"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    value: form.email,
+    onChange: e => set('email', e.target.value),
+    placeholder: "jane@pioneerair.com"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "afield"
+  }, /*#__PURE__*/React.createElement("label", null, "Monthly paid lead spend"), /*#__PURE__*/React.createElement("select", {
+    value: form.spend,
+    onChange: e => set('spend', e.target.value)
+  }, spendOptions.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o.value,
+    value: o.value
+  }, o.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "afield"
+  }, /*#__PURE__*/React.createElement("label", null, "Best time to talk"), /*#__PURE__*/React.createElement("select", {
+    value: form.time,
+    onChange: e => set('time', e.target.value)
+  }, timeOptions.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o.value,
+    value: o.value
+  }, o.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "afield full"
+  }, /*#__PURE__*/React.createElement("label", null, "Main lead sources"), /*#__PURE__*/React.createElement("div", {
+    className: "source-checks"
+  }, sourceOptions.map(src => /*#__PURE__*/React.createElement("label", {
+    key: src,
+    className: "check-label"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: form.sources.includes(src),
+    onChange: () => toggleSource(src)
+  }), /*#__PURE__*/React.createElement("span", null, src)))))), /*#__PURE__*/React.createElement("div", {
+    className: "audit-submit-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "submit",
+    className: "btn btn-gold",
+    disabled: submitting
+  }, submitting ? 'Sending…' : /*#__PURE__*/React.createElement(React.Fragment, null, "Request My 48-Hour Audit ", /*#__PURE__*/React.createElement(IconArrow, {
+    size: 16
+  }))), /*#__PURE__*/React.createElement("p", {
+    className: "audit-foot-note"
+  }, "No system access required. No ad account access required. We begin with a 5\u20137 minute intake call and one controlled test, with your permission."))), /*#__PURE__*/React.createElement("div", {
+    className: "audit-what-next"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "awn-title"
+  }, "What happens next"), [{
+    n: '01',
+    t: 'Intake call',
+    d: '5–7 minutes. We map your lead flow before recommending anything.'
+  }, {
+    n: '02',
+    t: 'Controlled test',
+    d: 'One controlled test using agreed-upon test contact info, with your permission.'
+  }, {
+    n: '03',
+    t: '48-hour findings',
+    d: 'We show where response delays or visibility gaps may be leaking booked jobs.'
+  }, {
+    n: '04',
+    t: 'Clear recommendation',
+    d: 'A clear fix plan, not a vague AI pitch.'
+  }].map(s => /*#__PURE__*/React.createElement("div", {
+    className: "awn-step",
+    key: s.n
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "awn-num"
+  }, s.n), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "awn-t"
+  }, s.t), /*#__PURE__*/React.createElement("div", {
+    className: "awn-d"
+  }, s.d))))))));
 }
-
 function Footer() {
-  return (
-    <footer className="footer">
-      <div className="container footer-inner">
-        <div className="footer-logo">
-          <img src="data:image/png;base64,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" alt="RunWise Systems" />
-          <span style={{ color: 'var(--slate-400)', marginLeft: 4 }}>© 2026</span>
-        </div>
-        <div className="footer-links">
-          <a href="#what">Product</a>
-          <a href="#pilot">Pilot</a>
-          <a href="#faq">FAQ</a>
-          <a href="#audit">Contact</a>
-        </div>
-      </div>
-    </footer>
-  );
+  return /*#__PURE__*/React.createElement("footer", {
+    className: "footer"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "container footer-inner"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "footer-logo"
+  }, /*#__PURE__*/React.createElement("img", {
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYwAAAB4CAYAAADhTcXxAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsQAAA7EAZUrDhsAAD6XSURBVHhe7Z15mGNVnf7f9yT3Jt2VAKIIuOIMKioia1c1IP7c0FHcsNm6UqCgjMPgrrgyoiLouG/g4MJgpRoQ3AF3HRDpFDaCgLuIgAoK0kBS3bm5yXl/f6RSnZxKJTdVSS3N/TxPPU/nPSfVleXe7znnuxEPIvSTZySx0x4ZAIC3ZQv3vqTizomJiYmJaQ9dYXtE15+wUymovQ3AqSQzACCpTPA8JOwHMwdN3Ok+JyYmJiamle3aYNhr1u08ZVKnAfzPhqFoh6w9L+GZD6w+cPx2dywmJiYmps52aTAe+MW6XUwl/TaBryEx5I7PhazGvYQ+kF4z8Tt3LCYmJubBznZlMIobj92VTL5DwMkkV7njURF0KYx9X/agDTe5YzExMTEPVrYLgzF1zfGPtKb2LtL8hzu2ECT7XQO8d2hkouCOxcTExDzYWNEGw159YnYqWfkgyVPcsb5i9RMRZ2ZH8j92h2JiYmIeLKxog1Es5K4hudbVB4Wk6wz4/qGR8W+6YzExMTHbOyvWYJQKoyeC5ouuvigIN4v2/dnhia+4QzExMTHbKyvWYBQncxsJjrj6YiLpdxQ+lFmbP98di4mJidneWJEGQ5uOWD1Ve8iUqy8Vkv5M2tdmhjdc5o7FxMTEbC8YV1gJlKo7DLvaUkJyDyDx7dLG3CvdsZiYmJjthRVpMCge6mrLAZGftjfkIicKxsTExKwkloXBKE2uP6I4OXpGcXL0jNJk7vnu+CyIp7vScoDE0Nat6P73x8TExKxAltSHMbUx93JLvJvkvi0D0o9W2/LR5uBL723RpykWxkq9lPxYTAS9Pjuc/5Srx8TExKx0lmSHMVUYXVcq5H4pw0tnGQsAIJ89ZdI/dGUAmCqsP2C5GgsAMNAdrhYTExOzPbCoBqNUyJ1ULOR+LZpLQO7jjjdDcr92TmSLxLI8jkJ9d/HA6sT933P1mJiYmO2BgR9JadMRq0u1HU8CeBrBR7njnRDwxezw+KuatWJh9FLSvLxZWy5Idn12ZOJCV3fZeu36f6kq8U5IexKQNbpkhzUT57jzYmJiYpYTAzMYuv6EnUqV2lsBnEpwB3c8EtJXMiP5Y5qlUiF3F8hdm7WlRsCtsPr37Nr8D9yxZoobj9+H1DtAHOuOQfgHaD8+lKicywMvud8djomJiVlq+m4wtOmI1VPVHd8g8O0ks+54L0j6XHYkP1OBtjw59oQqsGx6VUj6DYEPZkbyX3bHmikW1j8TMG8g+WJ3zEXSVgLngImPZIYvuMsdj4mJiVkq+mowipOjb4L4dpK7uGPzQ6/MDOf/t/FoSetHNSFpozE4e2hN/tvuWDNThdxLLfh2EvNKNJTs+UmPZ606IP9HdywmJiZmsVmwwdCmo3acqqVPlXQqyd3c8YWQMNxz1UFfvqXxuFgYO5/EK1pnLR6SvpcwPHv1mvEr3bFmShtzrxRxGsm93LH5INhvGJgPDA2Pb3LHYmJiohGG4bNqFme7ukvKTz6dZMXVYxZgMLZct/6xNky8SdCrF9Ldbi4k3ZkdyT+iWSsWRv9Amj2btX4hqQRgM4HNAO4VsBnEZgqbBdya8Oxlqw/YcJv7vAbadMTqUvUhJwN6K8mWv7tfCPppgjy9m8GKiYmZTTkM11G8xNVdfC+ximTZ1WPmaTBKk6MfA8wbXb2vSBdnRvIzzuHixmN3pfE6nunPuulT90HYTPBekJst7WZabCbNvbS6L2G4ueJt3bzD/pfe7f6uqGjTcQ8rVROvA3AqyYe444NA1r4hu3bik64eExMzN7HBWDg9G4xiIXc2ybe7er+RdGp2JP/ZxuOpwug60bR+2MLN1thzDczGzJrx61vGBsyWTWOPsSFOE3USybQ7Pmjc47pBEwTVYwX1Y5EggEVQ90K425C/TibN94wxi/ZaHkwEQfUoQW9xdReC/0ilki9y9YVQqdiDLWsPBwCjxN9932x05yyEciW8CMLjXN0lYXC653nfjw3GwunJYOj6E3aaqtjNrj4IZPm07Nov39h4XCqMfRLE67ZN0EczI/muF0K/KU4e+xTKe3fb0NhFRNZ+JLt24q2uPijKleobCHzc1fuFpD+C/GLaT37QHYuZP9baR1fC2m0ku1/rMk9LpczMNbcQJKWDSvVOkjtNP74v5Sd379eN2Fq7ayWs3dntdUkKU35yV5KbY4OxcHrK9C5Vai90tUEg6IFmYzGtbcvwFi5abGOxZXL9YcXJ3GWEd/NSGwvUM+Gf52orGZJ7Ejg7CMLflcOwa/hxTDSMMXeAuMHV2yHal7rafAnD2isaxgL1z3enMKz1LWClWrXruhmLaa4huSiL3AcDPRkMCAe70kAQ8s0P7dUnZknuh/qKYfPqqndy8/ggmdqYe3mxkNtkkbiS4KIYzEiQT7WF0fklRC5nyCfA4hvlIPyUpKQ7HNM7FL7jam2RDnel+WKlWcbBSie62nyREO1vJaO99phI9GYwgLWuMAg8ssWhuyUZNP2/+oY59EvF5vFBULx2NFeczP1qukDiAc1jshoHai9iMnxkZnicSmlXSGdIWtRt7BaaRfk8FhvWeW1QqV4paVECCbZvEhtcZQ5G+vF+B4Hdn+Ss3COSBwWB3c/Ve0WSEfRMV2+HnzRRX3tMBCIbDHtDbqixyh8sent6ePz3LQqa+l/QDGzFYK9Zt6pYyL2xWMjdTplxgk9uHpd0QzJRfVJ2bf74zPCGy4YOuOhvAJDdN/+PzEj+vUljnyLp6ubnDBLJLstGUv2C5MFBpfoda+2yrU68EkilzK8kdU3+JJmoVGovc/VeEWsz1RlcxNobXK1Xgmr1eVGqSAi60RgzUz06Adwr6dpuPwBs62+KaRDZYEyV7RpX6zeSfpYZzn/I1QHOGAyyVmodWzjadNSOpcLYf02Z9B0kP0by0bPmSNcPVf3D0gde+Ft3rMGqNRv+lB3JPx3SV9yxQUCaxTkiXEJIDoehjVeJCyfqQmtBDcAkpSG01H9rQTh6wbsYi39zpXZQ+G7zY8/zfpxOecPdfuKkvbmJbDAIDvT4Q8JUEhhz9Wm2bW9riSiOrkhMFUYfVSyMnlOqpu4E8V6SD3XnzMDqWNSjsMxI/hhJAy9zLmm7NxgAAOLFYRhuV07+xSZh8E1Xa4eg50iKfF9wCcPaSZ1W/yTTQVh7tav3AoHnuFo7yMQ3XC1mYUT+Yogc6M2J0OtXjeRvdfUtk2Nrm/McBCz4GGbrdbk9i4Wx80VzB2n+o1umuqTvZYcv+pWrd2IojZdPb28HBsn01OTYga6+PVKzeLerxUTH87wfSeqaoEryIdVq9dmuHpV2zm4XSi0tC3rBWvtYkE9ydRdJf+133kdMD3kYxULunyR3dvV+IOHb2ZHxtqGUpULuNJAzx1SSbsmO5OdVHmRqY27YEu+MUjW2GcG+OTs88TFX74a9Zt3OUyZ9NSN8wefLYmV9R87DkM6Swc9duRlaZgAcA+IId6wThDnU983PXH17xVq7axhiN2NquwBIWJu4cyF5EuVK+L8ET3D1WUifSqW817tyN4LA7g/a61y9HYb6N8/zWo6MolCuVN9M4COu7iLoC2nfW9BOplcqFR0q1fYQsQulXQBYkXdTuItM/NH3Gem9WQjW2oeGoX02iZ0t8BBKOwEIRd5PYbOM/pH2vG+5z4tKJIMxyLLiku7JJGtP4oEX3uOOoV5w8FskWjJQJXtmdmTi9GatE6XJ3PMFvJNNvpBeEDCaHR6f1zl66eeju8vy2l6bR0VFwCXZ4fGjXb3fRDcYOC6VSl7kyu0oW/sEhLUJktF2SdInUimvJdu8HnVTO75Za4fnJd5jjHnA1TthrX14GNbe4eouUuLz6bT5dbNWDsMjaZuCNbYRplLeaa7YoGztkxjWXiNgPcmHueMAAOkPAr5vmLiwFwNaDsMjKX7V1Wch/TqV8p7iyt0oV8IvEowWOit8PZVKHunK3SgH1e+R3UNqRb3EvTEGgX0a0D0XxPeT74uSu2Gt3aVStacAeinRptW0w3QU5Y0gL077yZ4XoHMhya9UakcBOFbQc7pVnpB0H4hvJYgJz/O+7453IpLBKE3mXgHwfFfvB6Re3KlMeIedzcmZ4fHPu2IzxcLocQBPX/gK374jMzwx7wzk8sbjHh8ycc2cN4AFIOmu7Eh+d1fvN4MwGA3KQfgzRjnylH6fSnlPbJaCoHosiK5dDr2keYQx5k5X70RZ2oth7Teu7iLqiLTnXd6slYPwUyRf26zNIIymUsmWBUilogOsameSPTqdha9Zz7xtlTFdo6Ak+UGl+k+SGXfMRUnzhLQxf3D1uZCUCSrVv3XyXzQjqeJ7iT2bo5i6Mf333x/lhpjykw8l2RLt1EOm92NJ3u7qzZSD8FMAXt3tb5kLSfcZ8nTfT37GHYuKtXZVpWrfgHql8PkVPJV+DfDDqVRypo1EJyL5MGQ1EIe3pM93NBaTxz5lDmMBAOcVC6M/KxZyz9KtJ8x8aMWNx+5anBx7c7GQ+zNpNjSMhaTbLe1/Amb3zPA4ATxf0E9bfuMcSAuLRkqvvfAPNDx8ujhiXyG525br1j/W1VcSROJUV2sL+YQFR9gsAwT9e+Pf1trdy5Vwg1Db1LOxAADiSIa168Iw7JqXQLJCMNqKsmp7Cq8th7VXRjUWqP8tfhjWZt6HKATV6hFRbtAEf+Qai35RqdhDykH4V5KvjfK3zAXJnQR8ulwJ53VyUalUT6mEtdsJnDVvYwEA5JNBnF8Owj9GCSyJZDDA7tutXpH056E0OhazM/DabelnIM3BJH809Q+7tVTI/bJYyN1C491F4CMkH4tpQwHZk7Ij+cfusGbinEYXu8zw+Peyw/nDaDUiqeOZHokXTV1z/CNdvRcya8avT9AOJFO8Vk0c4moriVTKXC8o0vluGOrxrrbSIHlYENj9y9JelbD2M4LHuXN6geQONYtvh2EYJXpozgVaC1Ezqach1N034iDglT1FZClaOC2Alt1evwgC+zSr2jcXdIN2IHhcEFQv76WqQTkIzxHw2X6eWJD815rFt4Kg2tHvE/XD2tEVFkoiYXNm3/yUqzfTU2IauQ/Jf2k8lPRXACdnR/KPzYxMfKl18jaG1uYnsyP5lyRt9Qmy9jx3vIGMnfeRVIPVwxuuIu1LXH3BSCvaYEzT4gOYC8nOfMYrGcGejUr1KpJdq61GgeRQzWKDpMe4Y834fuLrkkJXn40Oi5owGQR2f6K1GkIUSD5i+uw9GsKzXMlFUuj7/Q+ntdbuLNS+3TH0fr4QLwjC6udcuR1bg+oVJOdMjFwIJH0Q5wVB+D53rEE0g0F1PcftBUkfXH3Qhq7OOpHPcLVuNO0oHtXNx9FMeu2Ff8iunfh3wOwO6aOSWnMuyFypMLbgaKShNRPforYdSfSJgRwZLjIRbmIAgJQrrERIHN6/VsZ1SO4SVKod+8uTvB/g/7m6C0kvDKMtbsRae19NBAR0XNE2KFv7hOYF4dzwp1Ec1r1SqdbOaZfQ2y8InlQOw45BAOVKOG4YeZc1f8jTg6DadscYyWBQ+IKrzRvpxuxIvmvkyZZNY4/pJbIo6o6iG5nhC+7KjOTfkskEj4D0Vkh/nxkkXlcs5H43tTH38pYn9cjQSP48yZ7p6vOF5H66+aiujsxljfCvrtQOGbWNpoupQ/IZ5TDsfFNhtCMbUZ1/T/26y0BYwPWgZ1pru3/2VRstEpC4wpUWShDYpxCcO3u9X1h81JUaVCrVUwjmXH1QCPpsENi9XT2SwciMTFwuoGt0QRTE6npXa0et1lTOvANNhqKnHUU3uPclpcxI/iOZkfxusDpR0i2oX5BPkOGlxcnRG4qTo9G+xG3IjkycLmjehs2lNOXPKva2UihLezHibpI28WdX2x6RdI+gX0zXN4pUYaABLU9xtWb8pLlQUs3VZxHBjxGEtVf14ux2IWkqYa17zofU1T8jSX7SDKAsTy2SsZB0p4C3EGY45SfpJc2ehnqupHMlbXXnu5Dco1Kxh7l6pWIPFDDTTC4S0q8lfRrSJyB9QtD/StEXWySHxNqsaMdIBgMAMonNr5A0Zx2lKAh4S+SMaXXO6JZ0G6V/77ehaEdmbf787Eh+T9K+RNLPAIAwTyPMxaXC2E3Fa9dH+kK5ZIfzJ0m25+SldtAuUun5QVCpRTrqk/TPVMpE+/6sQCTdA+lMJc2T0ylvl7TvHZBOecO+l3iUgNMiX/DEEdbaOc/ajTH/ADonV6J+03h4paKO1yHm4exuw5ikOSOOpn0p3b/fxPW9hOlGRUDXxYygm3wvsXfaT37U9821qL/Pt3ie98N0yjuFSBwaJUpSqs3qSWLVg/9U+Cph1qZS3lPSKe91qZT3xlTKe2Pa916ZTnm7QFgv6Jfu09pB8CmVSrUlgjGyweCBl21JJswRUV50OwQVssPjc265XAi2/aJKum16R7HH0Eh+Tif1IBhaM/Gt7Ej+UAIHyapem4fYm0pcVCzkflO8drTnLWNm1+TLJC24vawY4YJahpSD8HNRErFQ/05ECoNekQhX+F7iiamUd3ramBafoTHmgbSf/LBh8mVRS+iHoe28IicjHd1I1TnbtlYq9uAoCWvdmG6uNGfyZRjal5L0XN3FLTbYLwh0z3MizjDG3OvKDVIp84vmihVzw5bjuXIYvoBEpFItBF6TSiXX+b4puGMNUqnkhWnf2xfS2e5YO6z0tubHkQ0GAKw66Mu3GGrOD3YuJG1JJG3kLnX2mnU7g2g5P5P0VwL/kR3J7zHoHUU3hobHN2XX5l+aSOrxki5A/Uu/F2XGi4XcraXJsUiOPADg4y4oD5HPlRQ5Sao9XCaRUnpqOQxf2uknCKpHB0H4gXIQ3koycgCAjAaSPLrUSPhhKpV8YacbDgD4Pq+OUhYD9QVax++DkqZrsiPqC5HnuloDi+55FNPHal2PEa30SldrIKprfgAAkImvu1o/ENA194c2MasOnouB+YGruYhq9dtaRKpoQeBU30/+j6vPRSrlvVPAe1zdheSjypXqTGvsngwGAAwNT3xd0IddvROkTll9wIbbXH0utiT8mdWyoAco+5rsSP5RQ8PjkULPFotVB+T/mB3Jv0JWM3H0JPeoJxXmbi0VRiOVSTDD4/9MePa5EP7hjkWFZLY4eWzP5Rz6DvlOil/v9APiYpDvnH6vIiHoV26ph+0BSff7nol8rON5iU+5WnvYkhHvssqYPwq62dVnIezbLlTXWrszhAghscyD3atEkByZs7lSBF/KdLHBTa7eDwh0NOR1al1zaXzfTKb8JDv9pH1vJjzZWvtokiOtv6UNwiW+n+zNxwEg7SffJ+gXrj4LYSZ/rGeDgfrZ+2mSrnL1dsjqm5nhiQtcvRNCYsbhbUztuUMjE5Et51KQXZu/CNLFzRrJPUDzxWIhd+fUZK5r3PTqAzbcBtaeN98jPwCATT7VlbYXEsSbXW07YcIY8zdXnAtjzN2Sut8YqYe7kkuUIxySDMLZ5+qVqn1lhCrPW/2kucBPmv+R1LXHhFibWck2qFTsCMldXb0N0RIS54HAv7raLMi3livheWVr+5ZYWq1GDGv2E//lalFJEC1HTu3Z1kZhXgYDADLJ2sunI5TmRFIp49V6L2U8nbAn6QtDB1040BLh/YJqX2eJ5G4CzykWcn8rbhx9fXMZE5fM8IYbkLAHQ5qXY5eE72rbA4LGPc8beH+RpSBh5hF9SHStGwWhaxYwmfiaq7WDQpsjoQjObuJbxph7jTF/J9g9lFdY55Z+kWrRqiMYDGz3SegmV2sHwVezan9fDsK/BkH18iAIP1AOw3XW2nnl20TpWy7opjQ572Akz/N+KKhjBWSSmXIYvhALMRg88MJ7TNf4a31iriq0c2GvWbeq0UmO4kDOJAfB0Nr8ZKcoFpK705hPTP3d3laazL3NXrOu7eose9CGmzIj+b0hHC+ppVVtN5JGk6624pF+7Scj1ppaYUgqe57XNYnOhcK23KC56ZqX4/tmo6SuuxtBz5I0sxiZdnZ33c0miJmwcRl1zeUimQnC2knNmjC3D6WBpPtSyeQAFxSJSIX5GpB8BIgXTB/PXhJW7T+CIPxNuRLmK5XqKfWqud0R1LVoKsGnBpWqFvJDcB/3985C3B8LMRiYvknWC/rNQZs43m6Uk6tmWsEODdVWWAMUXekqsyAeDvCDUyZ9e2ly7F326hPbxrBnRsbHsyP5JxL2SEk3uOMukv1qes3EQErQLxWSrva8xGG9liVfQUQ4G5+N+pvJ3PUoh2Q6qFZnepdY1Oa+5qeR9Ofm0tlpz7siivOb0smNf0/vNrqXvie+P6hig2jUOot4BD8n5F4ERwV8FrQ3lIPw7nIlPH+rtZ16++zkCkuGtBsWajAAYIc1E+dAdsLVASByzkUTdjr/QtKfuM+Gfl4Yi0D3kgsNpguHnTmVrNxWmhx9uzYd1bZe19DwxNezI/n9ZHU4rH7ijgMApB8NpSM0xlkhqM45KT/5TGPMP93x7YjAFSLSPekuIgmDaHWXhBdgm7O7ayVbArP9lmT3lTr5+DAMDweASqV2JMmEO8WF4mWu1m98L3GipPtdfb6QfBjBV5iq/UMQhHNFvs2ZS7PYENwd3QxG8efrn1os5L5aLOTuLE2OqVTI/bJUGJ11prjaBq+GZp/zzXXs0gmpnuHNCIlFyw6DyAajAcmHAObsUjX1l2Ihd6a9Zl3bcu7ZtfkfZNbmnwVif8i+S9DlkP2BgKMzI/nndCvkuFIQdHPC4PnplPefJKvu+PYEgSV/fclk8vuS7nP1WUz7MSpV+6oIzu6q5yXOdXU/aT4XxfltLRu7jDa+k1bqx3omki9mIRhjbkkYHCnpLndswZBvLgdhy2mKtXYXkpH6FS0GQj2IYk6DUdyYey5t4kaSR5LcDQBA7gOay0qToy3doszBl25NGPtSQS1HB1Oe32m7NReHoL7tXnEGI7smf7Okea2ISWZIvmvKpO8oTo596IFfrGvrKMusGb8+MzJxVnY4f0RmZOLw7PB4707TZQyFr/XaBSxm/pC0UWpLkXxUENj9KbX4GNpB8LvGmFl+lmnnd/fdAPFya+3DBUVIWONVxphFWSx5nvdj30vsC6F718IeqYcVV+vJwPXH/5Sk1llLCjGXwdCmo3YEO70p5o0PXDvaUq9m1ZoNf6LUWieqZnoqmTE1OfqyRjewhOyKiI5qQ0c/hqTbBPy3rI4j7JGyOBvSDxvjJFcTOI2V9O2lydGPFTceGyWkcPkg/X66/pH707GDWQMBb7HWDqIhVNvvekeCHno1rGAodvVj1LGng3yCq7rI1JNZ2yGjL7paO8LQ/k+H5mnbGECxwU4YY/6eSiXXEeYgQV+RtMWdM2+IFwdBdQwNQw4smyN5ou43a7vlKRbG3kC2DxNtxlCHrF6Tv6ZZKxZy7yN5Ouo3x3uMNfsOHfzljuG3DYqTozcQ5mkAsDqlzEo8ZpnrvZP0TwJvyozk25af3jK5/rCazAVtk9mkT9OaD0V9HwfBQlu0brV2T4a1X5HsGvor6Ctp34u02AiC6lEguheck3lqKmW6J6o1UanYQwR7tau7GOr5bthvxxatDaQ/pFJe1xuwS7lSfTeB97t6M5LuS6e8rhnKqB9/DFXC2l1RWrd2Q9JfU37yMZ2c0NMZ/rO/5z0iSb6XeGzU+lH9bNHaTBBUc9OZ9fsCeMxCGixJujKd8v4fAARB+LtuBlrQRSBacsAGAW3i9lTK/GIOgzH6HdJ0bRcp6W9IY7/svvmWDOXiZO57BA+fnnN9JpV4Fve7oOM5abGQ+yw5XWVTuDkzMt41bG85Uppcvy+QaKkNJWkrDQ/JrBnvWDPKXn1idipZ+TnZPktX0ucM9IGhkYm/uGODZqEGA/UL4JMgZyVntYMwh/m+6Vo7qlKxTxds1wgWUS9Ie953XL0TQVAdBZF39VnI7JtKmZaCbivJYKD+Wr8NYiYSat5IH02lvLe4cjNBEJ4BsmtZim5I2pROeQe5+lwMymC0o1Kxay3sQYD2g/DMRgfQKHhJ8xhjzB3loPpjEh1b70r4XjqV7Hqv7hdzbLmj1SUi+QiUZyceZRLB0dNFAkFyv6mgdlV5cqzthTF1zfGPLE6Ofn3GWAAQ0D2TdZmSGd5ww+xoCr6zm7EAAHPol4oGeoWrNyD5GtHcUSzkPr+1kOtLp7bFxPeTZ0i629XbYVH7jKu1I5lE1zwCAKCt+8Z6QehWqbWO77NruOhyh+weXtsNSbJeomv5Hs9LnBvF+d0NAj0tABYT3zcb037yU9NVYveYzquK9D2p1WpPAQAiSiivnuEmOw6SWTuM4s/XP5U20THzbxbSxzIj+ZbSDaVrx/aD0FKnRNCvCfxSwK2AQor/Cs5uCkLolKHh/Kwoi5VCcWPuGzR8CeoX0f3ZkXxP8dSlwuj3QdM9YQn2y8kk37/qgHz3zN8F0o8dBuqNYP5TQCRjYIHXrfKTn3Z1l6BS7eocFHRz2vd62rWWg/DeehTb3Eh6IJ3yZoVEr7QdhqQdg0r17ihVYeei+TilG0FQ/TqIWSVHeqLHY8b57DCCwO4tU+sYvGOUvMP32bUnfaWiA4Ra18UwgVN8P3lu1PkC3pP2k3O2Ve1EGIbPqwEdo94AhGnPuxztdhjGJnpeiYF8k9uFLrNm/HpYtRTfI/hkgMcRfCdh3tPOWNRZeRFSLbDJ8U3OI+KHM07wThDm+FqVfyhuzH25vHGsa1bocsD3k5+NXI9fOiPK6inK7yO4dxBEa96F+rHJR7oZi2m6JlWuBKZbt3Ztm9wJgm39c+2I6vyeC0l/7MVYzJ/aOrd4pvtjVfuA+6x2+D6vU4QyI5J2R2O+1N0/I51WtrbnhUelUv0PK37XfT3uDyzf0HjOLINh7bZCU71giS/oxvUtF1hmbf58ST2XIh8aHu9qVZczpN2WYGcj1P1xIPQnV+sEDceqBr8uFXIXF3++vqdV9FJgkIjmxyB3DirV7hejEGHrDgg6t1KxXTs5VirV14CMVOyQ6D33ZtmygIgjSZs9L1rJdNQzvy+LekQzBwMsBbINkne62my01lXmROjqyxA5E5pPbCuvMhckhxDWvtuL0QjD8HArtaRHzAWxrUX3LIMB9n7Wi/ofvVNp6+wdQ3Ykf7IUoYTuNJJWajjtDNN+jCLqb/YO7ng3LNt8LlEgj6ZN3FjcmPtypyKHS43vm6sgRE22enUQqHOTHoMfu1I7SO5gVbssCML/lvQv7ngQ2H2CoHq5gMjHoWSya4+DlYKfNBctIPb/EmNM1zakzbTNBo9IYoDFBpsh1bXPBckdypWw68I4CML3k+x+P+C2oq6plHdGlGRBko9DWLu+XKm+wx1rRtKOQRCebcXvkex6j5B0SyqVnInCarkxlSZP2I3krAspKoRpeyaZSPJlkqLGFK/o3cUMnF71Um0jnjpBLSzkkIZjpX/Ueq6Pv5h4nnlTlO5xJJNCrWOnxrTnfQMRG1CR3AHkWyth7ZZyJbyuHIST5SCcLFfCm0D7S7BeAiMKkjb5PruG3a4UjDF3gK1+x6gYJnvufjlf57ek+5LJZKRj24Xied73owRqEHxVuRKOB4FtafyG6RLtQVC9DOS73bF2+IlE69EgGalF63QO11nlILy1XAkvDoLwzCCorg+C6knlSvU9QVD9alCp3gXy7e5z5yJh0FI3rMVg0Nbmtbto4lntaiKtPnD8dhge7ertIFdgSZA2UPWjCgHD7lg3BC7YH0HwxOUcSWWMuY1ApGZAJJ5VDsN1rt4Ke+4JQHB/kmtIriE460LvRsLgra620qF6P5aaNpxdnb4u05nfvUc6Ed/plOfRdxhtN0MwB9qbykF45/Qi5BflILxHsBvBbU2IOiHhR8aYlmOwtJ/8pBShsOk0JPcgeDTId4GYAPEFAmeAODLKrqKBoM+7+UUtBkOmXvhvIZRqftv6L9k14z+E7Ltc3UWobh8Gw9Q/YJLZBwqjT3bHO6Me57enSh7passJ30++P0p5bQCAxUettXNGc6RSyYukaEdT/UDQhfMpTb78SfSeBEa2LT4aBRl1PaN3WYxig80omYi0wm9AcrfpRch+JHsrIGjUNoLQ9xLHRL5W+oCgG/1k4vWu3mowND//RTMUXuxqDTIjE2dJc8d7S9o6nwq3y5GhNRM/b3TPM0D3NovNEHu50rwQnuFKywmSJUbcGZB8TBjWOp7P+p45WlLPQQa9Iuh6P5noWlNpJZJKmV+hhz4s0131er7pN0h73rd6cX5PFxucqbm0GKwy5o+SuoZ3LxjhsrTnta0ebIz5u2HymL6WIpkDSX/3k4kXt/NJzRgM3XpCmmTkrMm5ENgxWzSTKa+XdIurT7PiHd4OP0X9PYlsMKauO/YRRATHWCQUKSZ+KUmlkl+UFGlXKeBNnepMGWP+CS/x4k6NrBaKpNv9ZOIl7S6m7Yjox0TE1xfar6Q35zf/b7GKDTaTTnmvk9S18sB8qfcPMS31+Vx8n1cbJp8naVZhx34h6TYi8RxjzG3uGJoNxta/VxdsLFBfCe64ZXL9Ya7egHtfUoLBSyXNvuAi3jhWCpQ2AgDByGF3tppYsP+iAclsedNx/dmtDBDDxOuiROeQHApD+2FXbyZtzG+gxDMGsdMQdJPvJQ6NWrtopWKi9siod9U739V6Zdr5HanUuxYQ+rtQUn7yRZIKrr5QJP1FXuK5Ub5Xvs+r5SUOhfQbd2yhSPqp7yXWdMpvmTEYdp7htO2owXTcZWTX5G+G0JLUBwCk6S3DfJlDw/pKl9h7rs56beiL/6JBtWYW7JcaNL5vCiDmzA5vgTiqWy5FOm1+7XuJgyX8yB2bL4IuTvvePlEu6pWO53n/FyUyCNLvPM9bcLTStPO7qyGQVEslTe8+lj5B8v6Un3wGpI9LWnATK0k1QeO+lzhwlTGRFzirjPmj7yfXQPpQP46oJN0v4I3plHeYMaalLqDLtiMpRasfFYkOfowG2bX5i+CcC9Jg0beag0SWT2n8e8oLZlrPdkTs645AMv37XAeIn0y8RVKkzz9KnSljzN3pVPI5hDkUwrfmc4FLKgvaAJn90753rDu+XUN0dSxrAc5ul4jO703dbmiDhmQllfLelDB4DjS7jl4Upr9XFxomDk373vHteod0g2QplfLe7nuJfSB8NUqIuoukv0L6WMpP7pP2k59wx9sxU0uqWMj9M1L9+Ygkknp8lBpHxcLoz0hzMOqruPdlh/MLrmK5HLA35IamyvjzdCtWAHh3Zni8a9ZyqZD7Cci++R4k+8fsyMTjXf3BhrX24WFonzNdUHBfAg8TsBPJXSQFAO4jcL+AuwhcJ4Or/UTihws9n4/ZvrHW7l6p2mMpPFPQIXPdQyX9HcSVBvxJMmkuGUTr4SCoHi3qBQD2gbATgB3cKC1BN0G4GgbfTXtepHDhZggA5WtHn1iV+a07uBAE++bs8ETX1POp6459hA2TN0xfuH8dsuXHm4Mvne3fWGGUJnMfB7bVYJF0WXYk/6LWWbMpFXJ3gexr0yTZcLfs2ot6XsXExMTENGMAoFrjvOpHdYK2c7RUg6EDLvpbAno56tusR04l0l2PG5Y7U9eOHdlsLKbp+h7rxvUP6bexAACD5LL3Y8TExCx/DADI9NF/0cDwme2yvtuxemTip4J9M+oRRScWN47OShhZKWy9LrentbNbVJLceet1uY5lkrduTfTVf9FARv3/fGNiYh501J3eml+F2m7MlfXdjuzwxMckfQ0AaMwnSpNjkZ+7XNCmI1ZXQ3xrrlaX1Zo65mNYq8EYDDHeYcTExCwYIx2VIBdeu2gOItVPaTCUxvGaLiIn6ZKV0uOhwVR1x/M6vZesmY4GQ6a/EVIN+pGQGRMTE2O0Ub4r9g1F82M0MPvmpzzVXihhimQ2pK7QpuMaUUbLmgeuHT0FNKOu3ozYpW6+BrPDAABtOnnendRiYmJiAMBw96GuGbbzheTOWybHOt8kHdJrL/wDqVNRf/4epWoictbpUjG1MTdsZLqWEye5vzYdsdrVmxiIwZB0Jw88L3T1mJiYmF4wfNwFZUn3uwP9ogb1tMsAgMxw/n8h3Iz6TfaQUmE0785ZLtjJsYdag0tdfS621nY40NUakIzcMasXSCxZdmxMTMz2gwEASh0b1CwM9eTHaCA0ZX7SjJYKudNaJiwTtsheSPBRrj4XVmzbH2NQNZ8E/XoocV/XsvIxMTEx3TAAkFk78X5JA+kcRpinTRVGI99QGyQStrVyLfmhqWtHu5YcWUyKhdz7QPNcV++E5ihEWKv2P6RW0r0Jhs/ngZctuN5MTExMzEwtqUyy9jJBf2kd7hPsXIywHTWZWcdk1vLC4sbj93H1paA0mXs+ydObNUmbBf20y/vY1mCIA3F4H7V6zcXbfbG8mJiYxWHGYPDAC+8hbNfSFfPBKnqf5BmkWRnPJFeD9rIHfrFuF3dsMdm68Zg9JFzYeCzoUprqcHYkv3N2OH9Ydjj/aCbDR0p4o6R7m59Lcrctm8Ye06wBgPpddBB6fXYkv2gd6GJiYrZ/WjruZYY33CCr45q1fkDiRb0fS7Ft4h7JR7OSvtzVF5Mqva+S3Gn64cnZ4fxRQwdd2HKENnTARX/Ljox/Yqjq7wG0tg6t1WybfIz+GQxZjWeH85H6ZcfExMREpcVgYLrsuKCOTWrmgwUjO17tDbkhCK909QYkDyoVctH6J/SZYiF3Hsn9AQCy78oMj3/endOMOfRLxdWh91JBv25obNOylcDjXG1eSDcOqfzvrhwTExOzUGYZDADIDudPE/R9V18IJF9TLOSe5ert2FLGN5vKgreHPKZUGIvUD7pflAq540m+GgAgfSUzMnGWO6cd5tAvFY00U7a9neNbUNLVekXQAwngpdtDtd+YmJjlR1uDAQAZP3GMZLv2s+iRbxevHXuOKzbQpuMeVirkLgL5bHesLcR7i9euP8aVB8GWyfWHCfgf1J3bN6y25Ve4czoxNDJxaaOLGdv1+CZ+70q9QvDoVSP5W109JiYmph/MNFBqR3nTcXuF1eQmEkPu2EIQdGnC8pPWmD8OJbZsnQrTh4B4nqBXkeyUCd0WAv8xNDz+OVfvB8Ubcg9nGe8E+XrUjcU9CRPuP5/oo1Ih9wOQzwEAmupws9+jNDn6McC8seUJvWDtf2XWTrzflWNiYmL6RUeDAQBThbGXiNGbwi8Vku4BcBWImwEkISUgJGiYhJAQkICUhDF1HUqCSEyPJSEkYOrPI5CAmBSxA8kDmv8fY/H01WvH55WzUiyMnU/iFWhEMTU5pqc25l4uw8gZ481I+HZ2ZHxZ5ajExMRsf3Q1GAAwVRhdZ8HPue3+HnTInpQZmYjSe7gtpcmxHwGo+3GkizMj+Zk+0aWfj+4Oa/7WPD8Kkm7JZIJ9ufclJXcsJiYmpp9EMhgAYAujO0zBnAjanSAaQARpYEnQGtAQ1hqSrB+nw0AgAAOKanmOCLL+b4gzv08wZOM5IEQCMiIJWQOQoKb/z8bvAyHM/G5KBGhAElYUYQA8muS/uK+pJyw+m1k7fqor90KxkLuP5I6o3+hvy47k93DGbyM5K0djLiRtAatrssMX/codi4mJiek3kQ3GSkc3H5WZKvnPEPAJ0nTsfDcL6f8yI/lnunIvlAqjbwXNfzdrbq/t0mRuA8DIeTAkXj60Zvxrrh4TExMzCOaMktre4N6XlDIjE5cP2WAfSVe643Mh6c+rbfnlrt4LpWvH9hP4Plc3TLaE1wra2Py4E7L2I7GxiImJWUweNAajgTn40q2ZTHCEpK5RTpLKSNgXm4MvbSnv0QtTG3Mvh/ALkml3zNLNx6hFKuUh6crs2om3unpMTEzMIBnokdTU5NiB1ti2/a0bUOb+zJrx61190JQKo4eD5nuu3sxCjnzsNet2njLpD5B8jTvWQNJV2ZH8M5q1UiH3E5D/r1lrRtJfh8inmeHxf7pjMTExMYOk7wZDNx+VKZXSn26Ej0ZB0u2kzh1K2C/wwAvvcccHRbGQ+xvJ3V0dAAT73uzwxBmuHoVSIfcWAf9FMuuONSNpa3Yk35J3Ut449qSQmmz3XEklQz5zaHh8kzsWExMTM2j6fiRVmkpd0YuxAIB6ZJA5e6qWvLtUGLtwy+T6w9w5A0H4oSuhfmP++nyMxVRhdF2xkLsF5Ifb3fBdSK4qTa7ft1lLrx3/DQ2fIelnzbpkv+slawfFxiImJmap6OsOozQ59i4AZ7r6fJD0W0ify6STF3C/C+5zx/tBaePYZ2Dwny2i9KvVaQybffNTLXoHSpPr9xXMpwg+3R3rBqFThobz57o6AJQmT9jNWLtnLVm7P3vQhpvc8eVIGIbPsxb/JmJ3CLsCDEDdBvB2Crd4nrncGPOA+7z5Upb2YqU6U2zReonPrjKm55I25Ur19ZT2AABjcIXneT9w5yyUILBPA2pHidgD4q6APBC3U7gN4G2+n/gxyT+5z1sIQRCeAWBHV+8d/iqVSn7BVedDEFRPBPRUV4+K7yc/SfLPrr4QgiB8L4AdABRTKa8vNerKleq7KT0UwJZUyotcfHW+LMa111eDUSzkfkvyia6+UCR7vgHOGxqZKLhjC6FUGM2DZrTxWNLmJHBA1HpMU4XRR1nxLBqOuWNRkdV4dm3+eFdfaWytVF9L6TSyc7taSUUAF/pe4ixjzG3u+HwoV8IbCdZvQMI3U6nkS905nahUdKhV9SqSlLTZ9xJPNMbc7c6bL2EYHl6z+ADJOfu5o/7e1AheQZqzfN/05bteDsK/knyEq/eMcFkqlexLv5wgqH4DxEtcPSqEOcT3zTWuvhDKQXgXyXoPHuFVqVTyi+6cXiiH4TqKl6D+ud6XTnkPcef0i8W89vp6JDUIYwEApHmlaDYWC7nrS5Njr7Y35PpS20qg29hpXRRjYW/IDRULuTNFc8dCjAUAgLNLna8krLVD5aD6EwN8qtsXFvXvSJbkyZWwdpOkWZFj88EgeYqkGgCAeEk5DN3PtSMW1XOmE04B8r39NBZBEH7Iit/rZixQf28SIF4k2I1hGC4o7ydm/gh6v6SOwTqdsNaugsVHXb3fLMW11+8dxu0kH+3q/UZSCUAeCXvOfI9qioXR40izofFY0qnZkfxnW2fNZqqQO1nA+9BYjfSB1cDDVmrUk7talPATAueT5jeex1sk7Vyp1Z4K8UkU1gh6Lsmh+ewEOlGuhOcTrNfpkv6U8pNPIllx57mUK9U3E/gI6jeK69K+1/XGHpVypfomounGIf1e5P8YJK5NJnUbgHKtVtu3Jj4Z0L4Q/o3krpLuTPnJR5G0Lb9wHnQ6khLxcILrMbO7wafdOdvo65HUzHdG0C8p/MSd04lBHEm17DDq78en0ynvda2zohEE4Zngtv4/ku5Pp7xGw7W+sRTXXn8NxmTuAwTf6eqDRMIkoXOGdk18hY+7oOyOt6M0ecJuUu3mRm0syZ6fHZk40Z3XTHFy9NmU+QSIvd2xBWPxwsza8StceblTqdiDrWpXN1bnAt6T9pOzEhSbsdbuXKnWzqH41VQqeYk7Pl+stbtUwtrvSD4E9b/ljLSffK87rxlr7e6VsPZbkjtIqhkmDvZ909I5cb5Ya4cqYe1PJB+O+vf0Ryk/cXgnIyDJBGHtdEqZVMobeJ5NpWIPE+yVqP/flXTKS7lzBoFjMM5P+17Ha28xaGMwKvAS+6aN+U3rzM5Yax87/Z2aWcEPwmAs1bXX1yOpoVr5TEl/cPVBQmIY5AWlv9fuKk2Ofqy88bjHu3Oa2frz4/9Vqk1uMxba2MlYlCfHnlAs5L5NmB8OxFgAEO2shkorAan2opkvrLSp2xcWAIwx96Z979j5fmHnwhhztyG3OSult0rqWJerUq39N8kdAADEl/tlLACgVqsdus1YKPA9c3QnY4H6kYFN+8n3LoaxiOkMSR+h/YyrdyMM7cfaJen2m6W69vpqMMzBl271jF4kaEGe+PlQL+pn3lg1yd+XCrmflAq5d5Q2jr3ATo49VJuOe9hUYXSkNDn66WrN3tQo8CfoL/LLbZ1v2nTcw4qF3GerwO9IHuGO95O2DZVWACKajx+XPNzX95OfEXQd6t+HoUql9nF3ToNKRYdCGEX9gtvsJxNvc+csBInbCksSvzPGzLtaQMzi0vCHkXhWEFQj13YLw/C5II5E/XdU3fF+slTXXl8NBgCk10z8jtJ6V19UyP8H8iwYXL4FuGeqlrxbNBsBcyrJVdum8cU77H/pLAdnaTL3tlItcQvJU9yxQSDgEFdbEQjNJdWf0vTvJcMg0ewAPzIMw7YdHpsd3YY8vZ+ObgCQUNz2AI9biBM1ZlFQ079nfDWCPmStnblndMJazPS3af4dA2GJrr2+GwwAyIxMXA7ZgccdLwTBHuOWJNny8/WHFAu5WwF+kJg+qlgESK4qXzs6kAizgULO5DuQfHoQVF/ZOmHx8X1zLYjzG4+txWck+c1z6s7oehiuoOt8P9k12KF3tp19k8wGYbXn442YpcEwMdG0U310GNbe485xKVeqbwK5F+rfqZsMEwsKy+3KEl17AzEYqBuNsyTNqw7ToJHsh7LDE19p1h4ojD65VjPfJ5uOEhaR0GrhsfKLjJ8050uaie4S9MWtQfWKcqX6Rmvtzq2zFw8/mXhno386yCcGYe20xpi1dndI78b00YNBYiC7yFTKXK+m6B+CJ5SD8OdBEL7fWvuvrbNjlhvNO1UBr99q7ZwtEay1u0B6F+rfKRkkTwHYvGPpa3ARlvDa6/sLaUabjlg9Vd2pAE4nVS0DJF2RHcm/sEXbdNSOpaq/qec+GX0kYSuPW7X24r6GCi4G5TBcB4svNx/1of4+BwAmCVwpg42pZPKnJBetK2ClUn2NgHNR/1umUn7yySRvL1fCLxP13BlBn0/73snuc/tFENinCLVvk3xcsy5JIG6i8H8AN3qeucqY3rstLpRlESUl/R1AtCQy4pa07w3kuLs5Soowz/B9c1W5En6JYH3lLlyRSiVb7hsNypXwCwRPQv07tSHte6OVig4QaptQf40PpFNe29DmhbAU195ADQYAbN14zB5Ver9ohDsuJZJ+l8kEB7rtTIuF3OXkrCS+RUNQITucX5GRUqjfGPcT7AdJHO6ONZBUBvF1g8THfN8sipOuXAk3EfWe7IK+YpD8dFNG990pP/lEkpvd5/UTa+3DK9Xa2RDGSHruOBoGBPwxjM5Je96i7cqXg8HoBUE3p31vIIvPdgZjVqg29cK057WEvweB9hWqm0gmJD3ge4m9jDF3BoHdH7TXYYAGA0tw7Q3sSKrBqrUX/xkJHenqi42gBzzVXjTLWEzm3ruUxgIAEsa+xdVWEqmUuT6dSj7PS5o9BbxNwo8ktSTNkUwTPM6qdm25El4kaeALCIPEa2YiXsCjrarjTY7udw/aWKAeyviPtO+d5HuJ3SGcJOgrUmsUIUmSeDbFr5aD8NogsAMJ347pDWPM3SK3+S8sPu36w4TqZ0gmAADkmcaYO5vHpxnYwnyxr72BvRCX4sbR19OYT7j6YiGrw7Nr8y0F5UqT648AEt9u1hYd2dMyIxMfduWVjrX2oWFoXyLqeRDWAHjsTPkNAJB+7/vJkUHftMtB+DmSM8UJUV889DWju1ck+UG1egQsDgdxCIQnNu8+JD1gmHyh7/Pq1mf2l+Www1iOiXuNHcbMWNNOFdL7UinvPai/jhNA/C/qr+OmlJfct5FrEwR2P9D+ov4UFdMpb9GCaAZ57Q18h9Egu3bik5BmSnEsJgLe4hqL8qbj9pLMhc3aYiPYb2yPxgL11dk/U6nkl9K+d0w65T0OfvLJErY1rCKfUKlU+1IVtBMpP/mOGQd4/eKtDsrRHRWSlbTnfS2d8l6T9r2n+l5iN0gziymSO1hV58whiVlcHAf4myU9RlJG0Fmof6dkkDylW2LmYjHIa2/RDAYAZEbyo1I9XG3RkDZkh8dnFQILq4lvkFy62HjppqFaMBAH3nIkTf42nUo+H8JlDU3AvOrZ9ALJzQQmmpSf9jOjux8YY+5Npbw3Cnh7QyN5YKfInJjFYzpU+8uofy5DlUrt45VK9b9mqgATF83eDQ42SqoX+nntLarBAAAm9CLUIyMGjqTrhnZNnOTqpULuHYOqrBsFSZsTCl9sDr50qzu2vUOas5seDrxQ5TTNWbf1pL5lSNpPfqjZv8Faba/WGTFLhZ9MvE1SvRsocaSA16J+Ld/nJxNtfJBq3m00G48lox/X3qIbjMxBE3cSmpd16wVJdzOhF7UvSFiv0LlkUEetxBDafkDWWp2GjhMxBnUHasyywhhzN8j3Nx7P1Isiz54jJLp5V7Ho99l29OPaW5IXMjQyUYDVQB1dJlE7InPQRLuIBQial3XtC7KnZYcnfuTKK5FyGL4wCKqXWWsjJx3WbL3WzjS3RilBvhKx1j60HITXVCp22B2bi3IYriM50+sllUze3DojZilJ+8lPCdrWTkH6XcpLfKRl0iKxVNfekhgMAMiszZ8PiwGUZAAgnTB00IVznlMTvMPVFgXpK9uVk9virSBeWAlrvy9XwvPDMHyOpKQ7DfXVzGPKQXguydfOiORgPv9lQBjW3kRyrVXtZ0FQvTwIqsfMVU/KWjtUrlTfCIv8jCh8td89H2IWTqNZlyQZg1M7OLoHewy1RNfekjpjUM+DuGo+vbDnxn48MzzxJldtplQYfSdoPuDqA0W6abUtD28vfgtr7UMrYe2WepXgbUjaAuB6EH+F8A+CuwraHcBwS+godHHKS67vcMH1jSAIPwzyLQAg4YfpVPK57px+Uw7CK0ke1qxJqoG4geIdgv4C4iEQdwO0b6PcPurvza/8ZOLZxpiB+vqWRVhtL5ne0xD4QSrlvdvVF0KnsFqX6W6IxvO8OU8KgsDuDdqbUH+NpXTKy7pz5stSXntLbjC06biHlaqJa0h27GMRBUnfyY7kIyXhFQtjBRKRjwsWgqTbE549bPUBG3q6MJY7ZWufhLB2AcmD3LFOSDo35SdfR3KgJaAbLIXBkJQJwup5EI6eSeyKgKSrfS9xzBzn4n1lORiM+SDoK2nfO8bVF0IvBiMKjsHYkk55fWkr3WCprr0lO5JqwAMvvAeqPn0hORqSyoLOimosACCTLD9vIf9nFKb/rg9nVtt9tzdjAQBpY36TTnlrIPM0SB+VdKWktslAkqykjaKOSqe8U+b7hV0pkCylfW+97yUeI+DdEC6X9Bd33gzS7wW8K53ynr4YxiJmZbNU196S7zCa0aYjVm+p7rgzPSWghFS1FjYhpCpSNWVlAylVtVnrSZXQMuMLNU/wtmzh3pf07MABAOk9Rj+7Y4hDtcirwEjUtggHPLlIvrfnbd9Kx1q7e7WKx1rWdm18x1LJ5I0k/+TOfbBhrd0hDPkvMtVHAPABwCjxl4XW+ImJwSJce/8fGtD+alqjmvwAAAAASUVORK5CYII=",
+    alt: "RunWise Systems"
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--slate-400)',
+      marginLeft: 4
+    }
+  }, "\xA9 2026")), /*#__PURE__*/React.createElement("div", {
+    className: "footer-links"
+  }, /*#__PURE__*/React.createElement("a", {
+    href: "#what"
+  }, "Product"), /*#__PURE__*/React.createElement("a", {
+    href: "#pilot"
+  }, "Pilot"), /*#__PURE__*/React.createElement("a", {
+    href: "#faq"
+  }, "FAQ"), /*#__PURE__*/React.createElement("a", {
+    href: "#audit"
+  }, "Contact"))));
 }
 
 /* =========================================================
    APP
 ========================================================= */
 function App() {
-  return (
-    <>
-      <Nav />
-      <Hero />
-      <TrustStrip />
-      <Problem />
-      <Features />
-      <HowItWorks />
-      <BuiltForHVAC />
-      <Roi />
-      <Pilot />
-      <Challenge />
-      <Faq />
-      <AuditCta />
-      <Footer />
-    </>
-  );
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Nav, null), /*#__PURE__*/React.createElement(Hero, null), /*#__PURE__*/React.createElement(TrustStrip, null), /*#__PURE__*/React.createElement(Problem, null), /*#__PURE__*/React.createElement(Features, null), /*#__PURE__*/React.createElement(HowItWorks, null), /*#__PURE__*/React.createElement(BuiltForHVAC, null), /*#__PURE__*/React.createElement(Roi, null), /*#__PURE__*/React.createElement(Pilot, null), /*#__PURE__*/React.createElement(Challenge, null), /*#__PURE__*/React.createElement(Faq, null), /*#__PURE__*/React.createElement(AuditCta, null), /*#__PURE__*/React.createElement(Footer, null));
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-
-  </script>
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));</script>
 </body>
 </html>
