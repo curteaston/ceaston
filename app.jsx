@@ -673,8 +673,10 @@ function AuditCta() {
   const handleSubmit = (evt) => {
     evt.preventDefault();
     const errs = {};
-    if (!form.name.trim())  errs.name  = true;
-    if (!form.phone.trim()) errs.phone = true;
+    if (!form.name.trim())    errs.name    = true;
+    if (!form.company.trim()) errs.company = true;
+    if (!form.website.trim()) errs.website = true;
+    if (!form.phone.trim())   errs.phone   = true;
     if (!form.email.trim() || !form.email.includes('@')) errs.email = true;
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setSubmitting(true);
@@ -710,28 +712,32 @@ function AuditCta() {
             Are Your Paid HVAC Leads Turning Into Booked Jobs Fast Enough?
           </h2>
           <p className="audit-sub">
-            You're already paying for the leads. The 48-Hour Paid Lead Leak Audit shows where slow
-            response, missed calls, after-hours gaps, or weak follow-up may be costing you booked
-            appointments.
+            You're already paying for the leads. We show you where slow response, missed calls,
+            after-hours gaps, or weak follow-up may be costing you booked jobs.
           </p>
           <p className="audit-qualify">
-            Best fit for HVAC contractors spending $5K+/month on paid leads.
+            Best fit for HVAC contractors spending $5K+/month on Google, LSA, Facebook, Angi,
+            or other paid lead sources.
           </p>
         </div>
 
         <div className="audit-body">
           <form className="audit-form" onSubmit={handleSubmit} noValidate>
+            <p className="audit-credibility">
+              No system access required. No ad account access required. We start with a short intake
+              call and one controlled test — with your permission.
+            </p>
             <div className="audit-form-grid">
               <div className={`afield ${errors.name ? 'err' : ''}`}>
                 <label>Name *</label>
                 <input type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Jane Smith" />
               </div>
-              <div className="afield">
-                <label>Company</label>
+              <div className={`afield ${errors.company ? 'err' : ''}`}>
+                <label>Company *</label>
                 <input type="text" value={form.company} onChange={e => set('company', e.target.value)} placeholder="Pioneer Heating & Air" />
               </div>
-              <div className="afield">
-                <label>Website</label>
+              <div className={`afield ${errors.website ? 'err' : ''}`}>
+                <label>Website *</label>
                 <input type="url" value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://" />
               </div>
               <div className={`afield ${errors.phone ? 'err' : ''}`}>
@@ -769,11 +775,11 @@ function AuditCta() {
 
             <div className="audit-submit-row">
               <button type="submit" className="btn btn-gold" disabled={submitting}>
-                {submitting ? 'Sending…' : <>Request a 48-Hour Paid Lead Leak Audit <IconArrow size={16} /></>}
+                {submitting ? 'Sending…' : <>Request My 48-Hour Audit <IconArrow size={16} /></>}
               </button>
               <p className="audit-foot-note">
-                No system access required to start. We begin with a 5–7 minute intake call and one
-                controlled test, with your permission.
+                No system access required. No ad account access required. We begin with a 5–7 minute
+                intake call and one controlled test, with your permission.
               </p>
             </div>
           </form>
@@ -781,10 +787,10 @@ function AuditCta() {
           <div className="audit-what-next">
             <p className="awn-title">What happens next</p>
             {[
-              { n:'01', t:'Intake call',          d:'5–7 minutes. We listen — no pitch.' },
-              { n:'02', t:'Controlled test',       d:'One live lead test, with your permission.' },
-              { n:'03', t:'48-hour findings',      d:'We show you exactly where leads are leaking.' },
-              { n:'04', t:'Clear recommendation',  d:'A specific fix, not a vague proposal.' },
+              { n:'01', t:'Intake call',          d:'5–7 minutes. We map your lead flow before recommending anything.' },
+              { n:'02', t:'Controlled test',       d:'One controlled test using agreed-upon test contact info, with your permission.' },
+              { n:'03', t:'48-hour findings',      d:'We show where response delays or visibility gaps may be leaking booked jobs.' },
+              { n:'04', t:'Clear recommendation',  d:'A clear fix plan, not a vague AI pitch.' },
             ].map(s => (
               <div className="awn-step" key={s.n}>
                 <span className="awn-num">{s.n}</span>
