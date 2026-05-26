@@ -32,7 +32,6 @@ function Nav() {
         <nav className="nav-links">
           <a href="#what">What it does</a>
           <a href="#how">How it works</a>
-          <a href="#integrations">Integrations</a>
           <a href="#pilot">Pilot</a>
           <a href="#faq">FAQ</a>
         </nav>
@@ -53,7 +52,6 @@ function Nav() {
         <div className="mobile-menu-inner" onClick={e => e.stopPropagation()}>
           <a href="#what" onClick={close}>What it does</a>
           <a href="#how" onClick={close}>How it works</a>
-          <a href="#integrations" onClick={close}>Integrations</a>
           <a href="#pilot" onClick={close}>Pilot</a>
           <a href="#faq" onClick={close}>FAQ</a>
           <div className="mobile-menu-cta">
@@ -413,124 +411,6 @@ function BuiltForHVAC() {
 }
 
 /* =========================================================
-   INTEGRATIONS
-========================================================= */
-/* Small inline icons used inside vendor chips */
-const FormGlyph  = (p) => <Icon {...p}><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8"  x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></Icon>;
-const MailGlyph = (p) => <Icon {...p}>
-  <path d="M21 8.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8.5"/>
-  <path d="M3 8.5 12 2l9 6.5"/>
-  <path d="m21 8.5-9 6-9-6"/>
-</Icon>;
-const LinkGlyph  = (p) => <Icon {...p}><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></Icon>;
-const CodeGlyph  = (p) => <Icon {...p}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></Icon>;
-const PlugGlyph  = (p) => <Icon {...p}><path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></Icon>;
-
-function Icon({ children, size = 15, stroke = 1.7, ...p }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" {...p}>
-      {children}
-    </svg>
-  );
-}
-
-function VendorChip({ logoUrl, mark, markColor, IconComp, iconColor, label, pad }) {
-  const [imgOk, setImgOk] = useState(!!logoUrl);
-  return (
-    <span className={`vendor-chip ${logoUrl && imgOk ? 'has-logo' : ''} ${pad ? 'pad' : ''}`} title={label} aria-label={label}>
-      {logoUrl && imgOk ? (
-        <img src={logoUrl} alt="" onError={() => setImgOk(false)} />
-      ) : IconComp ? (
-        <span className="vendor-icon" style={iconColor ? { color: iconColor } : null}><IconComp /></span>
-      ) : (
-        <span className="vendor-mark" style={{ color: markColor || 'var(--ink)' }}>{mark}</span>
-      )}
-    </span>
-  );
-}
-
-const integrationCategories = [
-  {
-    num: '01',
-    label: 'Lead sources',
-    desc: 'Where new leads come in.',
-    vendors: [
-      { label: 'GoHighLevel',              logoUrl: 'assets/integrations/highlevel.png', pad: true },
-      { label: 'Website forms',            IconComp: FormGlyph },
-      { label: 'Email lead notifications', IconComp: MailGlyph },
-      { label: 'Paid lead platforms',      logoUrl: 'assets/integrations/paid-leads.png', pad: true },
-    ],
-  },
-  {
-    num: '02',
-    label: 'Calendar',
-    desc: 'Where booked jobs land.',
-    vendors: [
-      { label: 'Google Calendar',   logoUrl: 'https://cdn.simpleicons.org/googlecalendar/4285F4' },
-      { label: 'Microsoft Outlook', IconComp: MailGlyph, iconColor: '#0078D4' },
-      { label: 'Booking links',     IconComp: LinkGlyph },
-    ],
-  },
-  {
-    num: '03',
-    label: 'Field service software',
-    desc: 'Your main service platform — scoped during pilot.',
-    vendors: [
-      { label: 'ServiceTitan',   logoUrl: 'assets/integrations/servicetitan.png', pad: true },
-      { label: 'Housecall Pro',  logoUrl: 'assets/integrations/housecall-pro.webp', pad: true },
-      { label: 'Others via API', IconComp: PlugGlyph },
-    ],
-  },
-];
-
-function Integrations() {
-  return (
-    <section className="section integrations" id="integrations">
-      <div className="container">
-        <div className="feature-head">
-          <div>
-            <div className="eyebrow"><span className="dot" />Integrations</div>
-            <h2 className="h2">Plugs into your existing workflow.</h2>
-          </div>
-          <p className="lede">
-            RunWise meets your stack where it lives — lead sources, calendar, field service software —
-            without forcing you to switch tools.
-          </p>
-        </div>
-        <div className="integration-grid">
-          {integrationCategories.map((cat) => (
-            <div className="int-card" key={cat.num}>
-              <div className="int-eyebrow">
-                <span className="int-num">{cat.num}</span>{' '}
-                <span>{cat.label}</span>
-              </div>
-              <p className="int-desc">{cat.desc}</p>
-              <ul className="vendor-list">
-                {cat.vendors.map((v, i) => (
-                  <li key={i}>
-                    <VendorChip {...v} />
-                    <span className="vendor-name">{v.label}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <div className="int-caveat">
-          <IconAlert size={18} style={{ color: 'var(--slate-500)', flexShrink: 0, marginTop: 1 }} />
-          <span>
-            <strong>Integration depth depends on the systems and access available in each account.</strong>
-            &nbsp;We don't promise universal ServiceTitan or Housecall Pro support — we'll scope what's
-            possible during the pilot.
-          </span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =========================================================
    ROI
 ========================================================= */
 function Roi() {
@@ -806,7 +686,6 @@ function App() {
       <Features />
       <HowItWorks />
       <BuiltForHVAC />
-      <Integrations />
       <Roi />
       <Pilot />
       <Challenge />
