@@ -199,7 +199,7 @@ function TrustStrip() {
       <div className="container trust-strip-inner">
         <span className="trust-label">Built for HVAC operators</span>
         <div className="trust-stats">
-          <div className="trust-stat"><span className="n">&lt; 60s</span><span className="l">Typical first‑touch on inbound leads</span></div>
+          <div className="trust-stat"><span className="n">&lt; 30s</span><span className="l">Typical first‑touch on inbound leads</span></div>
           <div className="trust-stat"><span className="n">24/7</span><span className="l">After‑hours & overflow coverage</span></div>
           <div className="trust-stat"><span className="n">5+</span><span className="l">Lead sources connected per account</span></div>
           <div className="trust-stat"><span className="n">100%</span><span className="l">Calls logged with recording & notes</span></div>
