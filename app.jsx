@@ -680,8 +680,12 @@ function AuditCta() {
     if (!form.email.trim() || !form.email.includes('@')) errs.email = true;
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setSubmitting(true);
-    // Wire to GHL webhook: fetch('YOUR_WEBHOOK_URL', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
-    setTimeout(() => { setSubmitted(true); setSubmitting(false); }, 700);
+    fetch('https://services.leadconnectorhq.com/hooks/a7pBMlE3ysjoLUmsz9Qz/webhook-trigger/92e1f7f5-e320-46ed-bdd7-02cb1ab7c784', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+      .finally(() => { setSubmitted(true); setSubmitting(false); });
   };
 
   if (submitted) {
