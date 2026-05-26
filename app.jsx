@@ -634,14 +634,75 @@ function Faq() {
 /* =========================================================
    AUDIT CTA — Primary conversion section
 ========================================================= */
+const spendOptions = [
+  { value: '',        label: 'Select range…' },
+  { value: '<1k',     label: 'Less than $1,000/mo' },
+  { value: '1k-3k',   label: '$1,000–$3,000/mo' },
+  { value: '3k-5k',   label: '$3,000–$5,000/mo' },
+  { value: '5k-10k',  label: '$5,000–$10,000/mo' },
+  { value: '10k+',    label: '$10,000+/mo' },
+];
+const timeOptions = [
+  { value: '',          label: 'Select a time…' },
+  { value: 'morning',   label: 'Morning (8am–12pm)' },
+  { value: 'afternoon', label: 'Afternoon (12pm–4pm)' },
+  { value: 'evening',   label: 'Evening (4pm–7pm)' },
+  { value: 'flexible',  label: 'Flexible' },
+];
+const sourceOptions = [
+  'Google Search / PPC', 'Google LSA', 'Facebook / Instagram',
+  'Angi / HomeAdvisor', 'Website forms', 'Other',
+];
+
 function AuditCta() {
-  useEffect(() => {
-    if (document.querySelector('script[src*="form_embed.js"]')) return;
-    const s = document.createElement('script');
-    s.src = 'https://link.msgsndr.com/js/form_embed.js';
-    s.async = true;
-    document.body.appendChild(s);
-  }, []);
+  const blank = { name:'', company:'', website:'', phone:'', email:'', spend:'', sources:[], time:'' };
+  const [form, setForm] = useState(blank);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const set = (field, val) => {
+    setForm(f => ({ ...f, [field]: val }));
+    setErrors(e => ({ ...e, [field]: false }));
+  };
+  const toggleSource = src => setForm(f => ({
+    ...f,
+    sources: f.sources.includes(src) ? f.sources.filter(s => s !== src) : [...f.sources, src],
+  }));
+
+  const handleSubmit = evt => {
+    evt.preventDefault();
+    const errs = {};
+    if (!form.name.trim())    errs.name    = true;
+    if (!form.company.trim()) errs.company = true;
+    if (!form.website.trim()) errs.website = true;
+    if (!form.phone.trim())   errs.phone   = true;
+    if (!form.email.trim() || !form.email.includes('@')) errs.email = true;
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setSubmitting(true);
+    fetch('https://services.leadconnectorhq.com/hooks/a7pBMlE3ysjoLUmsz9Qz/webhook-trigger/92e1f7f5-e320-46ed-bdd7-02cb1ab7c784', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    }).finally(() => { setSubmitted(true); setSubmitting(false); });
+  };
+
+  if (submitted) {
+    return (
+      <section className="audit-cta" id="audit">
+        <div className="container audit-submitted">
+          <div className="eyebrow on-dark" style={{ justifyContent:'center', display:'inline-flex' }}>
+            <span className="dot" />Audit requested
+          </div>
+          <h2 className="h2" style={{ color:'white', margin:'16px 0 14px' }}>You're on the list.</h2>
+          <p style={{ color:'var(--slate-300)', fontSize:17, maxWidth:'46ch', margin:'0 auto' }}>
+            We'll be in touch within one business day to schedule your 5–7 minute intake call.
+            No system access needed before then.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="audit-cta" id="audit">
@@ -664,33 +725,74 @@ function AuditCta() {
         </div>
 
         <div className="audit-body">
-          <div className="ghl-form-wrap">
-            <iframe
-              src="https://api.leadconnectorhq.com/widget/form/ENGMkQKMb5aTDQTTMSw7"
-              style={{ width: '100%', height: '560px', border: 'none', borderRadius: 10, display: 'block' }}
-              id="inline-ENGMkQKMb5aTDQTTMSw7"
-              data-layout='{"id":"INLINE"}'
-              data-trigger-type="alwaysShow"
-              data-trigger-value=""
-              data-activation-type="alwaysActivated"
-              data-activation-value=""
-              data-deactivation-type="neverDeactivate"
-              data-deactivation-value=""
-              data-form-name="RunWise 48-Hour Audit"
-              data-height="560"
-              data-layout-iframe-id="inline-ENGMkQKMb5aTDQTTMSw7"
-              data-form-id="ENGMkQKMb5aTDQTTMSw7"
-              title="RunWise 48-Hour Paid Lead Leak Audit"
-            />
-          </div>
+          <form className="audit-form" onSubmit={handleSubmit} noValidate>
+            <p className="audit-credibility">
+              No system access required. No ad account access required. We start with a short intake
+              call and one controlled test — with your permission.
+            </p>
+            <div className="audit-form-grid">
+              <div className={`afield ${errors.name ? 'err' : ''}`}>
+                <label>Name *</label>
+                <input type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Jane Smith" />
+              </div>
+              <div className={`afield ${errors.company ? 'err' : ''}`}>
+                <label>Company *</label>
+                <input type="text" value={form.company} onChange={e => set('company', e.target.value)} placeholder="Pioneer Heating & Air" />
+              </div>
+              <div className={`afield ${errors.website ? 'err' : ''}`}>
+                <label>Website *</label>
+                <input type="url" value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://" />
+              </div>
+              <div className={`afield ${errors.phone ? 'err' : ''}`}>
+                <label>Phone *</label>
+                <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(555) 000-0000" />
+              </div>
+              <div className={`afield full ${errors.email ? 'err' : ''}`}>
+                <label>Email *</label>
+                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@pioneerair.com" />
+              </div>
+              <div className="afield">
+                <label>Monthly paid lead spend</label>
+                <select value={form.spend} onChange={e => set('spend', e.target.value)}>
+                  {spendOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="afield">
+                <label>Best time to talk</label>
+                <select value={form.time} onChange={e => set('time', e.target.value)}>
+                  {timeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="afield full">
+                <label>Main lead sources</label>
+                <div className="source-checks">
+                  {sourceOptions.map(src => (
+                    <label key={src} className="check-label">
+                      <input type="checkbox" checked={form.sources.includes(src)} onChange={() => toggleSource(src)} />
+                      <span>{src}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="audit-submit-row">
+              <button type="submit" className="btn btn-gold" disabled={submitting}>
+                {submitting ? 'Sending…' : <>Request My 48-Hour Audit <IconArrow size={16} /></>}
+              </button>
+              <p className="audit-foot-note">
+                No system access required. No ad account access required. We begin with a 5–7 minute
+                intake call and one controlled test, with your permission.
+              </p>
+            </div>
+          </form>
 
           <div className="audit-what-next">
             <p className="awn-title">What happens next</p>
             {[
-              { n:'01', t:'Intake call',          d:'5–7 minutes. We map your lead flow before recommending anything.' },
-              { n:'02', t:'Controlled test',       d:'One controlled test using agreed-upon test contact info, with your permission.' },
-              { n:'03', t:'48-hour findings',      d:'We show where response delays or visibility gaps may be leaking booked jobs.' },
-              { n:'04', t:'Clear recommendation',  d:'A clear fix plan, not a vague AI pitch.' },
+              { n:'01', t:'Intake call',         d:'5–7 minutes. We map your lead flow before recommending anything.' },
+              { n:'02', t:'Controlled test',      d:'One controlled test using agreed-upon test contact info, with your permission.' },
+              { n:'03', t:'48-hour findings',     d:'We show where response delays or visibility gaps may be leaking booked jobs.' },
+              { n:'04', t:'Clear recommendation', d:'A clear fix plan, not a vague AI pitch.' },
             ].map(s => (
               <div className="awn-step" key={s.n}>
                 <span className="awn-num">{s.n}</span>
