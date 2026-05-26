@@ -36,8 +36,8 @@ function Nav() {
           <a href="#faq">FAQ</a>
         </nav>
         <div className="nav-cta">
-          <a href="#challenge" className="btn btn-ghost btn-sm">30‑second test</a>
-          <a href="#demo" className="btn btn-primary btn-sm">Book a demo</a>
+          <a href="#challenge" className="btn btn-ghost btn-sm">See the demo</a>
+          <a href="#audit" className="btn btn-primary btn-sm">Get the audit</a>
         </div>
         <button
           className={`nav-burger ${menuOpen ? 'open' : ''}`}
@@ -55,8 +55,8 @@ function Nav() {
           <a href="#pilot" onClick={close}>Pilot</a>
           <a href="#faq" onClick={close}>FAQ</a>
           <div className="mobile-menu-cta">
-            <a href="#challenge" className="btn btn-ghost" onClick={close}>30‑second test</a>
-            <a href="#demo" className="btn btn-primary" onClick={close}>Book a demo</a>
+            <a href="#challenge" className="btn btn-ghost" onClick={close}>See the demo</a>
+            <a href="#audit" className="btn btn-primary" onClick={close}>Get the audit</a>
           </div>
         </div>
       </div>
@@ -155,9 +155,9 @@ function Hero() {
             and alerts your team when a dispatcher needs to step in.
           </p>
           <div className="hero-cta">
-            <a href="#demo" className="btn btn-primary">Book a demo <IconArrow size={16} /></a>
+            <a href="#audit" className="btn btn-primary">Request a 48-Hour Audit <IconArrow size={16} /></a>
             <a href="#challenge" className="btn btn-ghost">
-              <IconBolt size={15} /> Try the 30‑second lead response test
+              <IconBolt size={15} /> See the 30-second callback demo
             </a>
           </div>
           <div className="hero-support">
@@ -510,7 +510,7 @@ function Pilot() {
             mechanics in your actual environment before anyone talks about rollout.
           </p>
           <div style={{ height: 28 }} />
-          <a href="#demo" className="btn btn-accent">Start a pilot <IconArrow size={16} /></a>
+          <a href="#audit" className="btn btn-accent">Request the audit <IconArrow size={16} /></a>
         </div>
         <div className="pilot-checks">
           {checks.map((c, i) => (
@@ -632,22 +632,169 @@ function Faq() {
 }
 
 /* =========================================================
-   FINAL CTA + FOOTER
+   AUDIT CTA — Primary conversion section
 ========================================================= */
-function FinalCta() {
-  return (
-    <section className="final-cta" id="demo">
-      <div className="container final-cta-inner">
-        <div className="eyebrow on-dark" style={{ justifyContent: 'center', display: 'inline-flex' }}>
-          <span className="dot" />Ready when you are
+const spendOptions = [
+  { value: '',      label: 'Select range…' },
+  { value: '<1k',   label: 'Less than $1,000/mo' },
+  { value: '1k-3k', label: '$1,000–$3,000/mo' },
+  { value: '3k-5k', label: '$3,000–$5,000/mo' },
+  { value: '5k-10k',label: '$5,000–$10,000/mo' },
+  { value: '10k+',  label: '$10,000+/mo' },
+];
+const timeOptions = [
+  { value: '',          label: 'Select a time…' },
+  { value: 'morning',   label: 'Morning (8am–12pm)' },
+  { value: 'afternoon', label: 'Afternoon (12pm–4pm)' },
+  { value: 'evening',   label: 'Evening (4pm–7pm)' },
+  { value: 'flexible',  label: 'Flexible' },
+];
+const sourceOptions = [
+  'Google Search / PPC', 'Google LSA', 'Facebook / Instagram',
+  'Angi / HomeAdvisor', 'Website forms', 'Other',
+];
+
+function AuditCta() {
+  const blank = { name:'', company:'', website:'', phone:'', email:'', spend:'', sources:[], time:'' };
+  const [form, setForm] = useState(blank);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const set = (field, val) => {
+    setForm(f => ({ ...f, [field]: val }));
+    setErrors(e => ({ ...e, [field]: false }));
+  };
+  const toggleSource = (src) => setForm(f => ({
+    ...f,
+    sources: f.sources.includes(src) ? f.sources.filter(s => s !== src) : [...f.sources, src],
+  }));
+
+  const handleSubmit = (evt) => {
+    evt.preventDefault();
+    const errs = {};
+    if (!form.name.trim())  errs.name  = true;
+    if (!form.phone.trim()) errs.phone = true;
+    if (!form.email.trim() || !form.email.includes('@')) errs.email = true;
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+    setSubmitting(true);
+    // Wire to GHL webhook: fetch('YOUR_WEBHOOK_URL', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+    setTimeout(() => { setSubmitted(true); setSubmitting(false); }, 700);
+  };
+
+  if (submitted) {
+    return (
+      <section className="audit-cta" id="audit">
+        <div className="container audit-submitted">
+          <div className="eyebrow on-dark" style={{ justifyContent:'center', display:'inline-flex' }}>
+            <span className="dot" />Audit requested
+          </div>
+          <h2 className="h2" style={{ color:'white', margin:'16px 0 14px' }}>You're on the list.</h2>
+          <p style={{ color:'var(--slate-300)', fontSize:17, maxWidth:'46ch', margin:'0 auto' }}>
+            We'll be in touch within one business day to schedule your 5–7 minute intake call.
+            No system access needed before then.
+          </p>
         </div>
-        <h2 className="h2">Respond faster. Book more. Let fewer leads go cold.</h2>
-        <p>Twenty minutes is enough to see whether RunWise fits your shop.</p>
-        <div className="final-cta-buttons">
-          <a href="#" className="btn btn-accent">Book a demo <IconArrow size={16} /></a>
-          <a href="#challenge" className="btn btn-ghost-dark">
-            <IconBolt size={15} /> Try the 30‑second test first
-          </a>
+      </section>
+    );
+  }
+
+  return (
+    <section className="audit-cta" id="audit">
+      <div className="container">
+        <div className="audit-head">
+          <div className="eyebrow on-dark" style={{ justifyContent:'center', display:'inline-flex' }}>
+            <span className="dot" />48-Hour Paid Lead Leak Audit
+          </div>
+          <h2 className="h2 audit-headline">
+            Are Your Paid HVAC Leads Turning Into Booked Jobs Fast Enough?
+          </h2>
+          <p className="audit-sub">
+            You're already paying for the leads. The 48-Hour Paid Lead Leak Audit shows where slow
+            response, missed calls, after-hours gaps, or weak follow-up may be costing you booked
+            appointments.
+          </p>
+          <p className="audit-qualify">
+            Best fit for HVAC contractors spending $5K+/month on paid leads.
+          </p>
+        </div>
+
+        <div className="audit-body">
+          <form className="audit-form" onSubmit={handleSubmit} noValidate>
+            <div className="audit-form-grid">
+              <div className={`afield ${errors.name ? 'err' : ''}`}>
+                <label>Name *</label>
+                <input type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Jane Smith" />
+              </div>
+              <div className="afield">
+                <label>Company</label>
+                <input type="text" value={form.company} onChange={e => set('company', e.target.value)} placeholder="Pioneer Heating & Air" />
+              </div>
+              <div className="afield">
+                <label>Website</label>
+                <input type="url" value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://" />
+              </div>
+              <div className={`afield ${errors.phone ? 'err' : ''}`}>
+                <label>Phone *</label>
+                <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(555) 000-0000" />
+              </div>
+              <div className={`afield full ${errors.email ? 'err' : ''}`}>
+                <label>Email *</label>
+                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="jane@pioneerair.com" />
+              </div>
+              <div className="afield">
+                <label>Monthly paid lead spend</label>
+                <select value={form.spend} onChange={e => set('spend', e.target.value)}>
+                  {spendOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="afield">
+                <label>Best time to talk</label>
+                <select value={form.time} onChange={e => set('time', e.target.value)}>
+                  {timeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="afield full">
+                <label>Main lead sources</label>
+                <div className="source-checks">
+                  {sourceOptions.map(src => (
+                    <label key={src} className="check-label">
+                      <input type="checkbox" checked={form.sources.includes(src)} onChange={() => toggleSource(src)} />
+                      <span>{src}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="audit-submit-row">
+              <button type="submit" className="btn btn-gold" disabled={submitting}>
+                {submitting ? 'Sending…' : <>Request a 48-Hour Paid Lead Leak Audit <IconArrow size={16} /></>}
+              </button>
+              <p className="audit-foot-note">
+                No system access required to start. We begin with a 5–7 minute intake call and one
+                controlled test, with your permission.
+              </p>
+            </div>
+          </form>
+
+          <div className="audit-what-next">
+            <p className="awn-title">What happens next</p>
+            {[
+              { n:'01', t:'Intake call',          d:'5–7 minutes. We listen — no pitch.' },
+              { n:'02', t:'Controlled test',       d:'One live lead test, with your permission.' },
+              { n:'03', t:'48-hour findings',      d:'We show you exactly where leads are leaking.' },
+              { n:'04', t:'Clear recommendation',  d:'A specific fix, not a vague proposal.' },
+            ].map(s => (
+              <div className="awn-step" key={s.n}>
+                <span className="awn-num">{s.n}</span>
+                <div>
+                  <div className="awn-t">{s.t}</div>
+                  <div className="awn-d">{s.d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -666,7 +813,7 @@ function Footer() {
           <a href="#what">Product</a>
           <a href="#pilot">Pilot</a>
           <a href="#faq">FAQ</a>
-          <a href="#demo">Contact</a>
+          <a href="#audit">Contact</a>
         </div>
       </div>
     </footer>
@@ -690,7 +837,7 @@ function App() {
       <Pilot />
       <Challenge />
       <Faq />
-      <FinalCta />
+      <AuditCta />
       <Footer />
     </>
   );
