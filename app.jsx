@@ -146,7 +146,7 @@ function Hero() {
         <div>
           <div className="eyebrow"><span className="dot" />AI speed‑to‑lead for HVAC</div>
           <h1 className="h1">
-            Call every new HVAC lead{' '}
+            Call new HVAC leads{' '}
             <span style={{ color: 'var(--gold-600)' }}>in under 30&nbsp;seconds.</span>
           </h1>
           <div style={{ height: 22 }} />
@@ -282,7 +282,7 @@ function Problem() {
               <span className="val">Next day</span>
             </div>
           </div>
-          <div className="speed-foot">Industry benchmarks — actual times vary by shop & lead source</div>
+          <div className="speed-foot">Illustrative response-time comparison</div>
         </div>
       </div>
     </section>
