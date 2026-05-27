@@ -491,23 +491,21 @@ function Roi() {
 ========================================================= */
 function Pilot() {
   const checks = [
-    'Launch in one client location',
-    'Connect your lead sources',
-    'Configure call flow and booking behavior',
-    'Test normal, urgent, safety, voicemail, and failed‑call scenarios',
-    'Review reporting and outcomes',
-    'Tune before expanding',
+    'Audit findings identify the highest-impact response gap',
+    'RunWise is set up around your lead sources, your availability, and how you book jobs',
+    'Calls are live — every interaction logged, recorded, and reviewed with you',
+    'We tune before you decide anything about expanding',
   ];
   return (
     <section className="section pilot" id="pilot">
       <div className="container pilot-inner">
         <div>
-          <div className="eyebrow on-dark"><span className="dot" />Pilot offer</div>
-          <h2 className="h2" style={{ color: 'white' }}>Start with a focused paid pilot.</h2>
+          <div className="eyebrow on-dark"><span className="dot" />What comes next</div>
+          <h2 className="h2" style={{ color: 'white' }}>From audit to live calls in days.</h2>
           <div style={{ height: 18 }} />
           <p className="pilot-lede">
-            One location. One call flow. A small, deliberate test that proves out the response
-            mechanics in your actual environment before anyone talks about rollout.
+            The audit maps where your leads are leaking. The pilot fixes it — one location,
+            in your actual environment.
           </p>
           <div style={{ height: 28 }} />
           <a href="#audit" className="btn btn-accent">Request the audit <IconArrow size={16} /></a>
