@@ -2672,9 +2672,9 @@ function BuiltForHVAC() {
 ========================================================= */
 function Roi() {
   const [leads, setLeads] = useState(50);
-  const [recoverPct, setRecoverPct] = useState(15);
+  const [recoverPct, setRecoverPct] = useState(20);
   const [closeRate, setCloseRate] = useState(30);
-  const [gp, setGp] = useState(450);
+  const [gp, setGp] = useState(600);
   const bookedAppts = leads * recoverPct / 100;
   const closedJobs = Math.round(bookedAppts * closeRate / 100);
   const monthly = closedJobs * gp;
