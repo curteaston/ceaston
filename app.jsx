@@ -473,7 +473,7 @@ function Roi() {
           <div className="roi-row">
             <label>Avg. gross profit per recovered job</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <input type="range" min="150" max="2000" step="50" value={gp}
+              <input type="range" min="150" max="5000" step="50" value={gp}
                      onChange={e => setGp(+e.target.value)} className="roi-slider" />
               <span className="num">${gp}</span>
             </div>
