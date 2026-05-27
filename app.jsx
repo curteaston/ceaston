@@ -453,7 +453,7 @@ function Roi() {
             </div>
           </div>
           <div className="roi-row">
-            <label>Jobs recovered vs. without RunWise</label>
+            <label>Additional jobs from RunWise</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <input type="range" min="2" max="20" step="1" value={recoverPct}
                      onChange={e => setRecoverPct(+e.target.value)} className="roi-slider" />
