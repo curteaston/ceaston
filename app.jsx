@@ -414,12 +414,14 @@ function BuiltForHVAC() {
    ROI
 ========================================================= */
 function Roi() {
-  const [leads, setLeads] = useState(50);      // monthly inbound leads
-  const [recoverPct, setRecoverPct] = useState(15); // % of leads recovered
-  const [gp, setGp] = useState(450);           // avg gross profit / recovered job
+  const [leads, setLeads] = useState(50);
+  const [recoverPct, setRecoverPct] = useState(15);
+  const [closeRate, setCloseRate] = useState(30);
+  const [gp, setGp] = useState(450);
 
-  const recovered = Math.round(leads * (recoverPct / 100));
-  const monthly = recovered * gp;
+  const bookedAppts = leads * recoverPct / 100;
+  const closedJobs = Math.round(bookedAppts * closeRate / 100);
+  const monthly = closedJobs * gp;
   const annual = monthly * 12;
 
   return (
@@ -453,11 +455,19 @@ function Roi() {
             </div>
           </div>
           <div className="roi-row">
-            <label>Additional jobs from RunWise</label>
+            <label>Booking lift from RunWise</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <input type="range" min="2" max="50" step="1" value={recoverPct}
                      onChange={e => setRecoverPct(+e.target.value)} className="roi-slider" />
               <span className="num">{recoverPct}%</span>
+            </div>
+          </div>
+          <div className="roi-row">
+            <label>Your close rate</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <input type="range" min="10" max="60" step="1" value={closeRate}
+                     onChange={e => setCloseRate(+e.target.value)} className="roi-slider" />
+              <span className="num">{closeRate}%</span>
             </div>
           </div>
           <div className="roi-row">
@@ -472,7 +482,7 @@ function Roi() {
           <div className="roi-out">
             <div>
               <div className="lbl">Recovered GP</div>
-              <div className="lbl-sub">{recovered} jobs/mo &middot; illustrative</div>
+              <div className="lbl-sub">{Math.round(bookedAppts)} appts &rarr; {closedJobs} jobs/mo &middot; illustrative</div>
             </div>
             <div className="val">${monthly.toLocaleString()}<span style={{ fontSize: 14, color: 'var(--slate-400)', fontFamily: 'var(--font-mono)', marginLeft: 6 }}>/mo</span></div>
           </div>

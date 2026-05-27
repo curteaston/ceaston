@@ -2671,12 +2671,13 @@ function BuiltForHVAC() {
    ROI
 ========================================================= */
 function Roi() {
-  const [leads, setLeads] = useState(50); // monthly inbound leads
-  const [recoverPct, setRecoverPct] = useState(15); // % of leads recovered
-  const [gp, setGp] = useState(450); // avg gross profit / recovered job
-
-  const recovered = Math.round(leads * (recoverPct / 100));
-  const monthly = recovered * gp;
+  const [leads, setLeads] = useState(50);
+  const [recoverPct, setRecoverPct] = useState(15);
+  const [closeRate, setCloseRate] = useState(30);
+  const [gp, setGp] = useState(450);
+  const bookedAppts = leads * recoverPct / 100;
+  const closedJobs = Math.round(bookedAppts * closeRate / 100);
+  const monthly = closedJobs * gp;
   const annual = monthly * 12;
   return /*#__PURE__*/React.createElement("section", {
     className: "section roi",
@@ -2729,7 +2730,7 @@ function Roi() {
     className: "num"
   }, leads))), /*#__PURE__*/React.createElement("div", {
     className: "roi-row"
-  }, /*#__PURE__*/React.createElement("label", null, "Additional jobs from RunWise"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("label", null, "Booking lift from RunWise"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -2746,6 +2747,24 @@ function Roi() {
   }), /*#__PURE__*/React.createElement("span", {
     className: "num"
   }, recoverPct, "%"))), /*#__PURE__*/React.createElement("div", {
+    className: "roi-row"
+  }, /*#__PURE__*/React.createElement("label", null, "Your close rate"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "10",
+    max: "60",
+    step: "1",
+    value: closeRate,
+    onChange: e => setCloseRate(+e.target.value),
+    className: "roi-slider"
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, closeRate, "%"))), /*#__PURE__*/React.createElement("div", {
     className: "roi-row"
   }, /*#__PURE__*/React.createElement("label", null, "Avg. gross profit per recovered job"), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2769,7 +2788,7 @@ function Roi() {
     className: "lbl"
   }, "Recovered GP"), /*#__PURE__*/React.createElement("div", {
     className: "lbl-sub"
-  }, recovered, " jobs/mo \xB7 illustrative")), /*#__PURE__*/React.createElement("div", {
+  }, Math.round(bookedAppts), " appts \u2192 ", closedJobs, " jobs/mo \xB7 illustrative")), /*#__PURE__*/React.createElement("div", {
     className: "val"
   }, "$", monthly.toLocaleString(), /*#__PURE__*/React.createElement("span", {
     style: {
