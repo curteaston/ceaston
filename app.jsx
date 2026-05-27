@@ -447,7 +447,7 @@ function Roi() {
           <div className="roi-row">
             <label>Monthly inbound leads</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <input type="range" min="10" max="300" step="5" value={leads}
+              <input type="range" min="10" max="500" step="5" value={leads}
                      onChange={e => setLeads(+e.target.value)} className="roi-slider" />
               <span className="num">{leads}</span>
             </div>
@@ -455,7 +455,7 @@ function Roi() {
           <div className="roi-row">
             <label>Additional jobs from RunWise</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <input type="range" min="2" max="20" step="1" value={recoverPct}
+              <input type="range" min="2" max="50" step="1" value={recoverPct}
                      onChange={e => setRecoverPct(+e.target.value)} className="roi-slider" />
               <span className="num">{recoverPct}%</span>
             </div>
