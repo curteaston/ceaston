@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RunWise Systems — 40-Second Video Production Brief</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue:    #1E4A8C;
+      --blue-lt: #2D6EC7;
+      --gray:    #4A5568;
+      --gray-lt: #718096;
+      --white:   #FFFFFF;
+      --bg:      #F7F9FC;
+      --card:    #FFFFFF;
+      --border:  #DDE3ED;
+      --accent:  #0FA3B1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: #1A202C;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      background: var(--blue);
+      color: var(--white);
+      padding: 48px 40px 40px;
+    }
+    .page-header .label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #8BB8F0;
+      margin-bottom: 10px;
+    }
+    .page-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .page-header .sub {
+      font-size: 14px;
+      color: #A8C4E8;
+      font-weight: 400;
+    }
+    .meta-row {
+      display: flex;
+      gap: 32px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .meta-item .key {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #8BB8F0;
+    }
+    .meta-item .val {
+      font-size: 14px;
+      font-weight: 500;
+      color: #E8F0FB;
+    }
+
+    /* ── Layout ── */
+    .main { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blue-lt);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* ── Timeline ruler ── */
+    .timeline-ruler {
+      display: flex;
+      align-items: center;
+      background: var(--blue);
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin-bottom: 28px;
+      gap: 0;
+      overflow: hidden;
+    }
+    .ruler-seg {
+      flex: 1;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: #A8C4E8;
+      border-right: 1px solid #2D5A9E;
+      padding: 4px 0;
+    }
+    .ruler-seg:last-child { border-right: none; }
+    .ruler-seg span {
+      display: block;
+      font-size: 9px;
+      color: #6A96CC;
+      margin-top: 2px;
+    }
+
+    /* ── Scene cards ── */
+    .scene-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+
+    .scene-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: grid;
+      grid-template-columns: 80px 1fr 1fr 220px;
+      overflow: hidden;
+    }
+
+    .scene-num {
+      background: var(--blue);
+      color: var(--white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 8px;
+      gap: 4px;
+    }
+    .scene-num .s-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #8BB8F0;
+    }
+    .scene-num .s-n {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .scene-num .s-time {
+      font-size: 10px;
+      color: #A8C4E8;
+      font-weight: 500;
+    }
+
+    .scene-vo {
+      padding: 18px 20px;
+      border-right: 1px solid var(--border);
+    }
+    .scene-visual {
+      padding: 18px 20px;
+      border-right: 1px solid var(--border);
+    }
+    .scene-overlay {
+      padding: 18px 20px;
+      background: #F0F4FA;
+    }
+
+    .cell-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gray-lt);
+      margin-bottom: 8px;
+    }
+    .cell-body {
+      font-size: 13px;
+      color: #2D3748;
+      line-height: 1.55;
+    }
+    .cell-body em {
+      color: var(--gray-lt);
+      font-style: italic;
+    }
+
+    .overlay-text {
+      display: inline-block;
+      background: rgba(30, 74, 140, 0.92);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .overlay-none {
+      font-size: 12px;
+      color: #A0AEC0;
+      font-style: italic;
+    }
+
+    /* ── Production specs ── */
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+    .spec-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+    }
+    .spec-card h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+      margin-bottom: 14px;
+    }
+    .spec-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .spec-list li {
+      font-size: 13px;
+      color: #2D3748;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .spec-list li::before {
+      content: "→";
+      color: var(--accent);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── End card ── */
+    .end-card-preview {
+      background: var(--blue);
+      border-radius: 10px;
+      padding: 36px 40px;
+      color: var(--white);
+      margin-bottom: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+    }
+    .end-card-preview .ec-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #8BB8F0;
+      margin-bottom: 8px;
+    }
+    .end-card-preview .ec-brand {
+      font-size: 26px;
+      font-weight: 700;
+    }
+    .end-card-preview .ec-tagline {
+      font-size: 14px;
+      color: #A8C4E8;
+      font-weight: 400;
+      margin-bottom: 20px;
+    }
+    .end-card-preview .ec-divider {
+      width: 40px;
+      height: 2px;
+      background: var(--accent);
+      margin: 8px auto;
+    }
+    .end-card-preview .ec-contact {
+      font-size: 13px;
+      color: #D0E4F7;
+      line-height: 2;
+    }
+    .ec-placeholder {
+      display: inline-block;
+      background: rgba(255,255,255,0.12);
+      border: 1px dashed rgba(255,255,255,0.3);
+      border-radius: 4px;
+      padding: 2px 12px;
+      font-size: 12px;
+      color: #8BB8F0;
+    }
+
+    /* ── Full voiceover ── */
+    .vo-block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--blue);
+      border-radius: 10px;
+      padding: 28px 32px;
+      margin-bottom: 48px;
+    }
+    .vo-block p {
+      font-size: 15px;
+      color: #2D3748;
+      line-height: 1.8;
+      margin-bottom: 10px;
+    }
+    .vo-block p:last-child { margin-bottom: 0; }
+    .vo-beat {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      vertical-align: middle;
+      margin: 0 6px;
+    }
+
+    /* ── Color palette ── */
+    .palette-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .swatch-box {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .swatch-name { font-size: 11px; font-weight: 600; color: var(--gray); }
+    .swatch-hex  { font-size: 10px; color: var(--gray-lt); }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .scene-card {
+        grid-template-columns: 60px 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .scene-num { grid-row: 1 / 4; }
+      .scene-vo, .scene-visual, .scene-overlay {
+        grid-column: 2;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .spec-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     PAGE HEADER
+════════════════════════════════════════ -->
+<header class="page-header">
+  <div class="label">Video Production Brief</div>
+  <h1>RunWise Systems — 40-Second B2B Video</h1>
+  <p class="sub">Speed-to-lead for HVAC companies · Targeting owners who requested more information</p>
+  <div class="meta-row">
+    <div class="meta-item"><span class="key">Duration</span><span class="val">~40 seconds</span></div>
+    <div class="meta-item"><span class="key">Format</span><span class="val">16:9 · 1920×1080 · 30fps</span></div>
+    <div class="meta-item"><span class="key">Tone</span><span class="val">Direct · Practical · Calm</span></div>
+    <div class="meta-item"><span class="key">Audience</span><span class="val">HVAC Business Owners</span></div>
+    <div class="meta-item"><span class="key">Scenes</span><span class="val">8 scenes + end card</span></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- ════════════════════
+       TIMELINE RULER
+  ════════════════════ -->
+  <div class="timeline-ruler">
+    <div class="ruler-seg">0–4s<span>Scene 1</span></div>
+    <div class="ruler-seg">4–10s<span>Scene 2</span></div>
+    <div class="ruler-seg">10–17s<span>Scene 3</span></div>
+    <div class="ruler-seg">17–22s<span>Scene 4</span></div>
+    <div class="ruler-seg">22–28s<span>Scene 5</span></div>
+    <div class="ruler-seg">28–33s<span>Scene 6</span></div>
+    <div class="ruler-seg">33–37s<span>Scene 7</span></div>
+    <div class="ruler-seg">37–40s<span>End Card</span></div>
+  </div>
+
+  <!-- ════════════════════
+       SCENE CARDS
+  ════════════════════ -->
+  <div class="section-title">Scene-by-Scene Breakdown</div>
+
+  <div class="scene-grid">
+
+    <!-- Scene 1 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">1</span>
+        <span class="s-time">0–4s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"You're already paying for HVAC leads."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Close-up of a computer screen showing a Google Ads or LSA dashboard — cost-per-lead numbers visible. Subtle pan or push-in. Clean office background, blue/gray tones. No motion graphics yet.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-text">Stop Losing HVAC Leads<br>To Slow Follow-Up</div>
+      </div>
+    </div>
+
+    <!-- Scene 2 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">2</span>
+        <span class="s-time">4–10s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"But when a new lead comes in after hours, during a busy day, or while your office is tied up — that lead can go cold fast."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Split or quick-cut sequence: (1) Phone showing a form submission notification at 9 PM. (2) Dispatcher on a busy call at a desk — preoccupied. (3) The form notification still sitting unread. Slightly desaturated to imply missed opportunity.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-text">New lead comes in</div>
+        <br>
+        <div class="overlay-none">— fades out as voiceover continues</div>
+      </div>
+    </div>
+
+    <!-- Scene 3 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">3</span>
+        <span class="s-time">10–17s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"RunWise helps HVAC companies respond quickly to new form and email leads, call the homeowner while the request is still fresh, qualify the issue, check service area, and book or route the next step."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Three quick cuts timed to the three phrases: (1) Phone screen showing a fast outbound call being placed — homeowner picks up. (2) Simple checklist graphic or tablet screen: "Service area ✓ / Issue type ✓ / Next step ✓". (3) Calendar booking confirmation on screen. Warm, resolved feel — full color returns.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-text">RunWise responds fast</div>
+        <br><br>
+        <div class="overlay-text">Qualify. Route. Book.</div>
+      </div>
+    </div>
+
+    <!-- Scene 4 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">4</span>
+        <span class="s-time">17–22s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"We start with a 48-Hour Paid Lead Leak Audit."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Clean graphic card or document on screen: "48-Hour Paid Lead Leak Audit" with a subtle stopwatch or 48h label. White background, blue type. Feels like a formal deliverable — not a flashy promo. Brief hold.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-text">Start with the<br>48-Hour Paid Lead Leak Audit</div>
+      </div>
+    </div>
+
+    <!-- Scene 5 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">5</span>
+        <span class="s-time">22–28s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"In two days, we show where your leads may be leaking, what it could be costing you, and whether a speed-to-lead fix is worth testing."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Three bullet points animate in one at a time on a clean white/gray background — plain text, no icons: <em>Where your leads are leaking / What it may be costing / Whether a fix is worth testing.</em> Minimal motion. Reads like a business slide, not an ad.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-none">Bullets are the on-screen text for this scene — no separate overlay needed.</div>
+      </div>
+    </div>
+
+    <!-- Scene 6 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">6</span>
+        <span class="s-time">28–33s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"RunWise Systems. Stop losing paid leads to slow follow-up."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Brand lock-up moment. RunWise Systems logo centered on a white or deep blue background. Hold for 2–3 frames, then tagline fades in below. Clean, confident, no animation excess.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-text">RunWise Systems</div>
+        <br>
+        <div class="overlay-text" style="background: rgba(15,163,177,0.9); font-size: 10px;">Stop Losing Paid Leads<br>To Slow Follow-Up</div>
+      </div>
+    </div>
+
+    <!-- Scene 7 -->
+    <div class="scene-card">
+      <div class="scene-num">
+        <span class="s-label">Scene</span>
+        <span class="s-n">7</span>
+        <span class="s-time">33–37s</span>
+      </div>
+      <div class="scene-vo">
+        <div class="cell-label">Voiceover</div>
+        <div class="cell-body">"Book your 15-minute demo today."</div>
+      </div>
+      <div class="scene-visual">
+        <div class="cell-label">Visual Direction</div>
+        <div class="cell-body">
+          Simple CTA screen: calendar icon or booking screen visual in background. Large, bold CTA text in foreground. Blue button-style treatment. No countdown, no urgency gimmicks — just a direct ask.
+        </div>
+      </div>
+      <div class="scene-overlay">
+        <div class="cell-label">On-Screen Text</div>
+        <div class="overlay-text" style="font-size: 13px; padding: 8px 16px;">Book your 15-minute demo</div>
+      </div>
+    </div>
+
+  </div><!-- /scene-grid -->
+
+  <!-- ════════════════════
+       END CARD PREVIEW
+  ════════════════════ -->
+  <div class="section-title">End Card — Hold 3–4 Seconds (37–40s)</div>
+
+  <div class="end-card-preview">
+    <div class="ec-label">End Card Preview</div>
+    <div class="ec-brand">RunWise Systems</div>
+    <div class="ec-tagline">Speed-to-lead that books jobs</div>
+    <div class="ec-divider"></div>
+    <div class="ec-contact">
+      <span class="ec-placeholder">Website URL</span><br>
+      <span class="ec-placeholder">Phone Number</span><br>
+      <span class="ec-placeholder">Calendar / Demo Link</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════
+       FULL VOICEOVER
+  ════════════════════ -->
+  <div class="section-title">Full Voiceover Script</div>
+
+  <div class="vo-block">
+    <p>You're already paying for HVAC leads.</p>
+    <p>But when a new lead comes in after hours, during a busy day, or while your office is tied up<span class="vo-beat"></span>that lead can go cold fast.</p>
+    <p>RunWise helps HVAC companies respond quickly to new form and email leads, call the homeowner while the request is still fresh, qualify the issue, check service area, and book or route the next step.</p>
+    <p>We start with a 48-Hour Paid Lead Leak Audit.</p>
+    <p>In two days, we show where your leads may be leaking, what it could be costing you, and whether a speed-to-lead fix is worth testing.</p>
+    <p>RunWise Systems.<span class="vo-beat"></span>Stop losing paid leads to slow follow-up.</p>
+    <p>Book your 15-minute demo today.</p>
+  </div>
+
+  <!-- ════════════════════
+       PRODUCTION SPECS
+  ════════════════════ -->
+  <div class="section-title">Production Specifications</div>
+
+  <div class="spec-grid">
+
+    <div class="spec-card">
+      <h3>Visual Style</h3>
+      <ul class="spec-list">
+        <li>Clean office, dispatcher, and homeowner phone/form visuals</li>
+        <li>No robot imagery, no futuristic AI graphics, no cheesy stock</li>
+        <li>Avoid over-produced "tech commercial" feel — target business operations tone</li>
+        <li>Simple text overlays: white or light text on semi-transparent blue panel</li>
+        <li>Cuts should feel deliberate — 3–6 shots total, not rapid-fire</li>
+        <li>Full color for resolved/solution scenes; slightly desaturated for problem scenes</li>
+      </ul>
+    </div>
+
+    <div class="spec-card">
+      <h3>Voiceover Direction</h3>
+      <ul class="spec-list">
+        <li>Male or female — calm, measured, business credibility (not announcer voice)</li>
+        <li>Pace: ~135 words per 40 seconds — do not rush</li>
+        <li>No dramatic pauses, no hypey inflection on product name</li>
+        <li>Natural breath between "We start with…" and the audit name</li>
+        <li>Final two sentences slightly slower — let the CTA land</li>
+      </ul>
+    </div>
+
+    <div class="spec-card">
+      <h3>Music / Audio</h3>
+      <ul class="spec-list">
+        <li>Light, understated background track — corporate/neutral, not inspirational</li>
+        <li>No dramatic swells; music should sit ~10–15 dB below VO</li>
+        <li>Subtle fade out under end card</li>
+        <li>No sound effects on text animations</li>
+      </ul>
+    </div>
+
+    <div class="spec-card">
+      <h3>Text Overlay Treatment</h3>
+      <ul class="spec-list">
+        <li>Font: Inter, Montserrat, or similar clean sans-serif</li>
+        <li>Weight: 600–700 for headlines; 400 for supporting copy</li>
+        <li>Background: semi-transparent blue panel (rgba 1E4A8C / 88%)</li>
+        <li>Fade in: ~12 frames; hold with VO beat; fade out: ~8 frames</li>
+        <li>Position: lower-third or center depending on visual composition</li>
+        <li>Scene 5 bullets: plain white text on gray/dark overlay — no panels</li>
+      </ul>
+    </div>
+
+    <div class="spec-card">
+      <h3>Export / Deliverables</h3>
+      <ul class="spec-list">
+        <li>Primary: 1920×1080 H.264, ~10–15 Mbps, .mp4</li>
+        <li>Social cut: 1080×1080 square version (optional)</li>
+        <li>Captions: SRT file for accessibility / LinkedIn autoplay</li>
+        <li>End card: editable PSD or AE comp so contact info can be updated</li>
+      </ul>
+    </div>
+
+    <div class="spec-card">
+      <h3>Brand Colors</h3>
+      <ul class="spec-list">
+        <li>Primary blue: #1E4A8C</li>
+        <li>Active/link blue: #2D6EC7</li>
+        <li>Accent teal: #0FA3B1</li>
+        <li>Body gray: #4A5568</li>
+        <li>Background: #F7F9FC / White</li>
+      </ul>
+    </div>
+
+  </div><!-- /spec-grid -->
+
+  <!-- ════════════════════
+       COLOR PALETTE
+  ════════════════════ -->
+  <div class="section-title">Brand Color Palette</div>
+  <div class="palette-row">
+    <div class="swatch">
+      <div class="swatch-box" style="background:#1E4A8C;"></div>
+      <div class="swatch-name">Primary Blue</div>
+      <div class="swatch-hex">#1E4A8C</div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-box" style="background:#2D6EC7;"></div>
+      <div class="swatch-name">Active Blue</div>
+      <div class="swatch-hex">#2D6EC7</div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-box" style="background:#0FA3B1;"></div>
+      <div class="swatch-name">Accent Teal</div>
+      <div class="swatch-hex">#0FA3B1</div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-box" style="background:#4A5568;"></div>
+      <div class="swatch-name">Body Gray</div>
+      <div class="swatch-hex">#4A5568</div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-box" style="background:#718096; border:1px solid #DDE3ED;"></div>
+      <div class="swatch-name">Light Gray</div>
+      <div class="swatch-hex">#718096</div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-box" style="background:#F7F9FC; border:1px solid #DDE3ED;"></div>
+      <div class="swatch-name">Background</div>
+      <div class="swatch-hex">#F7F9FC</div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-box" style="background:#FFFFFF; border:1px solid #DDE3ED;"></div>
+      <div class="swatch-name">White</div>
+      <div class="swatch-hex">#FFFFFF</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</body>
+</html>
