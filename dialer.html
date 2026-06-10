@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Power Dialer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="dialer.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark">
+    <div class="container-fluid px-3">
+      <span class="navbar-brand fw-bold">
+        <i class="bi bi-telephone-fill me-2 text-primary-accent"></i>Power Dialer
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span id="device-status" class="badge bg-secondary">Initializing…</span>
+        <button class="btn btn-sm btn-outline-light" onclick="loadContacts()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Sync GHL
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="dialer-layout">
+
+    <!-- ── LEFT: Contact List ──────────────────────────────── -->
+    <div class="panel panel-contacts">
+      <div class="panel-header">
+        <span class="panel-label">Contacts</span>
+        <span id="contact-count" class="badge bg-secondary">0</span>
+      </div>
+
+      <div class="search-box">
+        <input id="contact-search" type="text" class="form-control form-control-sm"
+               placeholder="Search name, phone, email…" oninput="filterContacts(this.value)">
+      </div>
+
+      <div id="contact-list" class="contact-list">
+        <div class="loading-msg">
+          <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CENTER: Dialer ──────────────────────────────────── -->
+    <div class="panel panel-dialer">
+
+      <!-- Idle -->
+      <div id="state-idle" class="dialer-state">
+        <div class="text-center text-muted">
+          <i class="bi bi-telephone display-3 mb-3 d-block" style="opacity:.25"></i>
+          <p class="mb-0">Select a contact to begin</p>
+        </div>
+      </div>
+
+      <!-- Ready to call -->
+      <div id="state-ready" class="dialer-state d-none">
+        <div class="contact-card">
+          <div class="contact-avatar" id="contact-avatar">
+            <span id="contact-initials">?</span>
+          </div>
+          <h4 id="contact-name" class="mt-3 mb-0">—</h4>
+          <p id="contact-company" class="text-muted small mb-3">—</p>
+
+          <div id="phone-numbers" class="phone-list mb-4"></div>
+
+          <button id="btn-call" class="btn btn-call" onclick="initiateCall()">
+            <i class="bi bi-telephone-fill me-2"></i>Call
+          </button>
+        </div>
+      </div>
+
+      <!-- Active call -->
+      <div id="state-calling" class="dialer-state d-none">
+        <div class="calling-interface">
+          <div class="contact-avatar pulsing">
+            <span id="calling-initials">?</span>
+          </div>
+          <h4 id="calling-name" class="mt-3 mb-0">—</h4>
+          <p id="calling-number" class="text-muted small mb-2">—</p>
+          <span id="call-status-badge" class="badge bg-warning mb-2">Dialing…</span>
+          <div id="call-timer" class="call-timer d-none">0:00</div>
+
+          <div class="call-controls mt-4">
+            <button id="btn-mute" class="btn btn-ctrl" onclick="toggleMute()" title="Mute">
+              <i class="bi bi-mic-fill"></i>
+            </button>
+            <button class="btn btn-hangup" onclick="hangUp()" title="Hang up">
+              <i class="bi bi-telephone-x-fill"></i>
+            </button>
+            <button id="btn-keypad-toggle" class="btn btn-ctrl" onclick="toggleKeypad()" title="Keypad">
+              <i class="bi bi-grid-3x3-gap-fill"></i>
+            </button>
+          </div>
+
+          <div id="dtmf-keypad" class="dtmf-keypad d-none mt-3">
+            <div class="keypad-grid">
+              <button onclick="sendDTMF('1')">1</button><button onclick="sendDTMF('2')">2</button><button onclick="sendDTMF('3')">3</button>
+              <button onclick="sendDTMF('4')">4</button><button onclick="sendDTMF('5')">5</button><button onclick="sendDTMF('6')">6</button>
+              <button onclick="sendDTMF('7')">7</button><button onclick="sendDTMF('8')">8</button><button onclick="sendDTMF('9')">9</button>
+              <button onclick="sendDTMF('*')">*</button><button onclick="sendDTMF('0')">0</button><button onclick="sendDTMF('#')">#</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual dial (always visible at bottom) -->
+      <div class="manual-dial">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-dark border-dim text-muted">
+            <i class="bi bi-keyboard"></i>
+          </span>
+          <input id="manual-number" type="tel" class="form-control"
+                 placeholder="Manual dial…" onkeydown="if(event.key==='Enter') manualDial()">
+          <button class="btn btn-success" onclick="manualDial()" title="Dial">
+            <i class="bi bi-telephone-fill"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: Notes & History ──────────────────────────── -->
+    <div class="panel panel-notes">
+
+      <div class="panel-header">
+        <span class="panel-label">Call Notes</span>
+        <button id="btn-stt" class="btn btn-sm btn-outline-accent" onclick="toggleSpeechToText()" title="Toggle speech-to-text">
+          <i class="bi bi-mic"></i>
+        </button>
+      </div>
+
+      <div class="notes-area">
+        <select id="call-outcome" class="form-select form-select-sm mb-2">
+          <option value="">Select outcome…</option>
+          <option>Connected – Interested</option>
+          <option>Connected – Not Interested</option>
+          <option>Connected – Callback Scheduled</option>
+          <option>Voicemail Left</option>
+          <option>No Answer</option>
+          <option>Busy</option>
+          <option>Wrong Number</option>
+          <option>Disconnected</option>
+        </select>
+
+        <textarea id="call-notes" class="form-control notes-textarea"
+                  placeholder="Type notes here, or tap the mic button to dictate…"></textarea>
+
+        <div id="stt-indicator" class="stt-indicator d-none">
+          <span class="rec-dot"></span> Listening…
+        </div>
+      </div>
+
+      <div class="notes-actions">
+        <button id="btn-log" class="btn btn-primary btn-sm w-100 mb-2" onclick="logToGHL()">
+          <i class="bi bi-cloud-upload me-1"></i>Log to GoHighLevel
+        </button>
+        <button class="btn btn-outline-secondary btn-sm w-100" onclick="clearNotes()">
+          <i class="bi bi-trash me-1"></i>Clear Notes
+        </button>
+      </div>
+
+      <div class="panel-header mt-0" style="border-top:1px solid var(--border)">
+        <span class="panel-label">Recent Calls</span>
+      </div>
+      <div id="call-history" class="call-history">
+        <p class="text-muted text-center py-3 small mb-0">No calls yet</p>
+      </div>
+    </div>
+
+  </div><!-- .dialer-layout -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://sdk.twilio.com/js/voice/releases/2.10.1/twilio.js"></script>
+  <script src="dialer.js"></script>
+</body>
+</html>
