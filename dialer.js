@@ -15,11 +15,32 @@ let speechRec       = null;
 let isListening     = false;
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await checkAuth();  // redirect to /login.html if not signed in
   initSpeechRecognition();
   loadContacts();
   initTwilio();
+  loadCallHistory();
 });
+
+async function checkAuth() {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) { location.href = '/login.html'; return; }
+  const { user, tenant } = await res.json();
+  const emailEl = document.getElementById('nav-email');
+  if (emailEl) { emailEl.textContent = user.email; emailEl.classList.remove('d-none'); }
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  location.href = '/login.html';
+}
+
+// Redirect to login on any 401
+function handle401(res) {
+  if (res.status === 401) { location.href = '/login.html'; return true; }
+  return false;
+}
 
 // ── Twilio Device ─────────────────────────────────────────────────────────────
 async function initTwilio() {
@@ -120,11 +141,35 @@ function onIncomingCall(call) {
   call.on('disconnect', onCallEnded);
 }
 
-function onCallEnded() {
+async function onCallEnded() {
   stopTimer();
 
+  // Save call to DB
+  let savedCallId = null;
   if (currentContact) {
+    try {
+      const res = await fetch('/api/calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId:    currentContact.id || null,
+          contactName:  contactDisplayName(currentContact),
+          phone:        activePhone || '',
+          durationSecs: callSeconds,
+          outcome:      document.getElementById('call-outcome').value || null,
+          notes:        document.getElementById('call-notes').value   || null
+        })
+      });
+      if (handle401(res)) return;
+      const data = await res.json();
+      savedCallId = data.id;
+      lastSavedCallId = savedCallId;
+    } catch (err) {
+      console.error('[save call]', err);
+    }
+
     pushHistory({
+      id:     savedCallId,
       name:   contactDisplayName(currentContact),
       number: activePhone || '',
       secs:   callSeconds,
@@ -166,13 +211,14 @@ async function loadContacts() {
   list.innerHTML = '<div class="loading-msg"><div class="spinner-border spinner-border-sm me-2"></div>Loading…</div>';
 
   try {
-    const res  = await fetch('/api/contacts?limit=200');
+    const res = await fetch('/api/contacts?limit=200');
+    if (handle401(res)) return;
     const data = await res.json();
     allContacts = data.contacts || [];
     document.getElementById('contact-count').textContent = allContacts.length;
     renderContactList(allContacts);
   } catch (err) {
-    list.innerHTML = '<div class="text-center text-muted py-4 small px-3">Could not load contacts.<br>Check GHL configuration.</div>';
+    list.innerHTML = '<div class="text-center text-muted py-4 small px-3">Could not load contacts.<br><a href="/setup.html" class="text-accent">Check setup</a></div>';
   }
 }
 
@@ -282,8 +328,14 @@ function stopTimer() {
 }
 
 // ── Notes → GoHighLevel ───────────────────────────────────────────────────────
+// lastSavedCallId is set in onCallEnded when the call record is saved to DB
+let lastSavedCallId = null;
+
 async function logToGHL() {
-  if (!currentContact?.id) { alert('No GoHighLevel contact is selected.'); return; }
+  if (!currentContact?.id) {
+    alert('No GoHighLevel contact is selected. Only GHL contacts can be logged.');
+    return;
+  }
 
   const notes   = document.getElementById('call-notes').value.trim();
   const outcome = document.getElementById('call-outcome').value;
@@ -293,13 +345,20 @@ async function logToGHL() {
   btn.innerHTML = '<div class="spinner-border spinner-border-sm me-1"></div>Logging…';
 
   try {
-    const res = await fetch('/api/call/log', {
+    const res = await fetch('/api/calls/log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contactId: currentContact.id, notes, outcome, duration: callSeconds })
+      body: JSON.stringify({
+        callId:    lastSavedCallId,
+        contactId: currentContact.id,
+        notes,
+        outcome,
+        duration: callSeconds
+      })
     });
 
-    if (!res.ok) throw new Error(await res.text());
+    if (handle401(res)) return;
+    if (!res.ok) throw new Error((await res.json()).error);
 
     btn.className = 'btn btn-success btn-sm w-100 mb-2';
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Logged!';
@@ -307,7 +366,7 @@ async function logToGHL() {
 
   } catch (err) {
     console.error('[logToGHL]', err);
-    alert('Failed to log call to GoHighLevel. Check server logs.');
+    alert('Failed to log call to GoHighLevel. Check your setup page.');
     resetLogBtn();
   }
 }
@@ -393,6 +452,30 @@ function pushHistory(entry) {
     <div class="hist-name">${esc(entry.name || entry.number)}</div>
     <div class="hist-meta">${fmtDuration(entry.secs)} &bull; ${entry.at.toLocaleTimeString()}</div>`;
   container.prepend(el);
+}
+
+// Load persistent call history from DB on page start
+async function loadCallHistory() {
+  try {
+    const res = await fetch('/api/calls');
+    if (handle401(res)) return;
+    const data = await res.json();
+    const container = document.getElementById('call-history');
+    const calls = data.calls || [];
+    if (!calls.length) return;
+
+    container.innerHTML = '';
+    calls.forEach(c => {
+      const el = document.createElement('div');
+      el.className = 'hist-item';
+      el.innerHTML = `
+        <div class="hist-name">${esc(c.contact_name || c.phone || 'Unknown')}</div>
+        <div class="hist-meta">${fmtDuration(c.duration_secs)} &bull; ${new Date(c.created_at + 'Z').toLocaleDateString()} ${c.ghl_logged ? '&bull; <span style="color:#22c55e">GHL</span>' : ''}</div>`;
+      container.appendChild(el);
+    });
+  } catch (err) {
+    console.warn('[loadCallHistory]', err);
+  }
 }
 
 // ── UI state helpers ──────────────────────────────────────────────────────────

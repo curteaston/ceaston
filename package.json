@@ -1,7 +1,7 @@
 {
   "name": "power-dialer",
-  "version": "1.0.0",
-  "description": "Power Dialer with GoHighLevel CRM sync",
+  "version": "2.0.0",
+  "description": "Power Dialer with GoHighLevel CRM sync — multi-tenant SaaS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,9 +9,17 @@
   },
   "dependencies": {
     "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "twilio": "^4.18.0"
+    "express-rate-limit": "^7.1.5",
+    "express-session": "^1.17.3",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "twilio": "^4.18.0",
+    "uuid": "^9.0.0",
+    "zod": "^3.22.4"
   }
 }
