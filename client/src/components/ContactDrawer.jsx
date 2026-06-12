@@ -1,0 +1,158 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api.js';
+import { useStore } from '../store.js';
+import { fmtDateTime, relTime } from '../format.js';
+import Modal from './Modal.jsx';
+import Timeline from './Timeline.jsx';
+import VoiceNoteInput from './VoiceNoteInput.jsx';
+import { Field } from './widgets.jsx';
+
+const INTERACTION_TYPES = ['call', 'email', 'sms', 'meeting', 'linkedin', 'other'];
+const OUTCOMES = ['connected', 'voicemail', 'no answer', 'replied', 'bounced', 'booked meeting', 'not interested'];
+
+function LogInteraction({ contact, onLogged }) {
+  const { run } = useStore();
+  const [type, setType] = useState('call');
+  const [outcome, setOutcome] = useState('');
+  const [body, setBody] = useState('');
+
+  const submit = (e) => {
+    e.preventDefault();
+    run(async () => {
+      await api.post('/activities', {
+        contact_id: contact.id, type, outcome: outcome || null, body: body || null,
+      });
+      setBody(''); setOutcome('');
+      await onLogged();
+    }, 'Interaction logged');
+  };
+
+  return (
+    <form className="log-interaction" onSubmit={submit}>
+      <div className="row gap">
+        <select value={type} onChange={(e) => setType(e.target.value)}>
+          {INTERACTION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+          <option value="">outcome…</option>
+          {OUTCOMES.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <input
+          className="grow" placeholder="What happened? (optional)"
+          value={body} onChange={(e) => setBody(e.target.value)}
+        />
+        <button className="btn primary" type="submit">Log</button>
+      </div>
+    </form>
+  );
+}
+
+export function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
+  const [form, setForm] = useState({
+    name: '', title: '', email: '', phone: '', source: '', ...initial,
+  });
+  const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  return (
+    <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit(form); }}>
+      <Field label="Name *"><input required value={form.name} onChange={upd('name')} /></Field>
+      <Field label="Title"><input value={form.title || ''} onChange={upd('title')} /></Field>
+      <Field label="Email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
+      <Field label="Phone"><input value={form.phone || ''} onChange={upd('phone')} /></Field>
+      <Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="cold list, referral, LinkedIn…" /></Field>
+      <div className="form-actions"><button className="btn primary" type="submit">{submitLabel}</button></div>
+    </form>
+  );
+}
+
+export default function ContactDrawer({ contact, onClose }) {
+  const { run, mutateCompany } = useStore();
+  const [history, setHistory] = useState(null);
+  const [editing, setEditing] = useState(false);
+
+  const loadHistory = async () => setHistory(await api.get(`/contacts/${contact.id}/history`));
+  useEffect(() => { loadHistory().catch(() => {}); }, [contact.id]);
+
+  const refreshAll = async () => {
+    await loadHistory();
+    await mutateCompany(async () => {}); // re-pull company payload (timeline, last contact)
+  };
+
+  const saveNote = (body, source) =>
+    run(async () => {
+      await api.post('/notes', { contact_id: contact.id, body, source });
+      await refreshAll();
+    }, source === 'voice' ? 'Voice note saved' : 'Note saved');
+
+  const editNote = (id, body) =>
+    run(async () => {
+      await api.patch(`/notes/${id}`, { body });
+      await refreshAll();
+    }, 'Note updated');
+
+  const deleteNote = (id) =>
+    run(async () => {
+      await api.del(`/notes/${id}`);
+      await refreshAll();
+    }, 'Note deleted');
+
+  const updateContact = (form) =>
+    run(async () => {
+      await api.patch(`/contacts/${contact.id}`, form);
+      setEditing(false);
+      await mutateCompany(async () => {});
+    }, 'Contact updated');
+
+  const deleteContact = () => {
+    if (!confirm(`Delete contact ${contact.name}? Their notes and history will be removed.`)) return;
+    run(async () => {
+      await mutateCompany(() => api.del(`/contacts/${contact.id}`));
+      onClose();
+    }, 'Contact deleted');
+  };
+
+  return (
+    <Modal title={contact.name} onClose={onClose} wide>
+      <div className="contact-drawer">
+        <div className="contact-info">
+          <div>
+            <div className="muted">{contact.title || 'No title'}</div>
+            {contact.email && <div><a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
+            {contact.phone && <div><a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
+            <div className="muted small">
+              Source: {contact.source || '—'} · Last contacted: {relTime(contact.last_contacted_at)}
+              {contact.last_contacted_at && ` (${fmtDateTime(contact.last_contacted_at)})`}
+            </div>
+          </div>
+          <div className="row gap">
+            <button className="btn small" onClick={() => setEditing(true)}>Edit</button>
+            <button className="btn small danger" onClick={deleteContact}>Delete</button>
+          </div>
+        </div>
+
+        <h4>Log an interaction</h4>
+        <LogInteraction contact={contact} onLogged={refreshAll} />
+
+        <h4>Add note 🎙</h4>
+        <VoiceNoteInput compact placeholder={`Note about ${contact.name}…`} onSave={saveNote} />
+
+        <h4>Conversation history</h4>
+        {history === null ? (
+          <p className="muted">Loading…</p>
+        ) : (
+          <Timeline
+            items={history}
+            onEditNote={editNote}
+            onDeleteNote={deleteNote}
+            emptyText="No interactions logged with this contact yet."
+          />
+        )}
+      </div>
+
+      {editing && (
+        <Modal title={`Edit ${contact.name}`} onClose={() => setEditing(false)}>
+          <ContactForm initial={contact} onSubmit={updateContact} submitLabel="Save changes" />
+        </Modal>
+      )}
+    </Modal>
+  );
+}

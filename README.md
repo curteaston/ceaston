@@ -1,0 +1,162 @@
+# HVAC Prospect CRM
+
+A lightweight, self-hostable B2B CRM purpose-built for prospecting HVAC contractors.
+Designed for a solo sales operator managing 50–200 active prospect companies while
+running concurrent outbound cadences.
+
+**Stack:** Postgres · Express · React (Vite) + Zustand
+
+## Features
+
+- **Companies, Contacts, Deals, Tasks** — the four core objects, with contacts nested
+  under companies, deals tied to companies, and tasks tied to a company or contact.
+- **Single-screen company view** — all contacts (title + last contact date), a complete
+  chronological timeline of every call, email, note and stage change across all
+  contacts, deal pipeline status, and upcoming tasks.
+- **Voice notes (speech-to-text)** — click the 🎤 button at company or contact level,
+  speak, and the note is transcribed via the browser Web Speech API and saved
+  automatically when you stop. Every note is timestamped and transcriptions are
+  editable after the fact. (Works in Chrome, Edge and Safari.)
+- **Advanced filtering & segmentation** — by employee count, monthly ad spend range,
+  industry, days since last contact (incl. never contacted), and deal stage.
+- **Pipeline board** — kanban-style view of deals across stages with stage moves
+  logged to the company timeline.
+- **Dashboard** — activity metrics (7/30 day), stage funnel with stage-to-stage
+  conversion rates, win rate, contacts per company, and task completion rates.
+- **Full REST API** — built for n8n: create companies, upsert contacts, log call
+  outcomes and notes, fetch company + full contact history in a single payload,
+  manage deals and tasks, search by name/domain.
+- **Bulk import** — paste or upload a CSV to seed prospect lists; companies are
+  matched by domain and updated, never duplicated, so re-importing is safe.
+
+## Quick start (Docker)
+
+```bash
+docker compose up --build
+# open http://localhost:3001
+```
+
+## Quick start (local dev)
+
+Requires Node 20+ and a Postgres database.
+
+```bash
+npm run install:all
+
+# point the API at your database (schema is created automatically on boot)
+export DATABASE_URL=postgres://user:pass@localhost:5432/hvac_crm
+
+npm run dev:server   # API on :3001
+npm run dev:client   # UI on :5173 (proxies /api to :3001)
+
+# optional: load demo data
+npm run seed
+```
+
+For production without Docker: `npm run build` then `npm start` — the API server
+serves the built React app on a single port.
+
+## Configuration
+
+| Env var        | Default            | Purpose                                          |
+| -------------- | ------------------ | ------------------------------------------------ |
+| `DATABASE_URL` | local Postgres env | Postgres connection string                       |
+| `PORT`         | `3001`             | HTTP port                                        |
+| `API_KEY`      | _(unset = open)_   | If set, all `/api` calls need `X-Api-Key` header |
+
+## REST API (n8n-ready)
+
+All endpoints accept/return JSON. If `API_KEY` is set, send it as `X-Api-Key`
+(or `Authorization: Bearer <key>`).
+
+### Companies
+
+| Method   | Path                              | Notes                                                                                                                                              |
+| -------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/companies`                  | Filters: `q` (name/domain), `industry`, `ad_spend_range`, `employee_min/max`, `inactive_days`, `last_contact_before/after`, `deal_stage`, `no_deals=true`, `sort`, `order`, `limit`, `offset` |
+| `POST`   | `/api/companies`                  | `{ name*, domain, industry, employee_count, ad_spend_range, website }`                                                                              |
+| `GET`    | `/api/companies/:id`              | Company record only                                                                                                                                 |
+| `GET`    | `/api/companies/:id/full`         | **Single payload:** company + contacts + deals + tasks + full timeline                                                                              |
+| `GET`    | `/api/companies/lookup?domain=`   | Same full payload, looked up by domain (or `?name=`)                                                                                                |
+| `GET`    | `/api/companies/:id/timeline`     | Chronological notes + activities across all contacts                                                                                                |
+| `PATCH`  | `/api/companies/:id`              | Partial update                                                                                                                                      |
+| `DELETE` | `/api/companies/:id`              | Cascades to contacts/deals/tasks/notes                                                                                                              |
+
+### Contacts
+
+| Method   | Path                         | Notes                                                                                       |
+| -------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/contacts`              | `?company_id=` `?q=`                                                                         |
+| `POST`   | `/api/contacts`              | `{ company_id* (or company_domain/company_name), name*, title, email, phone, source }`      |
+| `POST`   | `/api/contacts/upsert`       | Matches by email (then company+name); creates or updates. Ideal for n8n enrichment flows.   |
+| `GET`    | `/api/contacts/:id/history`  | Individual conversation history (activities + notes)                                         |
+| `PATCH`  | `/api/contacts/:id`          | Partial update                                                                               |
+| `DELETE` | `/api/contacts/:id`          |                                                                                              |
+
+### Activities (call/email logging)
+
+| Method | Path              | Notes                                                                                                  |
+| ------ | ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `GET`  | `/api/activities` | `?company_id=` `?contact_id=` `?type=`                                                                  |
+| `POST` | `/api/activities` | `{ contact_id or company_id*, type: call/email/sms/meeting/linkedin/other, outcome, body, occurred_at }` — updates last-contact dates automatically |
+
+### Notes
+
+| Method   | Path             | Notes                                                                              |
+| -------- | ---------------- | ----------------------------------------------------------------------------------- |
+| `GET`    | `/api/notes`     | `?company_id=` `?contact_id=` `?deal_id=`                                            |
+| `POST`   | `/api/notes`     | `{ company_id or contact_id or deal_id*, body*, source: 'typed'\|'voice' }`          |
+| `PATCH`  | `/api/notes/:id` | `{ body }` — edit a transcription                                                    |
+| `DELETE` | `/api/notes/:id` |                                                                                      |
+
+### Deals
+
+| Method   | Path             | Notes                                                                                              |
+| -------- | ---------------- | --------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/deals`     | `?company_id=` `?stage=`                                                                             |
+| `POST`   | `/api/deals`     | `{ company_id*, name*, value, stage, probability, expected_close_date }`                             |
+| `PATCH`  | `/api/deals/:id` | Stage changes auto-log a timeline event and refresh the default probability unless one is provided.  |
+| `DELETE` | `/api/deals/:id` |                                                                                                      |
+
+Stages: `lead → contacted → qualified → proposal → negotiation → won / lost`
+
+### Tasks
+
+| Method   | Path             | Notes                                                                                                |
+| -------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/tasks`     | `?company_id=` `?contact_id=` `?owner=` `?priority=` `?completed=` `?overdue=true` `?due_before=`      |
+| `POST`   | `/api/tasks`     | `{ company_id or contact_id*, description*, due_date, priority: low/medium/high, owner }`              |
+| `PATCH`  | `/api/tasks/:id` | `{ completed: true }` stamps `completed_at`                                                            |
+| `DELETE` | `/api/tasks/:id` |                                                                                                        |
+
+### Search, import, dashboard
+
+| Method | Path              | Notes                                                                                                   |
+| ------ | ----------------- | -------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/search?q=`  | Companies by name/domain + contacts by name/email                                                         |
+| `POST` | `/api/import`     | `{ companies: [{ name*, domain, …, contacts: [{ name*, … }] }] }` — transactional upsert, max 2000/call   |
+| `GET`  | `/api/dashboard`  | All dashboard metrics in one call                                                                         |
+| `GET`  | `/api/meta`       | Valid stages / ad-spend ranges / priorities                                                               |
+| `GET`  | `/api/health`     | Liveness + DB check                                                                                       |
+
+### Example n8n call flow
+
+```text
+1. POST /api/contacts/upsert        { company_domain, name, email, title }
+2. POST /api/activities             { contact_id, type: "call", outcome: "connected", body: "..." }
+3. POST /api/notes                  { contact_id, body: "transcribed call summary", source: "typed" }
+4. GET  /api/companies/lookup?domain=acmehvac.com   → full history payload for the next touch
+```
+
+## CSV import format
+
+Header row required. Company columns: `name` (required), `domain`, `industry`,
+`employee_count`, `ad_spend_range`, `website`. Optional contact columns on the
+same row: `contact_name`, `contact_title`, `contact_email`, `contact_phone`,
+`contact_source`. Repeat a company across rows to attach multiple contacts.
+
+```csv
+name,domain,employee_count,ad_spend_range,contact_name,contact_email
+Acme HVAC,acmehvac.com,25,$1k-$5k,Jane Doe,jane@acmehvac.com
+Acme HVAC,acmehvac.com,25,$1k-$5k,Bob Roe,bob@acmehvac.com
+```
