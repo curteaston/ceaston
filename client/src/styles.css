@@ -287,6 +287,41 @@ tr:last-child td { border-bottom: none; }
 .stage-bg-won { background: #e2f3e8; }
 .stage-bg-lost { background: #f6e4e4; }
 
+/* Home */
+.home { max-width: 860px; }
+.home-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+.home-date { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.home-greet { font-size: 30px; font-weight: 800; margin: 0; }
+.home-section { margin-bottom: 30px; }
+.home-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.home-section-title { font-weight: 700; font-size: 15px; }
+.home-section-title u { text-underline-offset: 4px; }
+.outline-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+}
+.empty-state { padding: 6px 0; }
+.empty-state p { color: var(--text); margin: 0 0 10px; }
+.toggle-group {
+  display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.toggle-group button {
+  font: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px;
+  background: #fff; border: none; cursor: pointer; color: var(--muted);
+}
+.toggle-group button.on { background: #e8eef7; color: var(--text); }
+.meeting-row { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid #eef1f6; flex-wrap: wrap; }
+.meeting-row:last-child { border-bottom: none; }
+.attention-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 0; border-bottom: 1px solid #eef1f6; font-size: 13px;
+}
+.attention-row:last-child { border-bottom: none; }
+.attention-row input[type='checkbox'] { width: 15px; height: 15px; cursor: pointer; }
+.feed-row { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #eef1f6; }
+.feed-row:last-child { border-bottom: none; }
+.feed-time { flex-shrink: 0; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 20px; right: 20px; z-index: 200;

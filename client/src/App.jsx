@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { useStore } from './store.js';
 import { api } from './api.js';
+import Home from './pages/Home.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Companies from './pages/Companies.jsx';
 import CompanyDetail from './pages/CompanyDetail.jsx';
@@ -75,7 +76,8 @@ export default function App() {
       <aside className="sidebar">
         <div className="logo">❄️🔥 <span>HVAC CRM</span></div>
         <nav>
-          <NavLink to="/" end>📊 Dashboard</NavLink>
+          <NavLink to="/" end>🏠 Home</NavLink>
+          <NavLink to="/dashboard">📊 Dashboard</NavLink>
           <NavLink to="/companies">🏢 Companies</NavLink>
           <NavLink to="/pipeline">🧭 Pipeline</NavLink>
           <NavLink to="/tasks">✅ Tasks</NavLink>
@@ -88,7 +90,8 @@ export default function App() {
         </header>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/companies" element={<Companies />} />
             <Route path="/companies/:id" element={<CompanyDetail />} />
             <Route path="/pipeline" element={<Pipeline />} />

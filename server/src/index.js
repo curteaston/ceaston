@@ -13,6 +13,7 @@ import notes from './routes/notes.js';
 import activities from './routes/activities.js';
 import dashboard from './routes/dashboard.js';
 import importer from './routes/importer.js';
+import home from './routes/home.js';
 
 const app = express();
 app.use(cors());
@@ -62,6 +63,7 @@ app.use('/api/notes', notes);
 app.use('/api/activities', activities);
 app.use('/api/dashboard', dashboard);
 app.use('/api/import', importer);
+app.use('/api/home', home);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown API route' }));
 
