@@ -58,11 +58,14 @@ serves the built React app on a single port.
 
 ## Configuration
 
-| Env var        | Default            | Purpose                                          |
-| -------------- | ------------------ | ------------------------------------------------ |
-| `DATABASE_URL` | local Postgres env | Postgres connection string                       |
-| `PORT`         | `3001`             | HTTP port                                        |
-| `API_KEY`      | _(unset = open)_   | If set, all `/api` calls need `X-Api-Key` header |
+| Env var             | Default            | Purpose                                                                   |
+| ------------------- | ------------------ | ------------------------------------------------------------------------- |
+| `DATABASE_URL`      | local Postgres env | Postgres connection string                                                |
+| `PORT`              | `3001`             | HTTP port                                                                 |
+| `API_KEY`           | _(unset = open)_   | If set, all `/api` calls need `X-Api-Key` header                          |
+| `ANTHROPIC_API_KEY` | _(unset)_          | Enables AI-powered company summaries (Claude); falls back to rules if unset |
+| `MS_CLIENT_ID` / `MS_CLIENT_SECRET` | _(unset)_ | Microsoft Entra app credentials for the Office 365 email + calendar integration |
+| `APP_BASE_URL`      | `http://localhost:3001` | Public base URL, used for the Office 365 OAuth redirect URI          |
 
 ## REST API (n8n-ready)
 
@@ -138,6 +141,10 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | Method | Path              | Notes                                                                                                   |
 | ------ | ----------------- | -------------------------------------------------------------------------------------------------------- |
 | `GET`  | `/api/search?q=`  | Companies by name/domain + contacts by name/email                                                         |
+| `GET`  | `/api/companies/facets?me=` | Company tab counts (all/mine/unassigned) + distinct owners                                      |
+| `POST` | `/api/companies/:id/summary` | AI lead summary (Claude when `ANTHROPIC_API_KEY` set, rule-based otherwise)                    |
+| `POST` | `/api/email/send` | Send via connected Office 365 mailbox and log an email activity                                           |
+| `GET`  | `/api/calendar/today` | Today's Office 365 calendar events (`{connected:false}` when not connected)                          |
 | `POST` | `/api/import`     | `{ companies: [{ name*, domain, …, contacts: [{ name*, … }] }] }` — transactional upsert, max 2000/call   |
 | `GET`  | `/api/dashboard`  | All dashboard metrics in one call                                                                         |
 | `GET`  | `/api/meta`       | Valid stages / ad-spend ranges / priorities                                                               |

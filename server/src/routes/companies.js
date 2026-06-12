@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate, toInt } from '../util.js';
+import { h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES } from '../util.js';
 
 const router = Router();
 
-const COMPANY_FIELDS = ['name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website'];
+const COMPANY_FIELDS = ['name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website', 'owner', 'lifecycle_stage'];
+
+function validateLifecycle(stage) {
+  if (stage && !LIFECYCLE_STAGES.includes(stage)) {
+    throw badRequest(`lifecycle_stage must be one of: ${LIFECYCLE_STAGES.join(', ')}`);
+  }
+}
 
 // Shared timeline query: notes + activities for a company, newest first.
 export async function companyTimeline(companyId) {
@@ -59,6 +65,11 @@ router.get('/', h(async (req, res) => {
   }
   if (q.industry) add('co.industry = ?', q.industry);
   if (q.ad_spend_range) add('co.ad_spend_range = ?', q.ad_spend_range);
+  if (q.owner) add('lower(co.owner) = lower(?)', q.owner);
+  if (q.unassigned === 'true') where.push(`(co.owner IS NULL OR co.owner = '')`);
+  if (q.lifecycle_stage) add('co.lifecycle_stage = ?', q.lifecycle_stage);
+  if (q.created_after) add('co.created_at >= ?', q.created_after);
+  if (q.created_before) add('co.created_at <= ?', q.created_before);
   if (q.employee_min) add('co.employee_count >= ?', toInt(q.employee_min));
   if (q.employee_max) add('co.employee_count <= ?', toInt(q.employee_max));
   if (q.last_contact_after) add('co.last_activity_at >= ?', q.last_contact_after);
@@ -71,7 +82,7 @@ router.get('/', h(async (req, res) => {
   if (q.no_deals === 'true') where.push('NOT EXISTS (SELECT 1 FROM deals d WHERE d.company_id = co.id)');
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const sortable = { name: 'co.name', created_at: 'co.created_at', last_activity_at: 'co.last_activity_at', employee_count: 'co.employee_count' };
+  const sortable = { name: 'co.name', created_at: 'co.created_at', last_activity_at: 'co.last_activity_at', employee_count: 'co.employee_count', owner: 'co.owner', lifecycle_stage: 'co.lifecycle_stage' };
   const sort = sortable[q.sort] || 'co.last_activity_at';
   const order = q.order === 'asc' ? 'ASC' : 'DESC';
   const limit = Math.min(toInt(q.limit) || 100, 500);
@@ -83,13 +94,30 @@ router.get('/', h(async (req, res) => {
        (SELECT count(*) FROM contacts ct WHERE ct.company_id = co.id)::int AS contact_count,
        (SELECT count(*) FROM tasks t WHERE t.company_id = co.id AND NOT t.completed)::int AS open_task_count,
        (SELECT coalesce(sum(d.value), 0) FROM deals d WHERE d.company_id = co.id AND d.stage NOT IN ('won','lost')) AS open_deal_value,
-       (SELECT d.stage FROM deals d WHERE d.company_id = co.id ORDER BY d.updated_at DESC LIMIT 1) AS latest_deal_stage
+       (SELECT d.stage FROM deals d WHERE d.company_id = co.id ORDER BY d.updated_at DESC LIMIT 1) AS latest_deal_stage,
+       (SELECT a.type FROM activities a WHERE a.company_id = co.id ORDER BY a.occurred_at DESC LIMIT 1) AS latest_activity_type
      FROM companies co ${whereSql}
      ORDER BY ${sort} ${order} NULLS LAST
      LIMIT ${limit} OFFSET ${offset}`,
     values
   );
   res.json({ total: countQ.rows[0].total, limit, offset, companies: rows });
+}));
+
+// GET /api/companies/facets?me=Curt — tab counts and distinct owners
+router.get('/facets', h(async (req, res) => {
+  const me = req.query.me || '';
+  const [counts, owners] = await Promise.all([
+    query(
+      `SELECT count(*)::int AS all,
+              count(*) FILTER (WHERE owner IS NULL OR owner = '')::int AS unassigned,
+              count(*) FILTER (WHERE lower(owner) = lower($1))::int AS mine
+       FROM companies`,
+      [me]
+    ),
+    query(`SELECT DISTINCT owner FROM companies WHERE owner IS NOT NULL AND owner <> '' ORDER BY owner`),
+  ]);
+  res.json({ ...counts.rows[0], owners: owners.rows.map((r) => r.owner) });
 }));
 
 // GET /api/companies/lookup?domain=acme.com (or ?name=) — full payload for n8n
@@ -123,15 +151,18 @@ router.get('/:id/timeline', h(async (req, res) => {
 router.post('/', h(async (req, res) => {
   const b = req.body;
   if (!b.name) throw badRequest('name is required');
+  validateLifecycle(b.lifecycle_stage);
   const { rows } = await query(
-    `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website)
-     VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6) RETURNING *`,
-    [b.name, b.domain || null, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null, b.website || null]
+    `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website, owner, lifecycle_stage)
+     VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, coalesce($8, 'lead')) RETURNING *`,
+    [b.name, b.domain || null, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
+     b.website || null, b.owner || null, b.lifecycle_stage || null]
   );
   res.status(201).json(rows[0]);
 }));
 
 router.patch('/:id', h(async (req, res) => {
+  validateLifecycle(req.body.lifecycle_stage);
   const upd = buildUpdate('companies', req.params.id, req.body, COMPANY_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
   const { rows } = await query(upd.text, upd.values);

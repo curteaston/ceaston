@@ -12,6 +12,17 @@ CREATE TABLE IF NOT EXISTS companies (
 CREATE UNIQUE INDEX IF NOT EXISTS companies_domain_uniq ON companies (lower(domain)) WHERE domain IS NOT NULL AND domain <> '';
 CREATE INDEX IF NOT EXISTS companies_industry_idx ON companies (industry);
 CREATE INDEX IF NOT EXISTS companies_last_activity_idx ON companies (last_activity_at);
+-- Additive migrations for databases created before these columns existed.
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS owner TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS lifecycle_stage TEXT NOT NULL DEFAULT 'lead';
+CREATE INDEX IF NOT EXISTS companies_lifecycle_idx ON companies (lifecycle_stage);
+
+-- Key-value store for integration credentials and app-level settings.
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS contacts (
   id                SERIAL PRIMARY KEY,

@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDb, query } from './db.js';
-import { h, STAGES, AD_SPEND_RANGES, LEAD_STATUSES } from './util.js';
+import { h, STAGES, AD_SPEND_RANGES, LEAD_STATUSES, LIFECYCLE_STAGES } from './util.js';
 import companies from './routes/companies.js';
 import contacts from './routes/contacts.js';
 import deals from './routes/deals.js';
@@ -14,6 +14,8 @@ import activities from './routes/activities.js';
 import dashboard from './routes/dashboard.js';
 import importer from './routes/importer.js';
 import home from './routes/home.js';
+import ai from './routes/ai.js';
+import microsoft from './routes/microsoft.js';
 
 const app = express();
 app.use(cors());
@@ -40,6 +42,7 @@ app.get('/api/meta', (req, res) => {
     ad_spend_ranges: AD_SPEND_RANGES,
     priorities: ['low', 'medium', 'high'],
     lead_statuses: LEAD_STATUSES,
+    lifecycle_stages: LIFECYCLE_STAGES,
   });
 });
 
@@ -69,6 +72,8 @@ app.use('/api/activities', activities);
 app.use('/api/dashboard', dashboard);
 app.use('/api/import', importer);
 app.use('/api/home', home);
+app.use('/api', ai);
+app.use('/api', microsoft);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown API route' }));
 

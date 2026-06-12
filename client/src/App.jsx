@@ -10,6 +10,7 @@ import CompanyDetail from './pages/CompanyDetail.jsx';
 import Pipeline from './pages/Pipeline.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Import from './pages/Import.jsx';
+import Settings from './pages/Settings.jsx';
 
 function GlobalSearch() {
   const [q, setQ] = useState('');
@@ -84,6 +85,7 @@ export default function App() {
           <NavLink to="/pipeline">🧭 Pipeline</NavLink>
           <NavLink to="/tasks">✅ Tasks</NavLink>
           <NavLink to="/import">📥 Import</NavLink>
+          <NavLink to="/settings">⚙️ Settings</NavLink>
         </nav>
       </aside>
       <div className="main">
@@ -100,6 +102,7 @@ export default function App() {
             <Route path="/pipeline" element={<Pipeline />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/import" element={<Import />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>

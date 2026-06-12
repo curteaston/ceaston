@@ -6,6 +6,17 @@ const DEFAULT_META = {
   ad_spend_ranges: ['unknown', '$0', '<$1k', '$1k-$5k', '$5k-$10k', '$10k-$25k', '$25k+'],
   priorities: ['low', 'medium', 'high'],
   lead_statuses: ['new', 'attempted', 'connected', 'qualified', 'unqualified', 'customer'],
+  lifecycle_stages: ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'],
+};
+
+export const LIFECYCLE_LABELS = {
+  subscriber: 'Subscriber',
+  lead: 'Lead',
+  mql: 'Marketing Qualified Lead',
+  sql: 'Sales Qualified Lead',
+  opportunity: 'Opportunity',
+  customer: 'Customer',
+  evangelist: 'Evangelist',
 };
 
 export const useStore = create((set, get) => ({

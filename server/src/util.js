@@ -8,6 +8,8 @@ export const AD_SPEND_RANGES = ['unknown', '$0', '<$1k', '$1k-$5k', '$5k-$10k', 
 
 export const LEAD_STATUSES = ['new', 'attempted', 'connected', 'qualified', 'unqualified', 'customer'];
 
+export const LIFECYCLE_STAGES = ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'];
+
 // Wrap async route handlers so rejections hit the error middleware.
 export const h = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 

@@ -154,9 +154,13 @@ export default function Home() {
   const [taskView, setTaskView] = useState('open');
   const [modal, setModal] = useState(null); // 'meeting' | 'task'
   const [name, setName] = useState(() => localStorage.getItem('crm_display_name') || 'Curt');
+  const [calendar, setCalendar] = useState(null);
 
   const load = () => api.get('/home').then(setData).catch(() => {});
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get('/calendar/today').then(setCalendar).catch(() => {});
+  }, []);
 
   const customize = () => {
     const next = prompt('Display name for your greeting:', name);
@@ -196,7 +200,15 @@ export default function Home() {
         actions={<button className="icon-btn" title="New meeting" onClick={() => setModal('meeting')}>＋</button>}
       >
         <div className="outline-card">
-          {meetings_today.length === 0 ? (
+          {calendar?.connected && calendar.events.map((ev, i) => (
+            <div key={`cal${i}`} className="meeting-row">
+              <b>{ev.start ? new Date(ev.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : ''}</b>
+              <span className="chip outcome">📆 Office 365</span>
+              {ev.link ? <a href={ev.link} target="_blank" rel="noreferrer">{ev.subject}</a> : <span>{ev.subject}</span>}
+              {ev.location && <span className="muted small">{ev.location}</span>}
+            </div>
+          ))}
+          {meetings_today.length === 0 && !(calendar?.connected && calendar.events.length > 0) ? (
             <div className="empty-state">
               <p>You don't have any meetings today</p>
               <button className="btn" onClick={() => setModal('meeting')}>＋ New meeting</button>
