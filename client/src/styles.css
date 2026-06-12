@@ -468,6 +468,10 @@ pre {
   padding: 10px; font-size: 12px; overflow-x: auto;
 }
 
+/* Click-to-call */
+.phone-link { white-space: nowrap; font-weight: 500; }
+.phone-link:hover { text-decoration: underline; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 20px; right: 20px; z-index: 200;

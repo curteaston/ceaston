@@ -4,7 +4,7 @@ import { api, qs } from '../api.js';
 import { useStore } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import ContactDrawer from '../components/ContactDrawer.jsx';
-import { CompanySelect, Field } from '../components/widgets.jsx';
+import { CompanySelect, Field, PhoneLink } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, relTime } from '../format.js';
 
 const ALL_COLUMNS = [
@@ -228,7 +228,7 @@ export default function Contacts() {
       case 'email':
         return c.email ? <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()}>{c.email}</a> : '--';
       case 'phone':
-        return c.phone ? <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()}>{c.phone}</a> : '--';
+        return <PhoneLink phone={c.phone} />;
       case 'title': return c.title || '--';
       case 'owner': return c.owner || <span className="muted">No owner</span>;
       case 'company':

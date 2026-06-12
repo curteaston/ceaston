@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { useStore, LIFECYCLE_LABELS } from '../store.js';
 import SidePanel from './SidePanel.jsx';
 import VoiceNoteInput from './VoiceNoteInput.jsx';
-import { StageChip } from './widgets.jsx';
+import { PhoneLink, StageChip } from './widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
 const TL_ICONS = {
@@ -78,6 +78,7 @@ export function PreviewPanel({ company, onClose, onChanged, onEmail, onNote, onS
           {full.contacts.slice(0, 5).map((ct) => (
             <div key={ct.id} className="preview-row">
               <b>{ct.name}</b> <span className="muted small">{ct.title || ''}</span>
+              {ct.phone && <div className="small"><PhoneLink phone={ct.phone} /></div>}
               <div className="muted small">Last contact: {relTime(ct.last_contacted_at)}</div>
             </div>
           ))}

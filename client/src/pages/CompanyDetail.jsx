@@ -6,7 +6,7 @@ import Modal from '../components/Modal.jsx';
 import Timeline from '../components/Timeline.jsx';
 import VoiceNoteInput from '../components/VoiceNoteInput.jsx';
 import ContactDrawer, { ContactForm } from '../components/ContactDrawer.jsx';
-import { Field, StageChip, TaskRow } from '../components/widgets.jsx';
+import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx';
 import { CompanyForm } from './Companies.jsx';
 import { fmtDate, fmtMoney, relTime } from '../format.js';
 
@@ -150,6 +150,7 @@ export default function CompanyDetail() {
             <button key={c.id} className="contact-card" onClick={() => setOpenContact(c)}>
               <div className="contact-name">{c.name}</div>
               <div className="muted small">{c.title || '—'}</div>
+              {c.phone && <div className="small"><PhoneLink phone={c.phone} /></div>}
               <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
             </button>
           ))}

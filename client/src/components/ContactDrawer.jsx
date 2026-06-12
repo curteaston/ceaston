@@ -5,7 +5,7 @@ import { fmtDateTime, relTime } from '../format.js';
 import Modal from './Modal.jsx';
 import Timeline from './Timeline.jsx';
 import VoiceNoteInput from './VoiceNoteInput.jsx';
-import { Field } from './widgets.jsx';
+import { Field, PhoneLink } from './widgets.jsx';
 
 const INTERACTION_TYPES = ['call', 'email', 'sms', 'meeting', 'linkedin', 'other'];
 const OUTCOMES = ['connected', 'voicemail', 'no answer', 'replied', 'bounced', 'booked meeting', 'not interested'];
@@ -124,7 +124,7 @@ export default function ContactDrawer({ contact, onClose }) {
           <div>
             <div className="muted">{contact.title || 'No title'}</div>
             {contact.email && <div><a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
-            {contact.phone && <div><a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
+            {contact.phone && <div><PhoneLink phone={contact.phone} /></div>}
             <div className="muted small">
               Source: {contact.source || '—'} · Owner: {contact.owner || 'unassigned'} ·
               Status: {contact.lead_status || 'new'} · Last contacted: {relTime(contact.last_contacted_at)}

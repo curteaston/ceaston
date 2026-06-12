@@ -17,6 +17,17 @@ export function CompanySelect({ value, onChange, required = true }) {
   );
 }
 
+// Click-to-call link: dials via the OS handler (mobile, Teams, Google Voice, RingCentral, …).
+export function PhoneLink({ phone }) {
+  if (!phone) return <span className="muted">--</span>;
+  const href = `tel:${phone.replace(/[^+\d]/g, '')}`;
+  return (
+    <a href={href} className="phone-link" title={`Call ${phone}`} onClick={(e) => e.stopPropagation()}>
+      📞 {phone}
+    </a>
+  );
+}
+
 export function StageChip({ stage }) {
   if (!stage) return <span className="muted">—</span>;
   return <span className={`chip stage stage-${stage}`}>{stage}</span>;
