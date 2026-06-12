@@ -5,6 +5,7 @@ import { api } from './api.js';
 import Home from './pages/Home.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Companies from './pages/Companies.jsx';
+import Contacts from './pages/Contacts.jsx';
 import CompanyDetail from './pages/CompanyDetail.jsx';
 import Pipeline from './pages/Pipeline.jsx';
 import Tasks from './pages/Tasks.jsx';
@@ -79,6 +80,7 @@ export default function App() {
           <NavLink to="/" end>🏠 Home</NavLink>
           <NavLink to="/dashboard">📊 Dashboard</NavLink>
           <NavLink to="/companies">🏢 Companies</NavLink>
+          <NavLink to="/contacts">👤 Contacts</NavLink>
           <NavLink to="/pipeline">🧭 Pipeline</NavLink>
           <NavLink to="/tasks">✅ Tasks</NavLink>
           <NavLink to="/import">📥 Import</NavLink>
@@ -94,6 +96,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/companies" element={<Companies />} />
             <Route path="/companies/:id" element={<CompanyDetail />} />
+            <Route path="/contacts" element={<Contacts />} />
             <Route path="/pipeline" element={<Pipeline />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/import" element={<Import />} />

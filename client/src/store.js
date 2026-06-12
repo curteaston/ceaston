@@ -5,6 +5,7 @@ const DEFAULT_META = {
   stages: ['lead', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'],
   ad_spend_ranges: ['unknown', '$0', '<$1k', '$1k-$5k', '$5k-$10k', '$10k-$25k', '$25k+'],
   priorities: ['low', 'medium', 'high'],
+  lead_statuses: ['new', 'attempted', 'connected', 'qualified', 'unqualified', 'customer'],
 };
 
 export const useStore = create((set, get) => ({

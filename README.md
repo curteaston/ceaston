@@ -86,12 +86,16 @@ All endpoints accept/return JSON. If `API_KEY` is set, send it as `X-Api-Key`
 
 | Method   | Path                         | Notes                                                                                       |
 | -------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/contacts`              | `?company_id=` `?q=`                                                                         |
-| `POST`   | `/api/contacts`              | `{ company_id* (or company_domain/company_name), name*, title, email, phone, source }`      |
+| `GET`    | `/api/contacts`              | Paginated list. Filters: `q` (name/email/phone), `company_id`, `owner`, `unassigned=true`, `lead_status`, `source`, `title`, `has_email/has_phone=true`, `created_after/before`, `last_contact_after/before`, `never_contacted=true`, `inactive_days`, `sort`, `order`, `limit`, `offset` |
+| `GET`    | `/api/contacts/facets?me=`   | Tab counts (all / mine / unassigned) and distinct owners                                     |
+| `POST`   | `/api/contacts`              | `{ company_id* (or company_domain/company_name), name*, title, email, phone, source, owner, lead_status }` |
 | `POST`   | `/api/contacts/upsert`       | Matches by email (then company+name); creates or updates. Ideal for n8n enrichment flows.   |
+| `POST`   | `/api/contacts/bulk`         | `{ ids: [..], action: 'update'\|'delete', patch: { owner?, lead_status? } }`                 |
 | `GET`    | `/api/contacts/:id/history`  | Individual conversation history (activities + notes)                                         |
 | `PATCH`  | `/api/contacts/:id`          | Partial update                                                                               |
 | `DELETE` | `/api/contacts/:id`          |                                                                                              |
+
+Lead statuses: `new, attempted, connected, qualified, unqualified, customer`
 
 ### Activities (call/email logging)
 

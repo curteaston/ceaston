@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDb, query } from './db.js';
-import { h, STAGES, AD_SPEND_RANGES } from './util.js';
+import { h, STAGES, AD_SPEND_RANGES, LEAD_STATUSES } from './util.js';
 import companies from './routes/companies.js';
 import contacts from './routes/contacts.js';
 import deals from './routes/deals.js';
@@ -35,7 +35,12 @@ app.get('/api/health', h(async (req, res) => {
 
 // Enum metadata for clients (filter dropdowns, n8n option lists).
 app.get('/api/meta', (req, res) => {
-  res.json({ stages: STAGES, ad_spend_ranges: AD_SPEND_RANGES, priorities: ['low', 'medium', 'high'] });
+  res.json({
+    stages: STAGES,
+    ad_spend_ranges: AD_SPEND_RANGES,
+    priorities: ['low', 'medium', 'high'],
+    lead_statuses: LEAD_STATUSES,
+  });
 });
 
 // GET /api/search?q= — companies by name/domain, contacts by name/email

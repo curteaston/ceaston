@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, qs } from '../api.js';
+import { api } from '../api.js';
 import { useStore } from '../store.js';
 import Modal from '../components/Modal.jsx';
-import { Field, PriorityChip, StageChip } from '../components/widgets.jsx';
+import { CompanySelect, Field, PriorityChip, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
 const FEED_ICONS = {
@@ -24,21 +24,6 @@ function todayLabel() {
   });
 }
 
-function CompanySelect({ value, onChange }) {
-  const [companies, setCompanies] = useState([]);
-  useEffect(() => {
-    api.get(`/companies${qs({ sort: 'name', order: 'asc', limit: 500 })}`)
-      .then((d) => setCompanies(d.companies))
-      .catch(() => {});
-  }, []);
-  return (
-    <select required value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">Choose a company…</option>
-      {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-    </select>
-  );
-}
-
 function NewMeetingModal({ onClose, onSaved }) {
   const { run } = useStore();
   const [companyId, setCompanyId] = useState('');
@@ -54,7 +39,7 @@ function NewMeetingModal({ onClose, onSaved }) {
   useEffect(() => {
     setContactId('');
     if (!companyId) return setContacts([]);
-    api.get(`/contacts?company_id=${companyId}`).then(setContacts).catch(() => {});
+    api.get(`/contacts?company_id=${companyId}&limit=500`).then((d) => setContacts(d.contacts)).catch(() => {});
   }, [companyId]);
 
   const submit = (e) => {

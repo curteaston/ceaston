@@ -6,6 +6,8 @@ export const DEFAULT_PROBABILITY = {
 
 export const AD_SPEND_RANGES = ['unknown', '$0', '<$1k', '$1k-$5k', '$5k-$10k', '$10k-$25k', '$25k+'];
 
+export const LEAD_STATUSES = ['new', 'attempted', 'connected', 'qualified', 'unqualified', 'customer'];
+
 // Wrap async route handlers so rejections hit the error middleware.
 export const h = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 

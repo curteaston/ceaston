@@ -48,8 +48,9 @@ function LogInteraction({ contact, onLogged }) {
 }
 
 export function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
+  const { meta } = useStore();
   const [form, setForm] = useState({
-    name: '', title: '', email: '', phone: '', source: '', ...initial,
+    name: '', title: '', email: '', phone: '', source: '', owner: '', lead_status: 'new', ...initial,
   });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   return (
@@ -59,6 +60,12 @@ export function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
       <Field label="Email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
       <Field label="Phone"><input value={form.phone || ''} onChange={upd('phone')} /></Field>
       <Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="cold list, referral, LinkedIn…" /></Field>
+      <Field label="Owner"><input value={form.owner || ''} onChange={upd('owner')} placeholder="me" /></Field>
+      <Field label="Lead status">
+        <select value={form.lead_status || 'new'} onChange={upd('lead_status')}>
+          {meta.lead_statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </Field>
       <div className="form-actions"><button className="btn primary" type="submit">{submitLabel}</button></div>
     </form>
   );
@@ -119,7 +126,8 @@ export default function ContactDrawer({ contact, onClose }) {
             {contact.email && <div><a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
             {contact.phone && <div><a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
             <div className="muted small">
-              Source: {contact.source || '—'} · Last contacted: {relTime(contact.last_contacted_at)}
+              Source: {contact.source || '—'} · Owner: {contact.owner || 'unassigned'} ·
+              Status: {contact.lead_status || 'new'} · Last contacted: {relTime(contact.last_contacted_at)}
               {contact.last_contacted_at && ` (${fmtDateTime(contact.last_contacted_at)})`}
             </div>
           </div>

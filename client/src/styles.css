@@ -287,6 +287,47 @@ tr:last-child td { border-bottom: none; }
 .stage-bg-won { background: #e2f3e8; }
 .stage-bg-lost { background: #f6e4e4; }
 
+/* Contacts page */
+.contact-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  font: inherit; font-weight: 600; cursor: pointer; padding: 8px 14px;
+  background: #eaeef4; color: var(--muted);
+  border: 1px solid var(--border); border-bottom: none;
+  border-radius: 8px 8px 0 0;
+}
+.tab.on { background: var(--card); color: var(--text); }
+.tab-count {
+  background: var(--sidebar); color: #fff; border-radius: 10px;
+  font-size: 11px; padding: 1px 7px; margin-left: 4px;
+}
+.tab.on .tab-count { background: var(--primary); }
+.name-link { font-weight: 600; font-size: 13px; padding: 0; }
+.status-select { padding: 3px 6px; font-size: 12px; }
+.check-col { width: 34px; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+.filter-bar.advanced {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px;
+}
+.col-panel-wrap { position: relative; }
+.col-panel {
+  position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 60;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(16, 24, 38, 0.12);
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 180px;
+}
+.bulk-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: #e8f0fe; border: 1px solid #c4d7f8; border-radius: var(--radius);
+  padding: 8px 14px; margin-bottom: 12px;
+}
+.pagination { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 14px 0; }
+.page-indicator {
+  border: 1px solid var(--border); background: var(--card); border-radius: 6px;
+  padding: 4px 10px; font-weight: 600;
+}
+
 /* Home */
 .home { max-width: 860px; }
 .home-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }

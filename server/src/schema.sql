@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts (company_id);
 CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (lower(email));
+-- Additive migrations for databases created before these columns existed.
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS owner TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_status TEXT NOT NULL DEFAULT 'new';
+CREATE INDEX IF NOT EXISTS contacts_lead_status_idx ON contacts (lead_status);
 
 CREATE TABLE IF NOT EXISTS deals (
   id                  SERIAL PRIMARY KEY,
