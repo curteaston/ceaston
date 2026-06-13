@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useStore } from '../store.js';
@@ -276,21 +276,237 @@ export default function ContactDetail() {
         </Modal>
       )}
       {modal === 'note' && (
-        <Modal title="Add note" onClose={() => setModal(null)}>
-          <NoteQuickForm onSave={async (body) => { await saveNote(body, 'typed'); setModal(null); }} />
+        <Modal title="Add note" onClose={() => setModal(null)} wide>
+          <ContactNoteForm contact={contact} onSubmit={async (body) => { await saveNote(body, 'typed'); setModal(null); }} />
+        </Modal>
+      )}
+      {modal === 'email' && (
+        <Modal title="Send email" onClose={() => setModal(null)} wide>
+          <ContactEmailForm contact={contact} onClose={() => setModal(null)} onSaved={loadHistory} />
+        </Modal>
+      )}
+      {modal === 'call' && (
+        <Modal title="Log call" onClose={() => setModal(null)} wide>
+          <ContactActivityForm type="call" contact={contact} onSubmit={async (data) => {
+            await run(async () => { await api.post('/activities', { contact_id: contact.id, company_id: contact.company_id, ...data }); await loadHistory(); }, 'Call logged');
+            if (data.phone) window.location.href = `tel:${data.phone}`;
+            setModal(null);
+          }} />
+        </Modal>
+      )}
+      {modal === 'task' && (
+        <Modal title="Create task" onClose={() => setModal(null)} wide>
+          <ContactTaskForm contact={contact} onSubmit={async (data) => {
+            await run(async () => { await api.post('/tasks', { contact_id: contact.id, company_id: contact.company_id, ...data }); await loadHistory(); }, 'Task created');
+            setModal(null);
+          }} />
+        </Modal>
+      )}
+      {modal === 'meeting' && (
+        <Modal title="Schedule meeting" onClose={() => setModal(null)} wide>
+          <ContactMeetingForm contact={contact} onClose={() => setModal(null)} onSaved={loadHistory} />
         </Modal>
       )}
     </div>
   );
 }
 
-function NoteQuickForm({ onSave }) {
+function ContactNoteForm({ contact, onSubmit }) {
   const [body, setBody] = useState('');
+  const [listening, setListening] = useState(false);
+  const textRef = useRef(null);
+  const recRef = useRef(null);
+  const baseRef = useRef('');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+  const startListening = () => {
+    if (!SpeechRecognition) return;
+    const rec = new SpeechRecognition();
+    rec.continuous = true; rec.interimResults = true;
+    baseRef.current = body ? body.replace(/\s*$/, ' ') : '';
+    rec.onresult = (e) => {
+      let final = '', interim = '';
+      for (const r of e.results) { if (r.isFinal) final += r[0].transcript + ' '; else interim += r[0].transcript; }
+      const t = (baseRef.current + final + interim).replace(/\s+/g, ' ').trimStart();
+      setBody(t);
+      if (textRef.current) textRef.current.innerText = t;
+    };
+    rec.onend = () => { setListening(false); recRef.current = null; };
+    recRef.current = rec; rec.start(); setListening(true);
+  };
+  const stopListening = () => { recRef.current?.stop(); };
+
   return (
-    <div>
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} style={{ width: '100%' }} placeholder="Write a note…" autoFocus />
-      <div className="form-actions pad-top">
-        <button className="btn primary" disabled={!body.trim()} onClick={() => onSave(body.trim())}>Save note</button>
+    <div className="activity-modal">
+      <div className="activity-modal-for">For <span className="activity-tag">{contact.name}</span></div>
+      <div className="activity-toolbar">
+        <span style={{ flex: 1 }} />
+        {SpeechRecognition && (
+          <button type="button" className={`fmt-btn mic-btn ${listening ? 'recording' : ''}`}
+            onClick={listening ? stopListening : startListening}>
+            {listening ? '◼ Stop' : '🎤 Dictate'}
+          </button>
+        )}
+      </div>
+      <div ref={textRef} className={`activity-editor${listening ? ' listening' : ''}`}
+        contentEditable suppressContentEditableWarning
+        data-placeholder={listening ? 'Listening… speak now' : 'Start typing to leave a note…'}
+        onInput={(e) => setBody(e.currentTarget.innerText)} />
+      <div className="activity-footer">
+        <button className="btn primary" disabled={!body.trim()} onClick={() => onSubmit(body.trim())}>Create note</button>
+      </div>
+    </div>
+  );
+}
+
+function ContactEmailForm({ contact, onClose, onSaved }) {
+  const [subject, setSubject] = useState(`Re: ${contact.name}`);
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [msStatus, setMsStatus] = useState(null);
+  useEffect(() => { api.get('/integrations/microsoft/status').then(setMsStatus).catch(() => setMsStatus({ connected: false })); }, []);
+
+  const send = async () => {
+    if (!contact.email) return;
+    setSending(true);
+    try {
+      await api.post('/email/send', { to: contact.email, subject, body, company_id: contact.company_id, contact_id: contact.id });
+      onSaved(); onClose();
+    } finally { setSending(false); }
+  };
+
+  return (
+    <div className="activity-modal">
+      <div className="activity-modal-for">To <span className="activity-tag">{contact.name}</span>{contact.email && <span className="muted small"> — {contact.email}</span>}</div>
+      <Field label="Subject"><input value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      <Field label="Body"><textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} style={{ width: '100%', resize: 'vertical' }} placeholder="Type your message…" /></Field>
+      <div className="activity-footer">
+        {msStatus?.connected ? (
+          <button className="btn primary" onClick={send} disabled={sending || !contact.email}>
+            {sending ? 'Sending…' : '✉️ Send via Outlook'}
+          </button>
+        ) : (
+          <>
+            {contact.email && (
+              <a href={`https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(contact.email)}&subject=${encodeURIComponent(subject)}`}
+                target="_blank" rel="noreferrer" className="btn primary" style={{ textDecoration: 'none' }}>✉️ Open in Outlook</a>
+            )}
+            <span className="muted small">Connect Outlook in Settings to send directly</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ContactActivityForm({ type, contact, onSubmit }) {
+  const [outcome, setOutcome] = useState('');
+  const [body, setBody] = useState('');
+  const OUTCOMES = ['connected', 'voicemail', 'no answer', 'replied', 'booked meeting', 'not interested'];
+  return (
+    <div className="activity-modal">
+      <div className="activity-modal-for">For <span className="activity-tag">{contact.name}</span></div>
+      <Field label="Outcome">
+        <select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+          <option value="">-- select --</option>
+          {OUTCOMES.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </Field>
+      <Field label="Notes"><textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} style={{ width: '100%' }} placeholder="What happened?" /></Field>
+      <div className="activity-footer">
+        <button className="btn primary" onClick={() => onSubmit({ type, outcome: outcome || null, body: body || null, phone: contact.phone })}>
+          Log {type}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ContactTaskForm({ contact, onSubmit }) {
+  const me = localStorage.getItem('crm_display_name') || 'me';
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [assignedTo, setAssignedTo] = useState(me);
+  return (
+    <div className="activity-modal">
+      <div className="activity-modal-for">For <span className="activity-tag">{contact.name}</span></div>
+      <input className="task-title-input" placeholder="Enter your task" value={description}
+        onChange={(e) => setDescription(e.target.value)} autoFocus />
+      <div className="task-attrs-row" style={{ marginTop: 12 }}>
+        <div className="task-attr">
+          <div className="task-meta-label">Due date</div>
+          <input type="date" className="task-meta-select" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </div>
+        <div className="task-attr">
+          <div className="task-meta-label">Priority</div>
+          <select className="task-meta-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+          </select>
+        </div>
+        <div className="task-attr">
+          <div className="task-meta-label">Assigned to</div>
+          <input className="task-meta-select" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} />
+        </div>
+      </div>
+      <div className="activity-footer">
+        <button className="btn primary" disabled={!description.trim()}
+          onClick={() => onSubmit({ description, due_date: dueDate || null, priority, owner: assignedTo || null })}>
+          Create task
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ContactMeetingForm({ contact, onClose, onSaved }) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const defaultStart = `${now.toISOString().slice(0, 11)}${pad(now.getHours() + 1)}:00`;
+  const defaultEnd = `${now.toISOString().slice(0, 11)}${pad(now.getHours() + 2)}:00`;
+  const [subject, setSubject] = useState(`Meeting — ${contact.name}`);
+  const [start, setStart] = useState(defaultStart);
+  const [end, setEnd] = useState(defaultEnd);
+  const [location, setLocation] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msStatus, setMsStatus] = useState(null);
+  useEffect(() => { api.get('/integrations/microsoft/status').then(setMsStatus).catch(() => setMsStatus({ connected: false })); }, []);
+
+  const schedule = async () => {
+    setSaving(true);
+    try {
+      await api.post('/calendar/events', {
+        subject, start: new Date(start).toISOString(), end: new Date(end).toISOString(),
+        body: notes, location,
+        attendees: contact.email ? [contact.email] : [],
+        company_id: contact.company_id, contact_id: contact.id,
+      });
+      onSaved(); onClose();
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="activity-modal">
+      <div className="activity-modal-for">With <span className="activity-tag">{contact.name}</span></div>
+      <Field label="Subject"><input value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Start"><input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
+        <Field label="End"><input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
+      </div>
+      <Field label="Location"><input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Zoom, Office, Phone…" /></Field>
+      <Field label="Notes"><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: '100%' }} /></Field>
+      <div className="activity-footer">
+        {msStatus?.connected ? (
+          <button className="btn primary" onClick={schedule} disabled={saving}>
+            {saving ? 'Creating…' : '📅 Create in Outlook Calendar'}
+          </button>
+        ) : (
+          <a href={`https://outlook.office.com/calendar/action/compose?subject=${encodeURIComponent(subject)}&startdt=${encodeURIComponent(start)}&enddt=${encodeURIComponent(end)}`}
+            target="_blank" rel="noreferrer" className="btn primary" style={{ textDecoration: 'none' }}>
+            📅 Open in Outlook Calendar
+          </a>
+        )}
       </div>
     </div>
   );
