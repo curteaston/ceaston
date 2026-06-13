@@ -132,14 +132,14 @@ export default function App() {
         </button>
         <nav>
           {NAV_ITEMS.map(({ to, label, icon, end }) => (
-            <NavLink key={to} to={to} end={end} className="nav-item" data-label={label}>
+            <NavLink key={to} to={to} end={end} className="nav-item" data-label={label} title={label}>
               <span className="nav-icon">{icon}</span>
               {!navCollapsed && <span className="nav-label">{label}</span>}
             </NavLink>
           ))}
         </nav>
         {authRequired && (
-          <button className="sidebar-logout nav-item" data-label="Sign out" onClick={logout}>
+          <button className="sidebar-logout nav-item" data-label="Sign out" title="Sign out" onClick={logout}>
             <span className="nav-icon">↩</span>
             {!navCollapsed && <span className="nav-label">Sign out</span>}
           </button>
