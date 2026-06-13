@@ -11,7 +11,15 @@ import { Field, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
 const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
-const TIMEZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'EDT – Eastern' },
+  { value: 'America/Chicago', label: 'CDT – Central' },
+  { value: 'America/Denver', label: 'MDT – Mountain' },
+  { value: 'America/Phoenix', label: 'MST – Arizona (no DST)' },
+  { value: 'America/Los_Angeles', label: 'PDT – Pacific' },
+  { value: 'America/Anchorage', label: 'AKDT – Alaska' },
+  { value: 'Pacific/Honolulu', label: 'HST – Hawaii' },
+];
 
 export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
@@ -57,7 +65,7 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
       <Field label="Time zone">
         <select value={form.timezone || ''} onChange={upd('timezone')}>
           <option value="">—</option>
-          {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz.replace('America/', '').replace('Pacific/', 'Pacific/').replace(/_/g, ' ')}</option>)}
+          {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
         </select>
       </Field>
       <Field label="Description" style={{ gridColumn: '1 / -1' }}>
