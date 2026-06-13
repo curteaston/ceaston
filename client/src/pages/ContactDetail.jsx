@@ -46,6 +46,7 @@ export default function ContactDetail() {
   const navigate = useNavigate();
   const { run, notify } = useStore();
   const [contact, setContact] = useState(null);
+  const [company, setCompany] = useState(null);
   const [history, setHistory] = useState(null);
   const [modal, setModal] = useState(null);
   const [tab, setTab] = useState('all');
@@ -54,6 +55,9 @@ export default function ContactDetail() {
   const loadContact = async () => {
     const c = await api.get(`/contacts/${id}`);
     setContact(c);
+    if (c.company_id) {
+      api.get(`/companies/${c.company_id}/full`).then(setCompany).catch(() => {});
+    }
   };
   const loadHistory = async () => {
     const h = await api.get(`/contacts/${id}/history`);
@@ -216,19 +220,52 @@ export default function ContactDetail() {
           />
         </div>
 
-        {/* RIGHT — placeholder for future panels */}
+        {/* RIGHT — company + deals */}
         <div className="stack">
           <div className="card">
-            <div className="card-head">
-              <h3>Company</h3>
-            </div>
+            <div className="card-head"><h3>Company</h3></div>
             {contact.company_id ? (
-              <Link to={`/companies/${contact.company_id}`} className="contact-card" style={{ display: 'block', textDecoration: 'none' }}>
-                <div className="contact-name">{contact.company_name}</div>
-                <div className="muted small">View company record ↗</div>
-              </Link>
+              <>
+                <Link to={`/companies/${contact.company_id}`} style={{ fontWeight: 600, color: 'var(--primary)', fontSize: 15 }}>
+                  🏢 {contact.company_name} ↗
+                </Link>
+                {company?.website && (
+                  <div className="small" style={{ marginTop: 6 }}>
+                    <a href={company.website} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>
+                      🌐 {company.domain || company.website}
+                    </a>
+                  </div>
+                )}
+                {company?.contacts?.filter((c) => c.phone).slice(0, 3).map((c) => (
+                  <div key={c.id} className="small" style={{ marginTop: 4 }}>
+                    <PhoneLink phone={fmtPhone(c.phone) || c.phone} contactId={c.id} companyId={contact.company_id} contactName={c.name} />
+                    <span className="muted"> · {c.name}</span>
+                  </div>
+                ))}
+              </>
             ) : (
               <p className="muted">No company linked.</p>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <h3>Deals</h3>
+            </div>
+            {!company ? (
+              <p className="muted small">Loading…</p>
+            ) : company.deals?.length === 0 ? (
+              <p className="muted">No deals yet.</p>
+            ) : (
+              company.deals?.map((d) => (
+                <div key={d.id} className="deal-card">
+                  <div className="row between">
+                    <b>{d.name}</b>
+                    <span>{d.value ? `$${Number(d.value).toLocaleString()}` : '—'}</span>
+                  </div>
+                  <div className="small muted">{d.stage} · closes {d.expected_close_date ? new Date(d.expected_close_date).toLocaleDateString() : '—'}</div>
+                </div>
+              ))
             )}
           </div>
         </div>
