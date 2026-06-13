@@ -73,10 +73,30 @@ function GlobalSearch() {
   );
 }
 
+const NAV_ITEMS = [
+  { to: '/', label: 'Home', icon: '🏠', end: true },
+  { to: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { to: '/reports', label: 'Reports', icon: '📈' },
+  { to: '/companies', label: 'Companies', icon: '🏢' },
+  { to: '/contacts', label: 'Contacts', icon: '👤' },
+  { to: '/pipeline', label: 'Pipeline', icon: '🧭' },
+  { to: '/sequences', label: 'Sequences', icon: '🔁' },
+  { to: '/tasks', label: 'Tasks', icon: '✅' },
+  { to: '/import', label: 'Import', icon: '📥' },
+  { to: '/settings', label: 'Settings', icon: '⚙️' },
+];
+
 export default function App() {
   const { toast, fetchMeta } = useStore();
   const [auth, setAuth] = useState(null); // null = checking, true = ok, false = need login
   const [authRequired, setAuthRequired] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('nav_collapsed') === '1');
+
+  const toggleNav = () => setNavCollapsed((v) => {
+    const next = !v;
+    localStorage.setItem('nav_collapsed', next ? '1' : '0');
+    return next;
+  });
 
   const checkAuth = () =>
     api.get('/auth/status')
@@ -101,22 +121,29 @@ export default function App() {
   if (auth === false) return <Login onSuccess={() => { setAuth(true); fetchMeta(); }} />;
 
   return (
-    <div className="app">
+    <div className={`app${navCollapsed ? ' nav-collapsed' : ''}`}>
       <aside className="sidebar">
-        <div className="logo">❄️🔥 <span>HVAC CRM</span></div>
+        <div className="logo">
+          <span className="logo-icon">❄️🔥</span>
+          {!navCollapsed && <span className="logo-text">HVAC CRM</span>}
+        </div>
+        <button className="nav-toggle" onClick={toggleNav} title={navCollapsed ? 'Expand menu' : 'Collapse menu'}>
+          {navCollapsed ? '›' : '‹'}
+        </button>
         <nav>
-          <NavLink to="/" end>🏠 Home</NavLink>
-          <NavLink to="/dashboard">📊 Dashboard</NavLink>
-          <NavLink to="/reports">📈 Reports</NavLink>
-          <NavLink to="/companies">🏢 Companies</NavLink>
-          <NavLink to="/contacts">👤 Contacts</NavLink>
-          <NavLink to="/pipeline">🧭 Pipeline</NavLink>
-          <NavLink to="/sequences">🔁 Sequences</NavLink>
-          <NavLink to="/tasks">✅ Tasks</NavLink>
-          <NavLink to="/import">📥 Import</NavLink>
-          <NavLink to="/settings">⚙️ Settings</NavLink>
+          {NAV_ITEMS.map(({ to, label, icon, end }) => (
+            <NavLink key={to} to={to} end={end} className="nav-item" data-label={label}>
+              <span className="nav-icon">{icon}</span>
+              {!navCollapsed && <span className="nav-label">{label}</span>}
+            </NavLink>
+          ))}
         </nav>
-        {authRequired && <button className="sidebar-logout" onClick={logout}>↩ Sign out</button>}
+        {authRequired && (
+          <button className="sidebar-logout nav-item" data-label="Sign out" onClick={logout}>
+            <span className="nav-icon">↩</span>
+            {!navCollapsed && <span className="nav-label">Sign out</span>}
+          </button>
+        )}
       </aside>
       <div className="main">
         <header className="topbar">

@@ -29,15 +29,9 @@ code { background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .app { display: flex; min-height: 100vh; }
 .sidebar {
   width: 200px; background: var(--sidebar); color: #cdd6e4;
-  padding: 18px 12px; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
+  padding: 18px 12px; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow: hidden;
 }
-.logo { font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 24px; padding: 0 8px; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; }
-.sidebar nav a {
-  color: #aab8cc; padding: 9px 10px; border-radius: 8px; font-weight: 500;
-}
-.sidebar nav a:hover { background: #1c2940; color: #fff; }
-.sidebar nav a.active { background: var(--primary); color: #fff; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
@@ -513,11 +507,52 @@ pre {
 .login-card .btn { width: 100%; margin-top: 14px; }
 .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; }
 
-.sidebar { display: flex; flex-direction: column; }
+.sidebar { display: flex; flex-direction: column; transition: width 0.2s ease; }
 .sidebar nav { flex: 1; }
+
+/* Nav items — icon + label layout */
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  color: #aab8cc; padding: 9px 10px; border-radius: 8px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-decoration: none;
+}
+.nav-item:hover { background: #1c2940; color: #fff; }
+.nav-item.active { background: var(--primary); color: #fff; }
+.nav-icon { font-size: 17px; flex-shrink: 0; line-height: 1; }
+.nav-label { font-size: 14px; }
+
+/* Collapse toggle button */
+.nav-toggle {
+  background: none; border: none; color: #8794a8; cursor: pointer;
+  font-size: 18px; padding: 4px 10px; border-radius: 8px; line-height: 1;
+  align-self: flex-end; margin-bottom: 8px;
+}
+.nav-toggle:hover { color: #fff; background: #1c2940; }
+
+/* Logo layout */
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 8px; padding: 0 8px; }
+.logo-icon { flex-shrink: 0; }
+.logo-text { white-space: nowrap; overflow: hidden; }
+
+/* Collapsed state */
+.nav-collapsed .sidebar { width: 60px; }
+.nav-collapsed .sidebar .logo { justify-content: center; padding: 0 4px; }
+
+/* Tooltip for collapsed nav items */
+.nav-collapsed .nav-item { position: relative; justify-content: center; padding: 9px; }
+.nav-collapsed .nav-item::after {
+  content: attr(data-label);
+  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  background: #1c2940; color: #fff; padding: 4px 10px; border-radius: 6px;
+  font-size: 13px; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s;
+  z-index: 9999;
+}
+.nav-collapsed .nav-item:hover::after { opacity: 1; }
+
 .sidebar-logout {
   background: none; border: none; color: #8794a8; cursor: pointer;
-  text-align: left; padding: 9px 10px; border-radius: 8px; font: inherit; font-weight: 500;
+  text-align: left; border-radius: 8px; font: inherit; font-weight: 500;
 }
 .sidebar-logout:hover { background: #1c2940; color: #fff; }
 
