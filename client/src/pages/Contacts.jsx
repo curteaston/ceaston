@@ -63,7 +63,7 @@ function AddContactModal({ onClose, onSaved }) {
         <Field label="Owner"><input value={form.owner} onChange={upd('owner')} placeholder="me" /></Field>
         <Field label="Lead status">
           <select value={form.lead_status} onChange={upd('lead_status')}>
-            {meta.lead_statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+            {meta.lead_statuses.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
           </select>
         </Field>
         <div className="form-actions"><button className="btn primary" type="submit">Create contact</button></div>
@@ -265,7 +265,7 @@ export default function Contacts() {
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => setLeadStatus(c, e.target.value)}
           >
-            {meta.lead_statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+            {meta.lead_statuses.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
           </select>
         );
       case 'source': return c.source || '--';
@@ -356,7 +356,7 @@ export default function Contacts() {
                       setFilter({ lead_status: next });
                     }}
                   />
-                  {s}
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
                 </label>
               ))}
             </div>
@@ -423,7 +423,7 @@ export default function Contacts() {
           <button className="btn small" onClick={bulkAssign}>Assign owner</button>
           <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}>
             <option value="">Set lead status…</option>
-            {meta.lead_statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+            {meta.lead_statuses.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
           </select>
           {bulkStatus && (
             <button className="btn small primary" onClick={() => { bulk('update', { lead_status: bulkStatus }); setBulkStatus(''); }}>
