@@ -79,7 +79,9 @@ export default function Contacts() {
   const [tab, setTab] = useState('all'); // all | mine | unassigned
   const [search, setSearch] = useState('');
   const [searchKey, setSearchKey] = useState(0);
-  const [filters, setFilters] = useState({ owner: '', lead_status: '', created: '', activity: '' });
+  const [filters, setFilters] = useState({ owner: '', lead_status: [], created: '', activity: '' });
+  const [showStatusDrop, setShowStatusDrop] = useState(false);
+  const statusDropRef = useRef(null);
   const [advanced, setAdvanced] = useState({ source: '', title: '', has_email: false, has_phone: false });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [sort, setSort] = useState({ by: 'name', order: 'asc' });
@@ -107,7 +109,7 @@ export default function Contacts() {
     if (tab === 'mine') p.owner = me;
     if (tab === 'unassigned') p.unassigned = 'true';
     if (tab === 'all' && filters.owner) p.owner = filters.owner;
-    if (filters.lead_status) p.lead_status = filters.lead_status;
+    if (filters.lead_status.length) p.lead_status = filters.lead_status.join(',');
     if (filters.created) p.created_after = daysAgoIso(Number(filters.created));
     if (filters.activity === 'recent7') p.last_contact_after = daysAgoIso(7);
     if (filters.activity === 'recent30') p.last_contact_after = daysAgoIso(30);
@@ -136,6 +138,7 @@ export default function Contacts() {
   useEffect(() => {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
+      if (statusDropRef.current && !statusDropRef.current.contains(e.target)) setShowStatusDrop(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -147,7 +150,7 @@ export default function Contacts() {
   const applyState = (s) => {
     if (s.tab) setTab(s.tab);
     setSearch(s.search || '');
-    setFilters(s.filters || { owner: '', lead_status: '', created: '', activity: '' });
+    setFilters(s.filters || { owner: '', lead_status: [], created: '', activity: '' });
     setAdvanced(s.advanced || { source: '', title: '', has_email: false, has_phone: false });
     if (s.sort) setSort(s.sort);
     setPage(0);
@@ -313,10 +316,52 @@ export default function Contacts() {
         <select value={filters.activity} onChange={(e) => setFilter({ activity: e.target.value })}>
           {ACTIVITY_PRESETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
-        <select value={filters.lead_status} onChange={(e) => setFilter({ lead_status: e.target.value })}>
-          <option value="">Lead status: any</option>
-          {meta.lead_statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div className="multi-select-wrap" ref={statusDropRef} style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            className="btn small"
+            style={{ minWidth: 160, textAlign: 'left' }}
+            onClick={() => setShowStatusDrop((v) => !v)}
+          >
+            {filters.lead_status.length === 0
+              ? 'Lead status: any'
+              : filters.lead_status.length === meta.lead_statuses.length
+                ? 'Lead status: all'
+                : `Lead status: ${filters.lead_status.length} selected`}
+            {' '}▾
+          </button>
+          {showStatusDrop && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, zIndex: 200,
+              background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 180
+            }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer', fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={filters.lead_status.length === meta.lead_statuses.length}
+                  onChange={(e) => setFilter({ lead_status: e.target.checked ? [...meta.lead_statuses] : [] })}
+                />
+                Select all
+              </label>
+              <div style={{ borderTop: '1px solid #e5e7eb', margin: '4px 0' }} />
+              {meta.lead_statuses.map((s) => (
+                <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={filters.lead_status.includes(s)}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...filters.lead_status, s]
+                        : filters.lead_status.filter((x) => x !== s);
+                      setFilter({ lead_status: next });
+                    }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
         <button className="link-btn" onClick={() => setShowAdvanced(!showAdvanced)}>
           ⚙ Advanced filters {showAdvanced ? '▴' : '▾'}
         </button>

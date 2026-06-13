@@ -40,7 +40,15 @@ router.get('/', h(async (req, res) => {
   if (q.company_id) add('ct.company_id = ?', q.company_id);
   if (q.owner) add('lower(ct.owner) = lower(?)', q.owner);
   if (q.unassigned === 'true') where.push(`(ct.owner IS NULL OR ct.owner = '')`);
-  if (q.lead_status) add('ct.lead_status = ?', q.lead_status);
+  if (q.lead_status) {
+    const statuses = q.lead_status.split(',').map((s) => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      add('ct.lead_status = ?', statuses[0]);
+    } else if (statuses.length > 1) {
+      where.push(`ct.lead_status = ANY(?)`);
+      args.push(statuses);
+    }
+  }
   if (q.source) add('ct.source ILIKE ?', `%${q.source}%`);
   if (q.title) add('ct.title ILIKE ?', `%${q.title}%`);
   if (q.has_email === 'true') where.push(`ct.email IS NOT NULL AND ct.email <> ''`);
