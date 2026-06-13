@@ -12,13 +12,13 @@ import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
 const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
 const TIMEZONES = [
-  { value: 'America/New_York', label: 'EDT – Eastern' },
-  { value: 'America/Chicago', label: 'CDT – Central' },
-  { value: 'America/Denver', label: 'MDT – Mountain' },
-  { value: 'America/Phoenix', label: 'MST – Arizona (no DST)' },
-  { value: 'America/Los_Angeles', label: 'PDT – Pacific' },
-  { value: 'America/Anchorage', label: 'AKDT – Alaska' },
-  { value: 'Pacific/Honolulu', label: 'HST – Hawaii' },
+  { value: 'America/New_York', label: 'Eastern' },
+  { value: 'America/Chicago', label: 'Central' },
+  { value: 'America/Denver', label: 'Mountain' },
+  { value: 'America/Phoenix', label: 'Mountain (Arizona, no DST)' },
+  { value: 'America/Los_Angeles', label: 'Pacific' },
+  { value: 'America/Anchorage', label: 'Alaska' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii' },
 ];
 
 export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
@@ -45,12 +45,6 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
       <Field label="Company website"><input value={form.website || ''} onChange={upd('website')} placeholder="https://acmehvac.com" /></Field>
       <Field label="Company name"><input value={form.name} onChange={upd('name')} /></Field>
       <Field label="Industry"><input value={form.industry || ''} onChange={upd('industry')} /></Field>
-      <Field label="Type">
-        <select value={form.type || ''} onChange={upd('type')}>
-          <option value="">—</option>
-          {COMPANY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-      </Field>
       <Field label="City"><input value={form.city || ''} onChange={upd('city')} /></Field>
       <Field label="State"><input value={form.state || ''} onChange={upd('state')} /></Field>
       <Field label="Postal code"><input value={form.postal_code || ''} onChange={upd('postal_code')} /></Field>
