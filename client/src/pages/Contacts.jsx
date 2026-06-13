@@ -345,7 +345,7 @@ export default function Contacts() {
     switch (col.key) {
       case 'name':
         return (
-          <button className="link-btn name-link" onClick={(e) => { e.stopPropagation(); setDrawerContact(c); }}>
+          <button className="link-btn name-link" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${c.id}`); }}>
             {c.name}
           </button>
         );
