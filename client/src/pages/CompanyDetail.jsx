@@ -9,7 +9,7 @@ import ContactDrawer, { ContactForm } from '../components/ContactDrawer.jsx';
 import CompanySequences from '../components/CompanySequences.jsx';
 import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx';
 import { CompanyForm } from './Companies.jsx';
-import { fmtDate, fmtMoney, fmtPhone, relTime } from '../format.js';
+import { fmtDate, fmtMoney, fmtPhone, relTime, absUrl } from '../format.js';
 
 // Returns a date N business days from today, formatted as YYYY-MM-DD
 function addBusinessDays(n) {
@@ -644,7 +644,7 @@ export default function CompanyDetail() {
               <div>
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{company.name}</div>
                 {company.website && (
-                  <a href={company.website} target="_blank" rel="noreferrer"
+                  <a href={absUrl(company.website)} target="_blank" rel="noreferrer"
                     style={{ fontSize: 13, color: 'var(--primary)' }}>
                     {company.domain || company.website} ↗
                   </a>

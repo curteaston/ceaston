@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
+import { absUrl } from '../format.js';
 import { useStore, LIFECYCLE_LABELS } from '../store.js';
 import SidePanel from './SidePanel.jsx';
 import VoiceNoteInput from './VoiceNoteInput.jsx';
@@ -37,7 +38,7 @@ export function PreviewPanel({ company, onClose, onChanged, onEmail, onNote, onS
         <div>
           <h2 className="preview-name">{c.name}</h2>
           {c.domain && (
-            <a href={c.website || `https://${c.domain}`} target="_blank" rel="noreferrer" className="small">
+            <a href={absUrl(c.website || c.domain)} target="_blank" rel="noreferrer" className="small">
               {c.domain} ↗
             </a>
           )}

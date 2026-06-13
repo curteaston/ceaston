@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useStore } from '../store.js';
-import { fmtPhone, relTime } from '../format.js';
+import { fmtPhone, relTime, absUrl } from '../format.js';
 import Timeline from '../components/Timeline.jsx';
 import Modal from '../components/Modal.jsx';
 import { Field, PhoneLink } from '../components/widgets.jsx';
@@ -231,7 +231,7 @@ export default function ContactDetail() {
                 </Link>
                 {company?.website && (
                   <div className="small" style={{ marginTop: 6 }}>
-                    <a href={company.website} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>
+                    <a href={absUrl(company.website)} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>
                       🌐 {company.domain || company.website}
                     </a>
                   </div>

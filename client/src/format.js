@@ -1,3 +1,8 @@
+export function absUrl(url) {
+  if (!url) return null;
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
 export function fmtPhone(raw) {
   if (!raw) return null;
   const digits = raw.replace(/\D/g, '');
