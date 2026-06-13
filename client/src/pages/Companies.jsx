@@ -10,11 +10,15 @@ import SavedViews from '../components/SavedViews.jsx';
 import { Field, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
+const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
+const TIMEZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
+
 export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
   const [form, setForm] = useState({
-    name: '', domain: '', industry: 'HVAC', employee_count: '',
-    ad_spend_range: '', website: '', owner: '', lifecycle_stage: 'lead', ...initial,
+    website: '', name: '', industry: 'HVAC', type: '', city: '', state: '',
+    postal_code: '', employee_count: '', annual_revenue: '', ad_spend_range: '',
+    timezone: '', description: '', owner: '', lifecycle_stage: 'lead', ...initial,
   });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -23,25 +27,41 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
       className="form-grid"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ ...form, employee_count: form.employee_count === '' ? null : Number(form.employee_count) });
+        onSubmit({
+          ...form,
+          employee_count: form.employee_count === '' ? null : Number(form.employee_count),
+          annual_revenue: form.annual_revenue === '' ? null : Number(form.annual_revenue),
+        });
       }}
     >
-      <Field label="Company name *"><input required value={form.name} onChange={upd('name')} /></Field>
-      <Field label="Domain"><input value={form.domain || ''} onChange={upd('domain')} placeholder="acmehvac.com" /></Field>
+      <Field label="Company website"><input value={form.website || ''} onChange={upd('website')} placeholder="https://acmehvac.com" /></Field>
+      <Field label="Company name"><input value={form.name} onChange={upd('name')} /></Field>
       <Field label="Industry"><input value={form.industry || ''} onChange={upd('industry')} /></Field>
-      <Field label="Employee count"><input type="number" min="0" value={form.employee_count ?? ''} onChange={upd('employee_count')} /></Field>
-      <Field label="Monthly ad spend">
+      <Field label="Type">
+        <select value={form.type || ''} onChange={upd('type')}>
+          <option value="">—</option>
+          {COMPANY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </Field>
+      <Field label="City"><input value={form.city || ''} onChange={upd('city')} /></Field>
+      <Field label="State"><input value={form.state || ''} onChange={upd('state')} /></Field>
+      <Field label="Postal code"><input value={form.postal_code || ''} onChange={upd('postal_code')} /></Field>
+      <Field label="Number of employees"><input type="number" min="0" value={form.employee_count ?? ''} onChange={upd('employee_count')} /></Field>
+      <Field label="Annual revenue"><input type="number" min="0" value={form.annual_revenue ?? ''} onChange={upd('annual_revenue')} placeholder="0" /></Field>
+      <Field label="Google ad spend">
         <select value={form.ad_spend_range || ''} onChange={upd('ad_spend_range')}>
           <option value="">—</option>
           {meta.ad_spend_ranges.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
       </Field>
-      <Field label="Website"><input value={form.website || ''} onChange={upd('website')} placeholder="https://…" /></Field>
-      <Field label="Company owner"><input value={form.owner || ''} onChange={upd('owner')} placeholder="me" /></Field>
-      <Field label="Lifecycle stage">
-        <select value={form.lifecycle_stage || 'lead'} onChange={upd('lifecycle_stage')}>
-          {meta.lifecycle_stages.map((s) => <option key={s} value={s}>{LIFECYCLE_LABELS[s]}</option>)}
+      <Field label="Time zone">
+        <select value={form.timezone || ''} onChange={upd('timezone')}>
+          <option value="">—</option>
+          {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz.replace('America/', '').replace('Pacific/', 'Pacific/').replace(/_/g, ' ')}</option>)}
         </select>
+      </Field>
+      <Field label="Description" style={{ gridColumn: '1 / -1' }}>
+        <textarea value={form.description || ''} onChange={upd('description')} rows={3} style={{ width: '100%' }} />
       </Field>
       <div className="form-actions"><button className="btn primary" type="submit">{submitLabel}</button></div>
     </form>
@@ -119,6 +139,8 @@ export default function Companies() {
   });
   const [showColumns, setShowColumns] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef(null);
   const [panel, setPanel] = useState(null);   // { type: 'preview' | 'summary', company }
   const [composer, setComposer] = useState(null); // { type: 'email' | 'note', company }
   const [enroll, setEnroll] = useState(null); // company being enrolled
@@ -178,6 +200,7 @@ export default function Companies() {
   useEffect(() => {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -328,7 +351,21 @@ export default function Companies() {
           ))}
           <SavedViews entity="company" captureState={captureState} applyState={applyState} />
         </div>
-        <button className="btn primary" onClick={() => setShowAdd(true)}>Add company</button>
+        <div className="add-menu-wrap" ref={addMenuRef} style={{ position: 'relative' }}>
+          <button className="btn primary" onClick={() => setShowAddMenu((v) => !v)}>
+            Add companies ▾
+          </button>
+          {showAddMenu && (
+            <div className="col-panel" style={{ right: 0, left: 'auto', minWidth: 160 }}>
+              <button className="col-panel-item" onClick={() => { setShowAdd(true); setShowAddMenu(false); }}>
+                + Add company
+              </button>
+              <button className="col-panel-item" onClick={() => { navigate('/import'); setShowAddMenu(false); }}>
+                📥 Import companies
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="filter-bar">
@@ -509,6 +546,7 @@ export default function Companies() {
           <CompanyForm onSubmit={createCompany} submitLabel="Create company" />
         </Modal>
       )}
+
     </div>
   );
 }

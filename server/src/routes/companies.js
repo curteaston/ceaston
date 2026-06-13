@@ -5,7 +5,7 @@ import { emit } from '../events.js';
 
 const router = Router();
 
-const COMPANY_FIELDS = ['name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website', 'owner', 'lifecycle_stage', 'city', 'state', 'lead_status'];
+const COMPANY_FIELDS = ['name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website', 'owner', 'lifecycle_stage', 'city', 'state', 'lead_status', 'type', 'postal_code', 'annual_revenue', 'timezone', 'description'];
 
 function validateLifecycle(stage) {
   if (stage && !LIFECYCLE_STAGES.includes(stage)) {

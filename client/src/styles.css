@@ -311,6 +311,11 @@ th.sortable:hover { color: var(--text); }
   box-shadow: 0 8px 24px rgba(16, 24, 38, 0.12);
   padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 180px;
 }
+.col-panel-item {
+  background: none; border: none; text-align: left; padding: 7px 10px; border-radius: 6px;
+  cursor: pointer; font: inherit; font-size: 14px; white-space: nowrap;
+}
+.col-panel-item:hover { background: var(--bg); }
 .bulk-bar {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   background: #e8f0fe; border: 1px solid #c4d7f8; border-radius: var(--radius);
