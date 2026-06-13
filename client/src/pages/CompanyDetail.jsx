@@ -763,7 +763,7 @@ export default function CompanyDetail() {
                 <div className="contact-name">{c.name}</div>
                 <div className="muted small">{c.title || '—'}</div>
                 {c.phone && <div className="small"><PhoneLink phone={fmtPhone(c.phone) || c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
-                {c.email && <div className="small muted">{c.email}</div>}
+                {c.email && <div className="small"><a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} style={{ color: 'var(--primary)' }}>✉️ {c.email}</a></div>}
                 <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
               </button>
             ))}
