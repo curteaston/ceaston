@@ -11,8 +11,14 @@ import FilterDrawer, { FilterSection } from '../components/FilterDrawer.jsx';
 
 const ALL_COLUMNS = [
   { key: 'name', label: 'Name', sort: 'name', always: true },
-  { key: 'email', label: 'Email', sort: 'email' },
+  { key: 'first_name', label: 'First Name' },
+  { key: 'last_name', label: 'Last Name' },
+  { key: 'email', label: 'Primary Email', sort: 'email' },
+  { key: 'email_2', label: 'Secondary Email' },
   { key: 'phone', label: 'Phone Number' },
+  { key: 'phone_direct', label: 'Direct Phone' },
+  { key: 'phone_cell', label: 'Cell Phone' },
+  { key: 'phone_other', label: 'Other Phone' },
   { key: 'title', label: 'Title', sort: 'title' },
   { key: 'owner', label: 'Contact Owner', sort: 'owner' },
   { key: 'company', label: 'Primary Company', sort: 'company_name' },
@@ -418,6 +424,12 @@ export default function Contacts() {
         const ph = c.phone_direct || c.phone_cell || c.phone;
         return ph ? <PhoneLink phone={ph} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
       }
+      case 'first_name': return c.first_name || '--';
+      case 'last_name': return c.last_name || '--';
+      case 'email_2': return c.email_2 ? <a href={`mailto:${c.email_2}`} onClick={(e) => e.stopPropagation()}>{c.email_2}</a> : '--';
+      case 'phone_direct': return c.phone_direct ? <PhoneLink phone={c.phone_direct} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
+      case 'phone_cell': return c.phone_cell ? <PhoneLink phone={c.phone_cell} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
+      case 'phone_other': return c.phone_other ? <PhoneLink phone={c.phone_other} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
       case 'title': return c.title || '--';
       case 'owner': return c.owner || <span className="muted">No owner</span>;
       case 'company':

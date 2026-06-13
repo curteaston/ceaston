@@ -161,6 +161,24 @@ export default function ContactDetail() {
               <button className="btn small" onClick={() => setModal('edit')}>Edit</button>
             </div>
             <div className="key-info-grid">
+              {contact.first_name && (
+                <div className="key-info-row">
+                  <span className="key-info-label">First name</span>
+                  <span className="key-info-value">{contact.first_name}</span>
+                </div>
+              )}
+              {contact.last_name && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Last name</span>
+                  <span className="key-info-value">{contact.last_name}</span>
+                </div>
+              )}
+              {contact.title && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Title</span>
+                  <span className="key-info-value">{contact.title}</span>
+                </div>
+              )}
               <div className="key-info-row">
                 <span className="key-info-label">Email</span>
                 <span className="key-info-value">
