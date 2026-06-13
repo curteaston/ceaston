@@ -260,76 +260,168 @@ function TaskForm({ company, onSubmit }) {
   );
 }
 
-function ActivityForm({ type, company, onSubmit }) {
-  const [form, setForm] = useState({ body: '', outcome: '', contact_id: '', occurred_at: new Date().toISOString().slice(0, 16) });
-  const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const outcomeOptions = type === 'call'
-    ? ['Connected', 'Left voicemail', 'No answer', 'Wrong number']
-    : type === 'email'
-    ? ['Sent', 'Opened', 'Replied', 'Bounced']
-    : ['Completed', 'No show', 'Rescheduled'];
+function EmailForm({ company, onClose, onSaved }) {
+  const { run } = useStore();
+  const [contactId, setContactId] = useState(company.contacts[0]?.id || '');
+  const [subject, setSubject] = useState(`Re: ${company.name}`);
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [msStatus, setMsStatus] = useState(null);
 
-  // For calls: find the first contact phone or company-level
-  const callPhone = type === 'call'
-    ? (company.contacts[0]?.phone || '')
-    : null;
+  useEffect(() => {
+    api.get('/integrations/microsoft/status').then(setMsStatus).catch(() => setMsStatus({ connected: false }));
+  }, []);
 
-  const handleCall = () => {
-    if (callPhone) window.location.href = `tel:${callPhone.replace(/[^+\d]/g, '')}`;
+  const contact = company.contacts.find((c) => String(c.id) === String(contactId));
+
+  const sendViaApi = async () => {
+    if (!contact?.email) return;
+    setSending(true);
+    try {
+      await api.post('/email/send', {
+        to: contact.email, subject, body,
+        company_id: company.id, contact_id: contact.id,
+      });
+      onSaved();
+      onClose();
+    } finally { setSending(false); }
   };
 
   return (
     <div className="activity-modal">
-      <div className="activity-modal-for">
-        For <span className="activity-tag">{company.name}</span>
-      </div>
-
-      {type === 'call' && (
-        <div style={{ margin: '12px 0' }}>
-          <Field label="Contact to call">
-            <select value={form.contact_id} onChange={upd('contact_id')}>
-              <option value="">Whole company</option>
-              {company.contacts.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.phone ? ` — ${c.phone}` : ''}</option>
-              ))}
-            </select>
-          </Field>
-          {callPhone && (
-            <button type="button" className="btn primary" style={{ marginTop: 8 }} onClick={handleCall}>
-              📞 Dial {callPhone}
-            </button>
-          )}
-        </div>
-      )}
-
-      {type === 'email' && (
-        <div style={{ margin: '12px 0' }}>
-          <Field label="Contact to email">
-            <select value={form.contact_id} onChange={upd('contact_id')}>
-              <option value="">Whole company</option>
-              {company.contacts.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>
-              ))}
-            </select>
-          </Field>
-          {company.contacts.length > 0 && (() => {
-            const contact = form.contact_id
-              ? company.contacts.find((c) => String(c.id) === String(form.contact_id))
-              : company.contacts[0];
-            return contact?.email ? (
-              <a
-                href={`https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(contact.email)}&subject=${encodeURIComponent(`Re: ${company.name}`)}`}
-                target="_blank" rel="noreferrer"
-                className="btn primary"
-                style={{ display: 'inline-block', marginTop: 8, textDecoration: 'none' }}
-              >
+      <div className="activity-modal-for">To <span className="activity-tag">{company.name}</span></div>
+      <Field label="Contact">
+        <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <option value="">-- select contact --</option>
+          {company.contacts.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ' (no email)'}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Subject"><input value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      <Field label="Body">
+        <textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)}
+          style={{ width: '100%', resize: 'vertical' }} placeholder="Type your message…" />
+      </Field>
+      <div className="activity-footer" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        {msStatus?.connected ? (
+          <button className="btn primary" onClick={sendViaApi} disabled={sending || !contact?.email}>
+            {sending ? 'Sending…' : '✉️ Send via Outlook'}
+          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {contact?.email && (
+              <a href={`https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(contact.email)}&subject=${encodeURIComponent(subject)}`}
+                target="_blank" rel="noreferrer" className="btn primary" style={{ textDecoration: 'none' }}>
                 ✉️ Open in Outlook
               </a>
-            ) : null;
-          })()}
-        </div>
-      )}
+            )}
+            <span className="muted small">Connect Outlook in Settings to send directly</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
+function MeetingForm({ company, onClose, onSaved }) {
+  const { run } = useStore();
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const defaultStart = `${now.toISOString().slice(0, 11)}${pad(now.getHours() + 1)}:00`;
+  const defaultEnd = `${now.toISOString().slice(0, 11)}${pad(now.getHours() + 2)}:00`;
+
+  const [subject, setSubject] = useState(`Meeting — ${company.name}`);
+  const [start, setStart] = useState(defaultStart);
+  const [end, setEnd] = useState(defaultEnd);
+  const [location, setLocation] = useState('');
+  const [notes, setNotes] = useState('');
+  const [contactId, setContactId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msStatus, setMsStatus] = useState(null);
+
+  useEffect(() => {
+    api.get('/integrations/microsoft/status').then(setMsStatus).catch(() => setMsStatus({ connected: false }));
+  }, []);
+
+  const contact = company.contacts.find((c) => String(c.id) === String(contactId));
+
+  const scheduleViaApi = async () => {
+    setSaving(true);
+    try {
+      await api.post('/calendar/events', {
+        subject, start: new Date(start).toISOString(), end: new Date(end).toISOString(),
+        body: notes, location,
+        attendees: contact?.email ? [contact.email] : [],
+        company_id: company.id, contact_id: contact?.id || null,
+      });
+      onSaved();
+      onClose();
+    } finally { setSaving(false); }
+  };
+
+  const openOutlook = () => {
+    const url = `https://outlook.office.com/calendar/action/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(notes)}&startdt=${encodeURIComponent(start)}&enddt=${encodeURIComponent(end)}`;
+    window.open(url, '_blank');
+    onClose();
+  };
+
+  return (
+    <div className="activity-modal">
+      <div className="activity-modal-for">For <span className="activity-tag">{company.name}</span></div>
+      <Field label="Subject"><input value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Start"><input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
+        <Field label="End"><input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
+      </div>
+      <Field label="Location"><input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Zoom, Office, Phone" /></Field>
+      <Field label="Invite contact (optional)">
+        <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <option value="">None</option>
+          {company.contacts.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Notes"><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: '100%', resize: 'vertical' }} /></Field>
+      <div className="activity-footer" style={{ gap: 8 }}>
+        {msStatus?.connected ? (
+          <button className="btn primary" onClick={scheduleViaApi} disabled={saving}>
+            {saving ? 'Creating…' : '📅 Create in Outlook Calendar'}
+          </button>
+        ) : (
+          <button className="btn primary" onClick={openOutlook}>📅 Open in Outlook Calendar</button>
+        )}
+        {!msStatus?.connected && <span className="muted small">Connect Outlook in Settings to sync automatically</span>}
+      </div>
+    </div>
+  );
+}
+
+function ActivityForm({ type, company, onSubmit }) {
+  const [form, setForm] = useState({ body: '', outcome: '', contact_id: '', occurred_at: new Date().toISOString().slice(0, 16) });
+  const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const outcomeOptions = ['Connected', 'Left voicemail', 'No answer', 'Wrong number'];
+  const contact = company.contacts.find((c) => String(c.id) === String(form.contact_id));
+  const phone = contact?.phone || company.contacts[0]?.phone || '';
+
+  return (
+    <div className="activity-modal">
+      <div className="activity-modal-for">For <span className="activity-tag">{company.name}</span></div>
+      <Field label="Contact to call">
+        <select value={form.contact_id} onChange={upd('contact_id')}>
+          <option value="">Whole company</option>
+          {company.contacts.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}{c.phone ? ` — ${c.phone}` : ''}</option>
+          ))}
+        </select>
+      </Field>
+      {phone && (
+        <button type="button" className="btn primary" style={{ marginBottom: 12 }}
+          onClick={() => window.location.href = `tel:${phone.replace(/[^+\d]/g, '')}`}>
+          📞 Dial {phone}
+        </button>
+      )}
       <Field label="Outcome">
         <select value={form.outcome} onChange={upd('outcome')}>
           <option value="">Select outcome…</option>
@@ -344,7 +436,7 @@ function ActivityForm({ type, company, onSubmit }) {
       </Field>
       <div className="activity-footer">
         <button className="btn primary" onClick={() => onSubmit({ ...form, contact_id: form.contact_id || null })}>
-          Log {type}
+          Log call
         </button>
       </div>
     </div>
@@ -753,19 +845,12 @@ export default function CompanyDetail() {
         </Modal>
       )}
       {modal === 'email' && (
-        <Modal title="Log email" onClose={close}>
-          <ActivityForm
-            type="email"
-            company={company}
-            onSubmit={(form) => mutateCompany(async () => {
-              await api.post('/activities', { ...form, company_id: company.id, type: 'email' });
-              close();
-            }, 'Email logged')}
-          />
+        <Modal title="Send email" onClose={close} wide>
+          <EmailForm company={company} onClose={close} onSaved={() => mutateCompany(() => Promise.resolve(), 'Email sent')} />
         </Modal>
       )}
       {modal === 'call' && (
-        <Modal title="Log call" onClose={close}>
+        <Modal title="Log call" onClose={close} wide>
           <ActivityForm
             type="call"
             company={company}
@@ -776,13 +861,11 @@ export default function CompanyDetail() {
           />
         </Modal>
       )}
-      {modal === 'meeting' && (() => {
-        const subject = encodeURIComponent(`Meeting — ${company.name}`);
-        const outlookUrl = `https://outlook.office.com/calendar/action/compose?subject=${subject}&body=${encodeURIComponent(company.website || '')}`;
-        window.open(outlookUrl, '_blank');
-        close();
-        return null;
-      })()}
+      {modal === 'meeting' && (
+        <Modal title="Schedule meeting" onClose={close} wide>
+          <MeetingForm company={company} onClose={close} onSaved={() => mutateCompany(() => Promise.resolve(), 'Meeting created')} />
+        </Modal>
+      )}
     </div>
   );
 }

@@ -3,6 +3,25 @@ import { api } from '../api.js';
 import { useStore } from '../store.js';
 import { Field } from '../components/widgets.jsx';
 
+function SyncEmailsButton() {
+  const { notify } = useStore();
+  const [syncing, setSyncing] = useState(false);
+  const sync = async () => {
+    setSyncing(true);
+    try {
+      const result = await api.post('/email/sync', { days: 7 });
+      notify(`Synced ${result.synced} email${result.synced !== 1 ? 's' : ''} from last 7 days`);
+    } catch (e) {
+      notify('Sync failed: ' + (e.message || 'unknown error'), 'error');
+    } finally { setSyncing(false); }
+  };
+  return (
+    <button className="btn" onClick={sync} disabled={syncing}>
+      {syncing ? 'Syncing…' : '🔄 Sync emails (last 7 days)'}
+    </button>
+  );
+}
+
 function SequenceSending() {
   const { run, notify } = useStore();
   const [cfg, setCfg] = useState(null);
@@ -206,7 +225,7 @@ export default function Settings() {
               <li>Supported account types: <i>Accounts in any organizational directory and personal Microsoft accounts</i>.</li>
               <li>Redirect URI (type "Web"): <code>{ms.redirect_uri}</code></li>
               <li>Under <i>Certificates &amp; secrets</i>, create a client secret.</li>
-              <li>Under <i>API permissions</i>, add delegated Microsoft Graph permissions: <code>Mail.Send</code>, <code>Calendars.Read</code>, <code>User.Read</code>, <code>offline_access</code>.</li>
+              <li>Under <i>API permissions</i>, add delegated Microsoft Graph permissions: <code>Mail.ReadWrite</code>, <code>Mail.Send</code>, <code>Calendars.ReadWrite</code>, <code>User.Read</code>, <code>offline_access</code>.</li>
               <li>Set these environment variables on the CRM server and restart it:
                 <pre>MS_CLIENT_ID=…{'\n'}MS_CLIENT_SECRET=…{'\n'}APP_BASE_URL=https://your-crm-host</pre>
               </li>
@@ -224,8 +243,11 @@ export default function Settings() {
 
         {ms?.connected && (
           <>
-            <p>Connected as <b>{ms.account}</b>. Emails sent from the CRM use this mailbox and are logged to the company timeline; today's calendar shows on Home.</p>
-            <button className="btn danger" onClick={disconnect}>Disconnect</button>
+            <p>Connected as <b>{ms.account}</b>. Emails sent from the CRM use this mailbox and are logged to the company timeline. Meetings created in the CRM sync to your Outlook calendar.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <SyncEmailsButton />
+              <button className="btn danger" onClick={disconnect}>Disconnect</button>
+            </div>
           </>
         )}
       </div>

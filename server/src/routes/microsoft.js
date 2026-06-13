@@ -9,7 +9,7 @@ const CLIENT_ID = process.env.MS_CLIENT_ID;
 const CLIENT_SECRET = process.env.MS_CLIENT_SECRET;
 const BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 const REDIRECT_URI = `${BASE_URL}/api/integrations/microsoft/callback`;
-const SCOPES = 'offline_access User.Read Mail.Send Calendars.Read';
+const SCOPES = 'offline_access User.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite';
 const AUTH_BASE = 'https://login.microsoftonline.com/common/oauth2/v2.0';
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
@@ -195,6 +195,137 @@ router.get('/calendar/today', h(async (req, res) => {
       organizer: e.organizer?.emailAddress?.name || null,
     })),
   });
+}));
+
+// --- Email sync: pull recent emails matching CRM contacts into activities ---
+
+// GET /api/email/sync — pull last N days of sent+received mail, match to contacts, log as activities
+router.post('/email/sync', h(async (req, res) => {
+  const days = Number(req.body?.days || 7);
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+
+  const data = await graphFetch(
+    `/me/messages?$filter=receivedDateTime ge ${since}` +
+    `&$select=subject,from,toRecipients,receivedDateTime,bodyPreview,webLink,isDraft` +
+    `&$orderby=receivedDateTime desc&$top=100`
+  );
+
+  const emails = (data?.value || []).filter((m) => !m.isDraft);
+  let synced = 0;
+
+  for (const email of emails) {
+    const addrs = [
+      email.from?.emailAddress?.address,
+      ...(email.toRecipients || []).map((r) => r.emailAddress?.address),
+    ].filter(Boolean).map((a) => a.toLowerCase());
+
+    for (const addr of addrs) {
+      const { rows: contacts } = await query(
+        `SELECT c.id, c.company_id FROM contacts c WHERE lower(c.email) = $1 LIMIT 1`, [addr]
+      );
+      if (!contacts.length) continue;
+      const { id: contactId, company_id: companyId } = contacts[0];
+
+      // Skip if already logged (match on subject + date)
+      const { rows: existing } = await query(
+        `SELECT 1 FROM activities WHERE contact_id = $1 AND type = 'email'
+         AND occurred_at::date = $2::date AND body LIKE $3 LIMIT 1`,
+        [contactId, email.receivedDateTime, `%${email.subject?.slice(0, 40) || ''}%`]
+      );
+      if (existing.length) continue;
+
+      const direction = email.from?.emailAddress?.address?.toLowerCase() === addr ? 'Received' : 'Sent';
+      await query(
+        `INSERT INTO activities (company_id, contact_id, type, outcome, body, occurred_at)
+         VALUES ($1, $2, 'email', $3, $4, $5)`,
+        [companyId, contactId, direction,
+          `${email.subject || '(no subject)'}\n\n${email.bodyPreview || ''}`,
+          email.receivedDateTime]
+      );
+      await touchCompany(companyId, new Date(email.receivedDateTime));
+      synced++;
+      break; // only log once per email even if multiple CRM contacts match
+    }
+  }
+
+  res.json({ ok: true, synced, scanned: emails.length });
+}));
+
+// --- Calendar: create event in Outlook from CRM ---
+
+// POST /api/calendar/events — create a calendar event and log it as a meeting activity
+router.post('/calendar/events', h(async (req, res) => {
+  const { subject, body, start, end, attendees = [], company_id, contact_id, location } = req.body;
+  if (!subject || !start || !end) throw badRequest('subject, start, end are required');
+
+  const event = await graphFetch('/me/events', {
+    method: 'POST',
+    body: JSON.stringify({
+      subject,
+      body: { contentType: 'Text', content: body || '' },
+      start: { dateTime: start, timeZone: 'UTC' },
+      end: { dateTime: end, timeZone: 'UTC' },
+      location: location ? { displayName: location } : undefined,
+      attendees: attendees.map((email) => ({
+        emailAddress: { address: email }, type: 'required',
+      })),
+    }),
+  });
+
+  // Log as meeting activity in CRM
+  if (company_id || contact_id) {
+    let companyId = company_id || null;
+    if (!companyId && contact_id) {
+      const { rows } = await query('SELECT company_id FROM contacts WHERE id = $1', [contact_id]);
+      companyId = rows[0]?.company_id;
+    }
+    if (companyId) {
+      await query(
+        `INSERT INTO activities (company_id, contact_id, type, outcome, body, occurred_at)
+         VALUES ($1, $2, 'meeting', 'scheduled', $3, $4)`,
+        [companyId, contact_id || null, `${subject}${location ? ' @ ' + location : ''}`, start]
+      );
+      await touchCompany(companyId, new Date(start));
+    }
+  }
+
+  res.status(201).json({ ok: true, event_id: event.id, webLink: event.webLink });
+}));
+
+// GET /api/calendar/events — upcoming events (next N days)
+router.get('/calendar/events', h(async (req, res) => {
+  const days = Number(req.query.days || 7);
+  const stored = configured ? await getSetting('microsoft') : null;
+  if (!stored) return res.json({ connected: false, events: [] });
+
+  const start = new Date();
+  const end = new Date(Date.now() + days * 86400000);
+  const data = await graphFetch(
+    `/me/calendarview?startDateTime=${start.toISOString()}&endDateTime=${end.toISOString()}` +
+    `&$orderby=start/dateTime&$top=50` +
+    `&$select=subject,start,end,location,webLink,organizer,attendees,bodyPreview`
+  );
+
+  res.json({
+    connected: true,
+    events: (data?.value || []).map((e) => ({
+      id: e.id,
+      subject: e.subject,
+      start: e.start?.dateTime,
+      end: e.end?.dateTime,
+      location: e.location?.displayName || null,
+      link: e.webLink || null,
+      organizer: e.organizer?.emailAddress?.name || null,
+      attendees: (e.attendees || []).map((a) => a.emailAddress?.address).filter(Boolean),
+      preview: e.bodyPreview || null,
+    })),
+  });
+}));
+
+// DELETE /api/calendar/events/:id — cancel/delete an event
+router.delete('/calendar/events/:id', h(async (req, res) => {
+  await graphFetch(`/me/events/${req.params.id}`, { method: 'DELETE' });
+  res.json({ ok: true });
 }));
 
 export default router;
