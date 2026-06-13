@@ -185,6 +185,12 @@ tr:last-child td { border-bottom: none; }
 
 /* Timeline */
 .timeline { margin-top: 14px; }
+.tl-filter-bar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.tl-search {
+  width: 100%; padding: 7px 12px; border: 1px solid var(--border);
+  border-radius: 20px; font: inherit; font-size: 13px; background: var(--bg);
+}
+.tl-search:focus { outline: none; border-color: var(--primary); }
 .tl-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef1f6; }
 .tl-item:last-child { border-bottom: none; }
 .tl-icon { font-size: 16px; width: 26px; text-align: center; flex-shrink: 0; }

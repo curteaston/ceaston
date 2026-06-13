@@ -535,6 +535,60 @@ function StateTypeahead({ value, onChange }) {
   );
 }
 
+const ACTIVITY_TABS = [
+  { key: 'all', label: 'All activities' },
+  { key: 'note', label: 'Notes' },
+  { key: 'email', label: 'Emails' },
+  { key: 'call', label: 'Calls' },
+  { key: 'task', label: 'Tasks' },
+  { key: 'meeting', label: 'Meetings' },
+];
+
+function TimelineWithFilters({ items, onEditNote, onDeleteNote, company, onSave }) {
+  const [tab, setTab] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = (items || []).filter((item) => {
+    const kind = item.kind === 'note' ? 'note' : item.type;
+    if (tab !== 'all' && kind !== tab) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (item.body || '').toLowerCase().includes(q) ||
+        (item.type || '').toLowerCase().includes(q) ||
+        (item.outcome || '').toLowerCase().includes(q) ||
+        (item.contact_name || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  return (
+    <>
+      <div className="tl-filter-bar">
+        <div className="contact-tabs" style={{ borderBottom: 'none', marginBottom: 0 }}>
+          {ACTIVITY_TABS.map(({ key, label }) => {
+            const count = key === 'all' ? (items || []).length
+              : (items || []).filter((i) => (i.kind === 'note' ? 'note' : i.type) === key).length;
+            return (
+              <button key={key} className={`tab ${tab === key ? 'on' : ''}`} onClick={() => setTab(key)}>
+                {label}{count > 0 && <span className="tab-count">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          className="tl-search"
+          placeholder="🔍 Search activities…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      <VoiceNoteInput placeholder={`Company note about ${company.name}…`} onSave={onSave} />
+      <Timeline items={filtered} onEditNote={onEditNote} onDeleteNote={onDeleteNote}
+        emptyText="No activities match." />
+    </>
+  );
+}
+
 export default function CompanyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -688,10 +742,13 @@ export default function CompanyDetail() {
 
         {/* CENTER — timeline */}
         <div className="card timeline-card">
-          <h3>Activity timeline</h3>
-          <p className="muted small">All calls, emails, notes and stage changes across every contact at {company.name}.</p>
-          <VoiceNoteInput placeholder={`Company note about ${company.name}…`} onSave={saveNote} />
-          <Timeline items={company.timeline} onEditNote={editNote} onDeleteNote={deleteNote} />
+          <TimelineWithFilters
+            items={company.timeline}
+            onEditNote={editNote}
+            onDeleteNote={deleteNote}
+            company={company}
+            onSave={saveNote}
+          />
         </div>
 
         {/* RIGHT — contacts + deals + tasks */}
