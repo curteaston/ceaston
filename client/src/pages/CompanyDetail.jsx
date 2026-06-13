@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
+import TagManager from '../components/TagManager.jsx';
 import { useStore } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import Timeline from '../components/Timeline.jsx';
@@ -737,6 +738,15 @@ export default function CompanyDetail() {
               <div className="key-info-row">
                 <span className="key-info-label">Ad Spend</span>
                 <span className="key-info-value">{company.ad_spend_range || <span className="muted">--</span>}</span>
+              </div>
+              <div className="key-info-row" style={{ alignItems: 'flex-start' }}>
+                <span className="key-info-label">Tags</span>
+                <TagManager
+                  entityType="company"
+                  entityId={company.id}
+                  tags={company.tags || []}
+                  onChanged={() => fetchCompany(id)}
+                />
               </div>
             </div>
             <button className="btn small danger" style={{ marginTop: 16 }} onClick={deleteCompany}>Delete company</button>

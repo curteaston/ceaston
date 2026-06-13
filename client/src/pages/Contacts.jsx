@@ -186,8 +186,11 @@ export default function Contacts() {
   const [filters, setFilters] = useState({ owner: '', lead_status: [], created: '', activity: '' });
   const [showStatusDrop, setShowStatusDrop] = useState(false);
   const statusDropRef = useRef(null);
-  const [advanced, setAdvanced] = useState({ source: '', title: '', has_email: false, has_phone: false });
+  const [advanced, setAdvanced] = useState({ source: '', title: '', has_email: false, has_phone: false, tags: [], created_from: '', created_to: '' });
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [allTags, setAllTags] = useState([]);
+  const [showTagsDrop, setShowTagsDrop] = useState(false);
+  const tagsDropRef = useRef(null);
   const [sort, setSort] = useState({ by: 'name', order: 'asc' });
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(25);
@@ -226,6 +229,9 @@ export default function Contacts() {
     if (advanced.title.trim()) p.title = advanced.title.trim();
     if (advanced.has_email) p.has_email = 'true';
     if (advanced.has_phone) p.has_phone = 'true';
+    if (advanced.tags && advanced.tags.length) p.tags = advanced.tags.join(',');
+    if (advanced.created_from) p.created_after = advanced.created_from;
+    if (advanced.created_to) p.created_before = advanced.created_to;
     return p;
   }, [tab, search, filters, advanced, sort, page, perPage, me]);
 
@@ -241,12 +247,14 @@ export default function Contacts() {
 
   useEffect(() => { load(); }, [params]);
   useEffect(() => { loadFacets(); }, []);
+  useEffect(() => { api.get('/tags').then(setAllTags).catch(() => {}); }, []);
 
   useEffect(() => {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
       if (statusDropRef.current && !statusDropRef.current.contains(e.target)) setShowStatusDrop(false);
       if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
+      if (tagsDropRef.current && !tagsDropRef.current.contains(e.target)) setShowTagsDrop(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -259,7 +267,7 @@ export default function Contacts() {
     if (s.tab) setTab(s.tab);
     setSearch(s.search || '');
     setFilters(s.filters || { owner: '', lead_status: [], created: '', activity: '' });
-    setAdvanced(s.advanced || { source: '', title: '', has_email: false, has_phone: false });
+    setAdvanced(s.advanced || { source: '', title: '', has_email: false, has_phone: false, tags: [], created_from: '', created_to: '' });
     if (s.sort) setSort(s.sort);
     setPage(0);
     setSearchKey((k) => k + 1);
@@ -517,7 +525,7 @@ export default function Contacts() {
       </div>
 
       {showAdvanced && (
-        <div className="filter-bar advanced">
+        <div className="filter-bar advanced" style={{ flexWrap: 'wrap', gap: 8 }}>
           <input
             placeholder="Source contains…" style={{ width: 150 }}
             value={advanced.source}
@@ -540,9 +548,36 @@ export default function Contacts() {
               onChange={(e) => { setPage(0); setAdvanced({ ...advanced, has_phone: e.target.checked }); }}
             /> Has phone
           </label>
+          <div ref={tagsDropRef} style={{ position: 'relative', display: 'inline-block' }}>
+            <button className="btn small" style={{ minWidth: 140, textAlign: 'left' }} onClick={() => setShowTagsDrop((v) => !v)}>
+              {advanced.tags.length === 0 ? 'Tags: any' : `Tags: ${advanced.tags.length} selected`} ▾
+            </button>
+            {showTagsDrop && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 200, background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 180, maxHeight: 200, overflowY: 'auto' }}>
+                {allTags.map((t) => (
+                  <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={advanced.tags.includes(t.name)}
+                      onChange={(e) => {
+                        const next = e.target.checked ? [...advanced.tags, t.name] : advanced.tags.filter((x) => x !== t.name);
+                        setPage(0); setAdvanced({ ...advanced, tags: next });
+                      }}
+                    />
+                    {t.name}
+                  </label>
+                ))}
+                {allTags.length === 0 && <div style={{ padding: '8px 14px', color: '#9ca3af' }}>No tags yet</div>}
+              </div>
+            )}
+          </div>
+          <label style={{ fontSize: 12, color: 'var(--muted)' }}>Created from</label>
+          <input type="date" style={{ width: 140 }} value={advanced.created_from} onChange={(e) => { setPage(0); setAdvanced({ ...advanced, created_from: e.target.value }); }} />
+          <label style={{ fontSize: 12, color: 'var(--muted)' }}>to</label>
+          <input type="date" style={{ width: 140 }} value={advanced.created_to} onChange={(e) => { setPage(0); setAdvanced({ ...advanced, created_to: e.target.value }); }} />
           <button
             className="link-btn"
-            onClick={() => { setPage(0); setAdvanced({ source: '', title: '', has_email: false, has_phone: false }); }}
+            onClick={() => { setPage(0); setAdvanced({ source: '', title: '', has_email: false, has_phone: false, tags: [], created_from: '', created_to: '' }); }}
           >Clear advanced</button>
         </div>
       )}

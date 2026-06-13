@@ -6,6 +6,7 @@ import { fmtPhone, relTime, absUrl } from '../format.js';
 import Timeline from '../components/Timeline.jsx';
 import Modal from '../components/Modal.jsx';
 import { Field, PhoneLink } from '../components/widgets.jsx';
+import TagManager from '../components/TagManager.jsx';
 
 const ACTIVITY_TABS = [
   { key: 'all', label: 'All activities' },
@@ -48,6 +49,7 @@ export default function ContactDetail() {
   const [contact, setContact] = useState(null);
   const [company, setCompany] = useState(null);
   const [history, setHistory] = useState(null);
+  const [contactTags, setContactTags] = useState([]);
   const [modal, setModal] = useState(null);
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -63,7 +65,11 @@ export default function ContactDetail() {
     const h = await api.get(`/contacts/${id}/history`);
     setHistory(h);
   };
-  const loadAll = () => Promise.all([loadContact(), loadHistory()]).catch(() => {});
+  const loadTags = async () => {
+    const t = await api.get(`/tags/contact/${id}`);
+    setContactTags(t);
+  };
+  const loadAll = () => Promise.all([loadContact(), loadHistory(), loadTags()]).catch(() => {});
 
   useEffect(() => { loadAll(); }, [id]);
 
@@ -184,6 +190,10 @@ export default function ContactDetail() {
               <div className="key-info-row">
                 <span className="key-info-label">Last Contacted</span>
                 <span className="key-info-value muted">{relTime(contact.last_contacted_at)}</span>
+              </div>
+              <div className="key-info-row" style={{ alignItems: 'flex-start' }}>
+                <span className="key-info-label">Tags</span>
+                <TagManager entityType="contact" entityId={contact.id} tags={contactTags} onChanged={loadTags} />
               </div>
             </div>
             <button className="btn small danger" style={{ marginTop: 16 }} onClick={deleteContact}>Delete contact</button>

@@ -45,8 +45,8 @@ router.get('/', h(async (req, res) => {
     if (statuses.length === 1) {
       add('ct.lead_status = ?', statuses[0]);
     } else if (statuses.length > 1) {
-      where.push(`ct.lead_status = ANY(?)`);
-      args.push(statuses);
+      values.push(statuses);
+      where.push(`ct.lead_status = ANY($${values.length})`);
     }
   }
   if (q.source) add('ct.source ILIKE ?', `%${q.source}%`);
@@ -58,6 +58,13 @@ router.get('/', h(async (req, res) => {
   if (q.last_contact_after) add('ct.last_contacted_at >= ?', q.last_contact_after);
   if (q.last_contact_before) add('ct.last_contacted_at <= ?', q.last_contact_before);
   if (q.never_contacted === 'true') where.push('ct.last_contacted_at IS NULL');
+  if (q.tags) {
+    const tagNames = q.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    if (tagNames.length) {
+      values.push(tagNames);
+      where.push(`EXISTS (SELECT 1 FROM contact_tags ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE ct2.contact_id = ct.id AND t2.name = ANY($${values.length}))`);
+    }
+  }
   if (q.inactive_days) {
     values.push(toInt(q.inactive_days));
     where.push(`(ct.last_contacted_at IS NULL OR ct.last_contacted_at < now() - ($${values.length} || ' days')::interval)`);
@@ -79,7 +86,8 @@ router.get('/', h(async (req, res) => {
     values
   );
   const { rows } = await query(
-    `SELECT ct.*, co.name AS company_name, co.domain AS company_domain
+    `SELECT ct.*, co.name AS company_name, co.domain AS company_domain,
+       (SELECT coalesce(json_agg(t.name ORDER BY t.name), '[]'::json) FROM tags t JOIN contact_tags ctt ON ctt.tag_id = t.id WHERE ctt.contact_id = ct.id) AS tags
      FROM contacts ct JOIN companies co ON co.id = ct.company_id
      ${whereSql} ORDER BY ${sort} ${order} NULLS LAST
      LIMIT ${limit} OFFSET ${offset}`,

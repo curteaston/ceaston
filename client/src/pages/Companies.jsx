@@ -133,7 +133,10 @@ export default function Companies() {
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({ owner: '', created: '', inactive: '', lifecycle_stage: '' });
-  const [advanced, setAdvanced] = useState({ industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false });
+  const [advanced, setAdvanced] = useState({ industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false, city: '', state: '', timezone: '', revenue_min: '', revenue_max: '', tags: [], created_from: '', created_to: '' });
+  const [allTags, setAllTags] = useState([]);
+  const [showTagsDrop, setShowTagsDrop] = useState(false);
+  const tagsDropRef = useRef(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [sort, setSort] = useState({ by: 'last_activity_at', order: 'desc' });
   const [page, setPage] = useState(0);
@@ -181,6 +184,14 @@ export default function Companies() {
     if (advanced.employee_max) p.employee_max = advanced.employee_max;
     if (advanced.deal_stage) p.deal_stage = advanced.deal_stage;
     if (advanced.no_deals) p.no_deals = 'true';
+    if (advanced.city.trim()) p.city = advanced.city.trim();
+    if (advanced.state.trim()) p.state = advanced.state.trim();
+    if (advanced.timezone) p.timezone = advanced.timezone;
+    if (advanced.revenue_min) p.revenue_min = advanced.revenue_min;
+    if (advanced.revenue_max) p.revenue_max = advanced.revenue_max;
+    if (advanced.tags && advanced.tags.length) p.tags = advanced.tags.join(',');
+    if (advanced.created_from) p.created_after = advanced.created_from;
+    if (advanced.created_to) p.created_before = advanced.created_to;
     return p;
   }, [view, tab, search, filters, advanced, sort, page, perPage, me]);
 
@@ -194,7 +205,7 @@ export default function Companies() {
     if (s.tab) setTab(s.tab);
     setSearch(s.search || '');
     setFilters(s.filters || { owner: '', created: '', inactive: '', lifecycle_stage: '' });
-    setAdvanced(s.advanced || { industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false });
+    setAdvanced(s.advanced || { industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false, city: '', state: '', timezone: '', revenue_min: '', revenue_max: '', tags: [], created_from: '', created_to: '' });
     if (s.sort) setSort(s.sort);
     if (s.view) switchView(s.view);
     setPage(0);
@@ -205,11 +216,13 @@ export default function Companies() {
   };
   useEffect(() => { load(); }, [params]);
   useEffect(() => { loadFacets(); }, []);
+  useEffect(() => { api.get('/tags').then(setAllTags).catch(() => {}); }, []);
 
   useEffect(() => {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
       if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
+      if (tagsDropRef.current && !tagsDropRef.current.contains(e.target)) setShowTagsDrop(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -438,14 +451,22 @@ export default function Companies() {
       </div>
 
       {showAdvanced && (
-        <div className="filter-bar advanced">
+        <div className="filter-bar advanced" style={{ flexWrap: 'wrap', gap: 8 }}>
           <input placeholder="Industry" style={{ width: 120 }} value={advanced.industry} onChange={(e) => setAdv({ industry: e.target.value })} />
+          <input placeholder="City" style={{ width: 110 }} value={advanced.city} onChange={(e) => setAdv({ city: e.target.value })} />
+          <input placeholder="State" style={{ width: 90 }} value={advanced.state} onChange={(e) => setAdv({ state: e.target.value })} />
+          <select value={advanced.timezone} onChange={(e) => setAdv({ timezone: e.target.value })} style={{ width: 170 }}>
+            <option value="">Timezone: any</option>
+            {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+          </select>
           <select value={advanced.ad_spend_range} onChange={(e) => setAdv({ ad_spend_range: e.target.value })}>
             <option value="">Ad spend: any</option>
             {meta.ad_spend_ranges.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
           <input type="number" placeholder="Emp ≥" style={{ width: 80 }} value={advanced.employee_min} onChange={(e) => setAdv({ employee_min: e.target.value })} />
           <input type="number" placeholder="Emp ≤" style={{ width: 80 }} value={advanced.employee_max} onChange={(e) => setAdv({ employee_max: e.target.value })} />
+          <input type="number" placeholder="Revenue ≥" style={{ width: 110 }} value={advanced.revenue_min} onChange={(e) => setAdv({ revenue_min: e.target.value })} />
+          <input type="number" placeholder="Revenue ≤" style={{ width: 110 }} value={advanced.revenue_max} onChange={(e) => setAdv({ revenue_max: e.target.value })} />
           <select value={advanced.deal_stage} onChange={(e) => setAdv({ deal_stage: e.target.value })}>
             <option value="">Deal stage: any</option>
             {meta.stages.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -454,9 +475,36 @@ export default function Companies() {
             <input type="checkbox" checked={advanced.no_deals} onChange={(e) => setAdv({ no_deals: e.target.checked })} />
             No deals yet
           </label>
+          <div ref={tagsDropRef} style={{ position: 'relative', display: 'inline-block' }}>
+            <button className="btn small" style={{ minWidth: 140, textAlign: 'left' }} onClick={() => setShowTagsDrop((v) => !v)}>
+              {advanced.tags.length === 0 ? 'Tags: any' : `Tags: ${advanced.tags.length} selected`} ▾
+            </button>
+            {showTagsDrop && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 200, background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 180, maxHeight: 200, overflowY: 'auto' }}>
+                {allTags.map((t) => (
+                  <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={advanced.tags.includes(t.name)}
+                      onChange={(e) => {
+                        const next = e.target.checked ? [...advanced.tags, t.name] : advanced.tags.filter((x) => x !== t.name);
+                        setAdv({ tags: next });
+                      }}
+                    />
+                    {t.name}
+                  </label>
+                ))}
+                {allTags.length === 0 && <div style={{ padding: '8px 14px', color: '#9ca3af' }}>No tags yet</div>}
+              </div>
+            )}
+          </div>
+          <label style={{ fontSize: 12, color: 'var(--muted)' }}>Created from</label>
+          <input type="date" style={{ width: 140 }} value={advanced.created_from} onChange={(e) => setAdv({ created_from: e.target.value })} />
+          <label style={{ fontSize: 12, color: 'var(--muted)' }}>to</label>
+          <input type="date" style={{ width: 140 }} value={advanced.created_to} onChange={(e) => setAdv({ created_to: e.target.value })} />
           <button
             className="link-btn"
-            onClick={() => setAdv({ industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false })}
+            onClick={() => setAdv({ industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false, city: '', state: '', timezone: '', revenue_min: '', revenue_max: '', tags: [], created_from: '', created_to: '' })}
           >Clear advanced</button>
         </div>
       )}

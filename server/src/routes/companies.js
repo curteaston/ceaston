@@ -37,7 +37,7 @@ export async function companyTimeline(companyId) {
 export async function fullCompanyPayload(companyId) {
   const { rows } = await query('SELECT * FROM companies WHERE id = $1', [companyId]);
   if (!rows[0]) return null;
-  const [contacts, deals, tasks, timeline] = await Promise.all([
+  const [contacts, deals, tasks, timeline, tagsResult] = await Promise.all([
     query('SELECT * FROM contacts WHERE company_id = $1 ORDER BY name', [companyId]),
     query('SELECT * FROM deals WHERE company_id = $1 ORDER BY created_at DESC', [companyId]),
     query(
@@ -48,8 +48,9 @@ export async function fullCompanyPayload(companyId) {
       [companyId]
     ),
     companyTimeline(companyId),
+    query('SELECT t.* FROM tags t JOIN company_tags ct ON ct.tag_id = t.id WHERE ct.company_id = $1', [companyId]),
   ]);
-  return { ...rows[0], contacts: contacts.rows, deals: deals.rows, tasks: tasks.rows, timeline };
+  return { ...rows[0], contacts: contacts.rows, deals: deals.rows, tasks: tasks.rows, timeline, tags: tagsResult.rows };
 }
 
 // GET /api/companies — list with filtering, segmentation, search, pagination
@@ -83,6 +84,18 @@ router.get('/', h(async (req, res) => {
   }
   if (q.deal_stage) add('EXISTS (SELECT 1 FROM deals d WHERE d.company_id = co.id AND d.stage = ?)', q.deal_stage);
   if (q.no_deals === 'true') where.push('NOT EXISTS (SELECT 1 FROM deals d WHERE d.company_id = co.id)');
+  if (q.city) add('co.city ILIKE ?', `%${q.city}%`);
+  if (q.state) add('co.state ILIKE ?', `%${q.state}%`);
+  if (q.timezone) add('co.timezone = ?', q.timezone);
+  if (q.revenue_min) add('co.annual_revenue >= ?', Number(q.revenue_min));
+  if (q.revenue_max) add('co.annual_revenue <= ?', Number(q.revenue_max));
+  if (q.tags) {
+    const tagNames = q.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    if (tagNames.length) {
+      values.push(tagNames);
+      where.push(`EXISTS (SELECT 1 FROM company_tags ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE ct2.company_id = co.id AND t2.name = ANY($${values.length}))`);
+    }
+  }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const sortable = { name: 'co.name', created_at: 'co.created_at', last_activity_at: 'co.last_activity_at', employee_count: 'co.employee_count', owner: 'co.owner', lifecycle_stage: 'co.lifecycle_stage' };
@@ -98,7 +111,8 @@ router.get('/', h(async (req, res) => {
        (SELECT count(*) FROM tasks t WHERE t.company_id = co.id AND NOT t.completed)::int AS open_task_count,
        (SELECT coalesce(sum(d.value), 0) FROM deals d WHERE d.company_id = co.id AND d.stage NOT IN ('won','lost')) AS open_deal_value,
        (SELECT d.stage FROM deals d WHERE d.company_id = co.id ORDER BY d.updated_at DESC LIMIT 1) AS latest_deal_stage,
-       (SELECT a.type FROM activities a WHERE a.company_id = co.id ORDER BY a.occurred_at DESC LIMIT 1) AS latest_activity_type
+       (SELECT a.type FROM activities a WHERE a.company_id = co.id ORDER BY a.occurred_at DESC LIMIT 1) AS latest_activity_type,
+       (SELECT coalesce(json_agg(t.name ORDER BY t.name), '[]'::json) FROM tags t JOIN company_tags ct ON ct.tag_id = t.id WHERE ct.company_id = co.id) AS tags
      FROM companies co ${whereSql}
      ORDER BY ${sort} ${order} NULLS LAST
      LIMIT ${limit} OFFSET ${offset}`,
