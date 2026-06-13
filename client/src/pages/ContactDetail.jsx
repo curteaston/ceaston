@@ -131,7 +131,6 @@ export default function ContactDetail() {
           {/* Header card */}
           <div className="card company-header-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <div className="company-avatar">{initials}</div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{contact.name}</div>
                 <div className="muted small">{contact.title || '—'}</div>

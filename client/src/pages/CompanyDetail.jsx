@@ -641,7 +641,6 @@ export default function CompanyDetail() {
           {/* Company header card */}
           <div className="card company-header-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div className="company-avatar">{company.name.slice(0, 3).toUpperCase()}</div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{company.name}</div>
                 {company.website && (
