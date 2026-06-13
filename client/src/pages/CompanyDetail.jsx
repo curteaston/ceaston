@@ -9,7 +9,7 @@ import ContactDrawer, { ContactForm } from '../components/ContactDrawer.jsx';
 import CompanySequences from '../components/CompanySequences.jsx';
 import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx';
 import { CompanyForm } from './Companies.jsx';
-import { fmtDate, fmtMoney, relTime } from '../format.js';
+import { fmtDate, fmtMoney, fmtPhone, relTime } from '../format.js';
 
 // Returns a date N business days from today, formatted as YYYY-MM-DD
 function addBusinessDays(n) {
@@ -762,7 +762,8 @@ export default function CompanyDetail() {
               <button key={c.id} className="contact-card" onClick={() => setOpenContact(c)}>
                 <div className="contact-name">{c.name}</div>
                 <div className="muted small">{c.title || '—'}</div>
-                {c.phone && <div className="small"><PhoneLink phone={c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
+                {c.phone && <div className="small"><PhoneLink phone={fmtPhone(c.phone) || c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
+                {c.email && <div className="small muted">{c.email}</div>}
                 <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
               </button>
             ))}

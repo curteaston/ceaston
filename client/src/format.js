@@ -1,3 +1,16 @@
+export function fmtPhone(raw) {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  // Handle 10-digit US numbers and 11-digit with leading 1
+  if (digits.length === 10) {
+    return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits[0] === '1') {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return raw; // return as-is if not a standard US number
+}
+
 export function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
