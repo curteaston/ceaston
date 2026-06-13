@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import { h, badRequest, notFound, buildUpdate } from '../util.js';
+import { emit } from '../events.js';
 
 const router = Router();
 
@@ -78,6 +79,7 @@ router.patch('/:id', h(async (req, res) => {
   if (req.body.completed === true) {
     const companyId = await taskCompanyId(row);
     if (companyId) await touchCompany(companyId);
+    emit('task.completed', { task: row });
   }
   res.json(row);
 }));

@@ -6,6 +6,7 @@ import Modal from '../components/Modal.jsx';
 import CompanyBoard from '../components/CompanyBoard.jsx';
 import { PreviewPanel, SummaryPanel, EmailComposer, NoteComposer } from '../components/CompanyActions.jsx';
 import EnrollModal from '../components/EnrollModal.jsx';
+import SavedViews from '../components/SavedViews.jsx';
 import { Field, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
@@ -72,6 +73,28 @@ const ACTIVITY_PRESETS = [
 
 const daysAgoIso = (days) => new Date(Date.now() - days * 86400000).toISOString();
 
+function BulkEnrollModal({ count, onClose, onEnroll }) {
+  const [sequences, setSequences] = useState([]);
+  const [sequenceId, setSequenceId] = useState('');
+  useEffect(() => {
+    api.get('/sequences').then((rows) => setSequences(rows.filter((s) => s.active && s.step_count > 0))).catch(() => {});
+  }, []);
+  return (
+    <Modal title={`Enroll ${count} compan${count === 1 ? 'y' : 'ies'} in a sequence`} onClose={onClose}>
+      <Field label="Sequence">
+        <select value={sequenceId} onChange={(e) => setSequenceId(e.target.value)}>
+          <option value="">Choose a sequence…</option>
+          {sequences.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.step_count} steps)</option>)}
+        </select>
+      </Field>
+      <p className="muted small">Each company is enrolled without a specific contact, so auto-email steps need a contact added later. Already-enrolled companies are skipped.</p>
+      <div className="form-actions pad-top">
+        <button className="btn primary" disabled={!sequenceId} onClick={() => onEnroll(sequenceId)}>Enroll {count}</button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function Companies() {
   const { run, meta, notify } = useStore();
   const me = localStorage.getItem('crm_display_name') || 'Curt';
@@ -99,6 +122,10 @@ export default function Companies() {
   const [panel, setPanel] = useState(null);   // { type: 'preview' | 'summary', company }
   const [composer, setComposer] = useState(null); // { type: 'email' | 'note', company }
   const [enroll, setEnroll] = useState(null); // company being enrolled
+  const [selected, setSelected] = useState(new Set());
+  const [bulkEnroll, setBulkEnroll] = useState(false);
+  const [bulkLifecycle, setBulkLifecycle] = useState('');
+  const [searchKey, setSearchKey] = useState(0); // bump to remount the search input on view-apply
   const searchTimer = useRef(null);
   const colPanelRef = useRef(null);
 
@@ -127,7 +154,20 @@ export default function Companies() {
   }, [view, tab, search, filters, advanced, sort, page, perPage, me]);
 
   const load = () => {
-    api.get(`/companies${qs(params)}`).then(setData).catch((e) => notify(e.message, true));
+    api.get(`/companies${qs(params)}`).then((d) => { setData(d); setSelected(new Set()); }).catch((e) => notify(e.message, true));
+  };
+
+  // Saved-view capture/apply over the whole filter state.
+  const captureState = () => ({ tab, search, filters, advanced, sort, view });
+  const applyState = (s) => {
+    if (s.tab) setTab(s.tab);
+    setSearch(s.search || '');
+    setFilters(s.filters || { owner: '', created: '', inactive: '', lifecycle_stage: '' });
+    setAdvanced(s.advanced || { industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false });
+    if (s.sort) setSort(s.sort);
+    if (s.view) switchView(s.view);
+    setPage(0);
+    setSearchKey((k) => k + 1);
   };
   const loadFacets = () => {
     api.get(`/companies/facets?me=${encodeURIComponent(me)}`).then(setFacets).catch(() => {});
@@ -221,6 +261,38 @@ export default function Companies() {
   const cols = ALL_COLUMNS.filter((c) => c.always || visibleCols.includes(c.key));
   const totalPages = Math.max(1, Math.ceil(data.total / perPage));
 
+  const allSelected = data.companies.length > 0 && data.companies.every((c) => selected.has(c.id));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(data.companies.map((c) => c.id)));
+  const toggleOne = (id) => setSelected((s) => {
+    const next = new Set(s);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const bulk = (action, patch) =>
+    run(async () => {
+      await api.post('/companies/bulk', { ids: [...selected], action, patch });
+      refreshAll();
+    }, action === 'delete' ? 'Companies deleted' : 'Companies updated');
+
+  const bulkAssign = () => {
+    const owner = prompt(`Assign owner for ${selected.size} compan${selected.size === 1 ? 'y' : 'ies'}:`, me);
+    if (owner !== null) bulk('update', { owner: owner.trim() });
+  };
+  const bulkDelete = () => {
+    if (confirm(`Delete ${selected.size} compan${selected.size === 1 ? 'y' : 'ies'} and all their data?`)) bulk('delete');
+  };
+  const doBulkEnroll = (sequenceId, contactId) =>
+    run(async () => {
+      const results = await Promise.allSettled(
+        [...selected].map((id) => api.post(`/sequences/${sequenceId}/enroll`, { company_id: id, owner: me }))
+      );
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      notify(`Enrolled ${ok} of ${selected.size} companies`);
+      setBulkEnroll(false);
+      refreshAll();
+    }, null);
+
   const cell = (c, col) => {
     switch (col.key) {
       case 'name':
@@ -254,12 +326,14 @@ export default function Companies() {
               {label} <span className="tab-count">{count}</span>
             </button>
           ))}
+          <SavedViews entity="company" captureState={captureState} applyState={applyState} />
         </div>
         <button className="btn primary" onClick={() => setShowAdd(true)}>Add company</button>
       </div>
 
       <div className="filter-bar">
         <input
+          key={searchKey}
           className="filter-search"
           placeholder="Search name or domain…"
           defaultValue={search}
@@ -335,6 +409,23 @@ export default function Companies() {
         </div>
       )}
 
+      {view === 'table' && selected.size > 0 && (
+        <div className="bulk-bar">
+          <b>{selected.size} selected</b>
+          <button className="btn small" onClick={bulkAssign}>Assign owner</button>
+          <select value={bulkLifecycle} onChange={(e) => setBulkLifecycle(e.target.value)}>
+            <option value="">Set lifecycle…</option>
+            {meta.lifecycle_stages.map((s) => <option key={s} value={s}>{LIFECYCLE_LABELS[s]}</option>)}
+          </select>
+          {bulkLifecycle && (
+            <button className="btn small primary" onClick={() => { bulk('update', { lifecycle_stage: bulkLifecycle }); setBulkLifecycle(''); }}>Apply</button>
+          )}
+          <button className="btn small" onClick={() => setBulkEnroll(true)}>Enroll in sequence</button>
+          <button className="btn small danger" onClick={bulkDelete}>Delete</button>
+          <button className="link-btn" onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+
       {view === 'board' ? (
         <CompanyBoard companies={data.companies} onMove={moveLifecycle} onAction={onCardAction} />
       ) : (
@@ -343,6 +434,7 @@ export default function Companies() {
             <table>
               <thead>
                 <tr>
+                  <th className="check-col"><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
                   {cols.map((col) => (
                     <th key={col.key} className={col.sort ? 'sortable' : ''} onClick={() => toggleSort(col)}>
                       {col.label}
@@ -355,6 +447,9 @@ export default function Companies() {
               <tbody>
                 {data.companies.map((c) => (
                   <tr key={c.id} className="row-link" onClick={() => setPanel({ type: 'preview', company: c })}>
+                    <td className="check-col" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleOne(c.id)} />
+                    </td>
                     {cols.map((col) => <td key={col.key}>{cell(c, col)}</td>)}
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="row-actions">
@@ -367,7 +462,7 @@ export default function Companies() {
                   </tr>
                 ))}
                 {data.companies.length === 0 && (
-                  <tr><td colSpan={cols.length + 1} className="muted center">No companies match. Add one or import a prospect list.</td></tr>
+                  <tr><td colSpan={cols.length + 2} className="muted center">No companies match. Add one or import a prospect list.</td></tr>
                 )}
               </tbody>
             </table>
@@ -396,6 +491,9 @@ export default function Companies() {
         />
       )}
       {enroll && <EnrollModal company={enroll} onClose={() => setEnroll(null)} onEnrolled={refreshAll} />}
+      {bulkEnroll && (
+        <BulkEnrollModal count={selected.size} onClose={() => setBulkEnroll(false)} onEnroll={doBulkEnroll} />
+      )}
       {panel?.type === 'summary' && (
         <SummaryPanel company={panel.company} onClose={() => setPanel(null)} />
       )}

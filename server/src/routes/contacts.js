@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import { h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES } from '../util.js';
+import { emit } from '../events.js';
 
 const router = Router();
 
@@ -164,6 +165,7 @@ router.post('/', h(async (req, res) => {
      b.last_contacted_at || null, b.owner || null, b.lead_status || null]
   );
   await touchCompany(companyId);
+  emit('contact.created', { contact: rows[0] });
   res.status(201).json(rows[0]);
 }));
 
@@ -204,6 +206,7 @@ router.post('/upsert', h(async (req, res) => {
      b.last_contacted_at || null, b.owner || null, b.lead_status || null]
   );
   await touchCompany(companyId);
+  emit('contact.created', { contact: rows[0] });
   res.status(201).json({ ...rows[0], upserted: 'created' });
 }));
 

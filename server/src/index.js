@@ -17,6 +17,8 @@ import home from './routes/home.js';
 import ai from './routes/ai.js';
 import microsoft from './routes/microsoft.js';
 import sequences, { processDueSteps } from './routes/sequences.js';
+import views from './routes/views.js';
+import webhooks from './routes/webhooks.js';
 import { authRouter, requireAuth } from './auth.js';
 
 const app = express();
@@ -74,6 +76,8 @@ app.use('/api/home', home);
 app.use('/api', ai);
 app.use('/api', microsoft);
 app.use('/api/sequences', sequences);
+app.use('/api/views', views);
+app.use('/api/webhooks', webhooks);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown API route' }));
 

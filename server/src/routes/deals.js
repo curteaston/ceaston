@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import { h, badRequest, notFound, buildUpdate, STAGES, DEFAULT_PROBABILITY } from '../util.js';
+import { emit } from '../events.js';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.post('/', h(async (req, res) => {
     [b.company_id, b.name, b.value ?? 0, stage, probability, b.expected_close_date || null]
   );
   await touchCompany(b.company_id);
+  emit('deal.created', { deal: rows[0] });
   res.status(201).json(rows[0]);
 }));
 
@@ -71,6 +73,9 @@ router.patch('/:id', h(async (req, res) => {
       `INSERT INTO activities (company_id, type, body) VALUES ($1, 'stage_change', $2)`,
       [deal.company_id, `Deal "${deal.name}" moved: ${prev.stage} → ${deal.stage}`]
     );
+    emit('deal.stage_changed', { deal, from: prev.stage, to: deal.stage });
+    if (deal.stage === 'won') emit('deal.won', { deal });
+    if (deal.stage === 'lost') emit('deal.lost', { deal });
   }
   await touchCompany(deal.company_id);
   res.json(deal);

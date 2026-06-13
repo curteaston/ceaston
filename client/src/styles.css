@@ -468,6 +468,20 @@ pre {
   padding: 10px; font-size: 12px; overflow-x: auto;
 }
 
+/* Saved views */
+.tab-add { color: var(--primary); font-weight: 600; }
+.view-del { margin-left: 6px; opacity: 0.5; font-size: 11px; }
+.view-del:hover { opacity: 1; color: var(--danger); }
+
+/* Webhooks */
+.webhook-events { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 12px; }
+.webhook-row {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid #eef1f6;
+}
+.webhook-row:last-child { border-bottom: none; }
+.webhook-url { word-break: break-all; font-size: 13px; }
+
 /* Login */
 .login-screen {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;

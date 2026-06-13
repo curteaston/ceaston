@@ -59,6 +59,93 @@ function SequenceSending() {
   );
 }
 
+function Webhooks() {
+  const { run, notify } = useStore();
+  const [hooks, setHooks] = useState([]);
+  const [eventTypes, setEventTypes] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ url: '', secret: '', events: [] });
+
+  const load = () => api.get('/webhooks').then(setHooks).catch(() => {});
+  useEffect(() => {
+    load();
+    api.get('/webhooks/events').then(setEventTypes).catch(() => {});
+  }, []);
+
+  const toggleEvent = (ev) =>
+    setForm((f) => ({ ...f, events: f.events.includes(ev) ? f.events.filter((e) => e !== ev) : [...f.events, ev] }));
+
+  const create = () =>
+    run(async () => {
+      await api.post('/webhooks', form);
+      setForm({ url: '', secret: '', events: [] });
+      setAdding(false);
+      load();
+    }, 'Webhook added');
+
+  const del = (w) =>
+    run(async () => { await api.del(`/webhooks/${w.id}`); load(); }, 'Webhook removed');
+  const toggle = (w) =>
+    run(async () => { await api.put(`/webhooks/${w.id}`, { active: !w.active }); load(); }, null);
+  const test = (w) =>
+    run(async () => {
+      const r = await api.post(`/webhooks/${w.id}/test`);
+      notify(r.ok ? `Test delivered (HTTP ${r.status})` : `Test failed: ${r.error || r.status}`, !r.ok);
+      load();
+    }, null);
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Outbound webhooks (n8n)</h3>
+        <button className="btn small" onClick={() => setAdding(!adding)}>{adding ? 'Cancel' : '+ Add webhook'}</button>
+      </div>
+      <p className="small">
+        Fire a JSON payload to an n8n (or any) URL when things happen in the CRM — automate follow-on actions like
+        Slack pings, invoices, or handoffs. If you set a secret, each delivery is signed with an
+        <code> X-CRM-Signature: sha256=…</code> HMAC header so n8n can verify authenticity.
+      </p>
+
+      {adding && (
+        <div className="outline-card">
+          <Field label="Endpoint URL"><input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://your-n8n/webhook/abc123" /></Field>
+          <Field label="Signing secret (optional)"><input value={form.secret} onChange={(e) => setForm({ ...form, secret: e.target.value })} placeholder="shared secret for HMAC" /></Field>
+          <div className="field-label pad-top">Events</div>
+          <div className="webhook-events">
+            {eventTypes.map((ev) => (
+              <label key={ev} className="checkbox-inline">
+                <input type="checkbox" checked={form.events.includes(ev)} onChange={() => toggleEvent(ev)} /> {ev}
+              </label>
+            ))}
+          </div>
+          <div className="form-actions pad-top">
+            <button className="btn primary" disabled={!form.url || form.events.length === 0} onClick={create}>Add webhook</button>
+          </div>
+        </div>
+      )}
+
+      {hooks.length === 0 && !adding && <p className="muted small">No webhooks yet.</p>}
+      {hooks.map((w) => (
+        <div key={w.id} className="webhook-row">
+          <div className="grow">
+            <div className="row gap">
+              <b className="webhook-url">{w.url}</b>
+              {!w.active && <span className="chip">paused</span>}
+            </div>
+            <div className="muted small">{w.events.join(', ')}</div>
+            {w.last_status && <div className="muted small">Last: {w.last_status}</div>}
+          </div>
+          <div className="row gap">
+            <button className="btn small" onClick={() => test(w)}>Test</button>
+            <button className="btn small" onClick={() => toggle(w)}>{w.active ? 'Pause' : 'Resume'}</button>
+            <button className="btn small danger" onClick={() => del(w)}>Delete</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Settings() {
   const { run, notify } = useStore();
   const [ms, setMs] = useState(null);
@@ -144,6 +231,8 @@ export default function Settings() {
       </div>
 
       <SequenceSending />
+
+      <Webhooks />
 
       <div className="card">
         <h3>Access &amp; security</h3>

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import { h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES } from '../util.js';
+import { emit } from '../events.js';
 
 const router = Router();
 
@@ -104,6 +105,39 @@ router.get('/', h(async (req, res) => {
   res.json({ total: countQ.rows[0].total, limit, offset, companies: rows });
 }));
 
+// POST /api/companies/bulk — { ids, action: 'update'|'delete', patch: { owner?, lifecycle_stage? } }
+router.post('/bulk', h(async (req, res) => {
+  const { ids, action, patch } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) throw badRequest('ids must be a non-empty array');
+  if (ids.length > 1000) throw badRequest('Max 1000 companies per bulk call');
+
+  if (action === 'delete') {
+    const { rowCount } = await query('DELETE FROM companies WHERE id = ANY($1::int[])', [ids]);
+    return res.json({ deleted: rowCount });
+  }
+  if (action === 'update') {
+    if (patch?.lifecycle_stage && !LIFECYCLE_STAGES.includes(patch.lifecycle_stage)) {
+      throw badRequest('Invalid lifecycle_stage');
+    }
+    const sets = [];
+    const values = [];
+    for (const col of ['owner', 'lifecycle_stage']) {
+      if (patch && Object.prototype.hasOwnProperty.call(patch, col)) {
+        values.push(patch[col] === '' ? null : patch[col]);
+        sets.push(`${col} = $${values.length}`);
+      }
+    }
+    if (!sets.length) throw badRequest('patch must include owner and/or lifecycle_stage');
+    values.push(ids);
+    const { rowCount } = await query(
+      `UPDATE companies SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[])`,
+      values
+    );
+    return res.json({ updated: rowCount });
+  }
+  throw badRequest(`action must be 'update' or 'delete'`);
+}));
+
 // GET /api/companies/facets?me=Curt — tab counts and distinct owners
 router.get('/facets', h(async (req, res) => {
   const me = req.query.me || '';
@@ -158,6 +192,7 @@ router.post('/', h(async (req, res) => {
     [b.name, b.domain || null, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
      b.website || null, b.owner || null, b.lifecycle_stage || null]
   );
+  emit('company.created', { company: rows[0] });
   res.status(201).json(rows[0]);
 }));
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import { h, badRequest, notFound } from '../util.js';
+import { emit } from '../events.js';
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.post('/', h(async (req, res) => {
     [companyId, b.contact_id || null, b.type || null, b.outcome || null, b.body || null, b.occurred_at || null]
   );
   const activity = rows[0];
+  emit('activity.logged', { activity });
   await touchCompany(companyId, activity.occurred_at);
   if (activity.contact_id) {
     await query(

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import nodemailer from 'nodemailer';
 import { query, pool, touchCompany } from '../db.js';
 import { h, badRequest, notFound } from '../util.js';
+import { emit } from '../events.js';
 
 const router = Router();
 
@@ -371,6 +372,9 @@ async function sendAutoEmail(run, cfg) {
   if (ctx.contact_id) {
     await query('UPDATE contacts SET last_contacted_at = now() WHERE id = $1', [ctx.contact_id]);
   }
+  emit('sequence.email_sent', {
+    company_id: ctx.company_id, contact_id: ctx.contact_id, to: ctx.email, subject,
+  });
 }
 
 // Process all due auto-email steps. Called by the scheduler and the manual run endpoint.

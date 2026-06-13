@@ -28,6 +28,13 @@ running concurrent outbound cadences.
   manage deals and tasks, search by name/domain.
 - **Bulk import** — paste or upload a CSV to seed prospect lists; companies are
   matched by domain and updated, never duplicated, so re-importing is safe.
+- **Saved views** — save a named, filtered/sorted preset on Companies and Contacts
+  (e.g. "Untouched 14+ days, 50+ employees") and switch between them as tabs.
+- **Bulk actions** — multi-select rows on Companies and Contacts to assign owner,
+  change lifecycle/lead status, enroll companies in a sequence, or delete.
+- **Outbound webhooks** — POST a JSON payload to an n8n (or any) URL when CRM events
+  fire (`company.created`, `deal.won`, `sequence.email_sent`, …); deliveries are
+  optionally HMAC-signed with an `X-CRM-Signature` header.
 - **Outbound sequences (cadences)** — build multi-step plays where each step is
   either a **manual task** (the CRM creates a dated task in your queue) or an
   **auto-email** that sends on its due date. Enroll a company + contact; the
@@ -183,6 +190,23 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | `POST`   | `/api/sequences/enrollments/:id/retry`        | Re-send failed auto-email steps                                                         |
 | `POST`   | `/api/sequences/run`                          | Manually trigger the scheduler (auto-runs every 5 min; handy for n8n)                  |
 | `GET`/`PUT` | `/api/sequences/smtp`                       | Read / set the separate sending-domain SMTP config (`POST /smtp/test` to verify)       |
+
+### Saved views, bulk actions, webhooks
+
+| Method   | Path                          | Notes                                                                           |
+| -------- | ----------------------------- | ------------------------------------------------------------------------------- |
+| `GET`    | `/api/views?entity=company`   | List saved views (`company` or `contact`)                                       |
+| `POST`/`PUT`/`DELETE` | `/api/views[/:id]`   | `{ entity, name, state }` — `state` is the page's filter/sort preset            |
+| `POST`   | `/api/companies/bulk`         | `{ ids, action: 'update'\|'delete', patch: { owner?, lifecycle_stage? } }`      |
+| `POST`   | `/api/contacts/bulk`          | `{ ids, action: 'update'\|'delete', patch: { owner?, lead_status? } }`          |
+| `GET`    | `/api/webhooks/events`        | List of emittable event types                                                   |
+| `GET`/`POST`/`PUT`/`DELETE` | `/api/webhooks[/:id]` | `{ url, events: [...], secret, active }`                                  |
+| `POST`   | `/api/webhooks/:id/test`      | Send a sample payload to verify the endpoint                                     |
+
+Webhook events: `company.created`, `contact.created`, `deal.created`,
+`deal.stage_changed`, `deal.won`, `deal.lost`, `activity.logged`, `task.completed`,
+`sequence.email_sent`. Each delivery POSTs `{ event, data, fired_at }`; if the webhook
+has a secret, an `X-CRM-Signature: sha256=<hmac>` header is included for verification.
 
 Step kinds: `task` (creates a dated task — `task_type`, `description`, `priority`) or
 `auto_email` (`subject`, `body` with `{{first_name}}`, `{{last_name}}`, `{{name}}`,

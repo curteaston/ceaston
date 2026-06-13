@@ -5,6 +5,7 @@ import { useStore } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import ContactDrawer from '../components/ContactDrawer.jsx';
 import { CompanySelect, Field, PhoneLink } from '../components/widgets.jsx';
+import SavedViews from '../components/SavedViews.jsx';
 import { fmtDate, fmtDateTime, relTime } from '../format.js';
 
 const ALL_COLUMNS = [
@@ -77,6 +78,7 @@ export default function Contacts() {
 
   const [tab, setTab] = useState('all'); // all | mine | unassigned
   const [search, setSearch] = useState('');
+  const [searchKey, setSearchKey] = useState(0);
   const [filters, setFilters] = useState({ owner: '', lead_status: '', created: '', activity: '' });
   const [advanced, setAdvanced] = useState({ source: '', title: '', has_email: false, has_phone: false });
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -140,6 +142,17 @@ export default function Contacts() {
   }, []);
 
   const refreshAll = () => { load(); loadFacets(); };
+
+  const captureState = () => ({ tab, search, filters, advanced, sort });
+  const applyState = (s) => {
+    if (s.tab) setTab(s.tab);
+    setSearch(s.search || '');
+    setFilters(s.filters || { owner: '', lead_status: '', created: '', activity: '' });
+    setAdvanced(s.advanced || { source: '', title: '', has_email: false, has_phone: false });
+    if (s.sort) setSort(s.sort);
+    setPage(0);
+    setSearchKey((k) => k + 1);
+  };
 
   const onSearch = (value) => {
     clearTimeout(searchTimer.current);
@@ -275,12 +288,14 @@ export default function Contacts() {
               {label} <span className="tab-count">{count}</span>
             </button>
           ))}
+          <SavedViews entity="contact" captureState={captureState} applyState={applyState} />
         </div>
         <button className="btn primary" onClick={() => setShowAdd(true)}>Add contact</button>
       </div>
 
       <div className="filter-bar">
         <input
+          key={searchKey}
           className="filter-search"
           placeholder="Search name, email or phone…"
           defaultValue={search}

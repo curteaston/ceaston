@@ -75,6 +75,28 @@ CREATE TABLE IF NOT EXISTS sequence_step_runs (
 CREATE INDEX IF NOT EXISTS seq_run_due_idx ON sequence_step_runs (due_date) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS seq_run_enroll_idx ON sequence_step_runs (enrollment_id);
 
+-- Saved views: named, reusable filter/sort presets per entity (company | contact).
+CREATE TABLE IF NOT EXISTS saved_views (
+  id         SERIAL PRIMARY KEY,
+  entity     TEXT NOT NULL CHECK (entity IN ('company', 'contact')),
+  name       TEXT NOT NULL,
+  state      JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS saved_views_entity_idx ON saved_views (entity);
+
+-- Outbound webhooks: POST a JSON payload to a URL (e.g. n8n) when CRM events fire.
+CREATE TABLE IF NOT EXISTS webhooks (
+  id          SERIAL PRIMARY KEY,
+  url         TEXT NOT NULL,
+  events      TEXT[] NOT NULL DEFAULT '{}',
+  secret      TEXT,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_status TEXT,
+  last_fired_at TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS contacts (
   id                SERIAL PRIMARY KEY,
   company_id        INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
