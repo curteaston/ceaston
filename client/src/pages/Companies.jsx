@@ -32,6 +32,13 @@ const BLANK_FILTERS = {
   last_activity_from: '', last_activity_to: '',
   created_from: '', created_to: '',
   tags: [],
+  lead_status: '',
+  has_phone: false,
+  description: '',
+  domain: '',
+  contact_min: '', contact_max: '',
+  pipeline_min: '', pipeline_max: '',
+  task_min: '', task_max: '',
 };
 
 export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
@@ -175,6 +182,10 @@ export default function Companies() {
     filters.inactive_days, filters.last_activity_from, filters.last_activity_to,
     filters.created_from, filters.created_to,
     filters.tags.length > 0,
+    filters.lead_status, filters.has_phone, filters.description, filters.domain,
+    filters.contact_min, filters.contact_max,
+    filters.pipeline_min, filters.pipeline_max,
+    filters.task_min, filters.task_max,
   ].filter(Boolean).length, [filters]);
 
   const params = useMemo(() => {
@@ -210,6 +221,16 @@ export default function Companies() {
     if (filters.created_from) p.created_after = filters.created_from;
     if (filters.created_to) p.created_before = filters.created_to;
     if (filters.tags && filters.tags.length) p.tags = filters.tags.join(',');
+    if (filters.lead_status) p.lead_status = filters.lead_status;
+    if (filters.has_phone) p.has_phone = 'true';
+    if (filters.description.trim()) p.description = filters.description.trim();
+    if (filters.domain.trim()) p.domain = filters.domain.trim();
+    if (filters.contact_min) p.contact_min = filters.contact_min;
+    if (filters.contact_max) p.contact_max = filters.contact_max;
+    if (filters.pipeline_min) p.pipeline_min = filters.pipeline_min;
+    if (filters.pipeline_max) p.pipeline_max = filters.pipeline_max;
+    if (filters.task_min) p.task_min = filters.task_min;
+    if (filters.task_max) p.task_max = filters.task_max;
     return p;
   }, [view, tab, search, filters, sort, page, perPage, me]);
 
@@ -383,15 +404,16 @@ export default function Companies() {
 
   // Per-section active counts
   const sectionCounts = {
-    companyInfo: [filters.industry, filters.type, filters.city, filters.state, filters.postal_code, filters.timezone].filter(Boolean).length,
-    ownership: [filters.owner, filters.unassigned].filter(Boolean).length,
+    companyInfo: [filters.industry, filters.type, filters.city, filters.state, filters.postal_code, filters.timezone, filters.domain, filters.description, filters.has_phone].filter(Boolean).length,
+    ownership: [filters.owner, filters.unassigned, filters.lead_status].filter(Boolean).length,
     lifecycle: filters.lifecycle_stage ? 1 : 0,
     financial: [filters.revenue_min, filters.revenue_max, filters.ad_spend_range].filter(Boolean).length,
     size: [filters.employee_min, filters.employee_max].filter(Boolean).length,
-    deals: [filters.deal_stage, filters.no_deals].filter(Boolean).length,
+    deals: [filters.deal_stage, filters.no_deals, filters.pipeline_min, filters.pipeline_max].filter(Boolean).length,
     activity: [filters.inactive_days, filters.last_activity_from, filters.last_activity_to].filter(Boolean).length,
     createDate: [filters.created_from, filters.created_to].filter(Boolean).length,
     tags: filters.tags.length > 0 ? 1 : 0,
+    contactsAndTasks: [filters.contact_min, filters.contact_max, filters.task_min, filters.task_max].filter(Boolean).length,
   };
 
   return (
@@ -550,6 +572,14 @@ export default function Companies() {
               </select>
             </div>
             <div className="fd-field">
+              <label>Domain contains</label>
+              <input value={filters.domain} onChange={(e) => setF({ domain: e.target.value })} placeholder="e.g. acmehvac.com" />
+            </div>
+            <div className="fd-field">
+              <label>Description contains</label>
+              <input value={filters.description} onChange={(e) => setF({ description: e.target.value })} placeholder="keyword in description" />
+            </div>
+            <div className="fd-field">
               <label>City</label>
               <input value={filters.city} onChange={(e) => setF({ city: e.target.value })} placeholder="e.g. Atlanta" />
             </div>
@@ -568,6 +598,10 @@ export default function Companies() {
                 {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
               </select>
             </div>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.has_phone} onChange={(e) => setF({ has_phone: e.target.checked })} />
+              Has phone
+            </label>
           </FilterSection>
 
           <FilterSection title="Ownership" activeCount={sectionCounts.ownership}>
@@ -582,6 +616,20 @@ export default function Companies() {
               <input type="checkbox" checked={filters.unassigned} onChange={(e) => setF({ unassigned: e.target.checked })} />
               Unassigned only
             </label>
+            <div className="fd-field">
+              <label>Lead status</label>
+              <select value={filters.lead_status} onChange={(e) => setF({ lead_status: e.target.value })}>
+                <option value="">Any status</option>
+                <option value="New">New</option>
+                <option value="Working">Working</option>
+                <option value="Open">Open</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Unqualified">Unqualified</option>
+                <option value="Attempted to Contact">Attempted to Contact</option>
+                <option value="Connected">Connected</option>
+                <option value="Bad Timing">Bad Timing</option>
+              </select>
+            </div>
           </FilterSection>
 
           <FilterSection title="Lifecycle stage" activeCount={sectionCounts.lifecycle}>
@@ -633,6 +681,33 @@ export default function Companies() {
               <input type="checkbox" checked={filters.no_deals} onChange={(e) => setF({ no_deals: e.target.checked })} />
               No deals yet
             </label>
+            <div className="fd-field">
+              <label>Pipeline value ≥</label>
+              <input type="number" placeholder="Min $" value={filters.pipeline_min} onChange={(e) => setF({ pipeline_min: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Pipeline value ≤</label>
+              <input type="number" placeholder="Max $" value={filters.pipeline_max} onChange={(e) => setF({ pipeline_max: e.target.value })} />
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Contacts & Tasks" activeCount={sectionCounts.contactsAndTasks}>
+            <div className="fd-field">
+              <label>Contacts ≥</label>
+              <input type="number" placeholder="Min contacts" value={filters.contact_min} onChange={(e) => setF({ contact_min: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Contacts ≤</label>
+              <input type="number" placeholder="Max contacts" value={filters.contact_max} onChange={(e) => setF({ contact_max: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Open tasks ≥</label>
+              <input type="number" placeholder="Min open tasks" value={filters.task_min} onChange={(e) => setF({ task_min: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Open tasks ≤</label>
+              <input type="number" placeholder="Max open tasks" value={filters.task_max} onChange={(e) => setF({ task_max: e.target.value })} />
+            </div>
           </FilterSection>
 
           <FilterSection title="Activity" activeCount={sectionCounts.activity}>

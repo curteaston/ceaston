@@ -91,6 +91,34 @@ router.get('/', h(async (req, res) => {
   if (q.timezone) add('co.timezone = ?', q.timezone);
   if (q.revenue_min) add('co.annual_revenue >= ?', Number(q.revenue_min));
   if (q.revenue_max) add('co.annual_revenue <= ?', Number(q.revenue_max));
+  if (q.lead_status) add('co.lead_status = ?', q.lead_status);
+  if (q.has_phone === 'true') where.push(`(co.phone IS NOT NULL AND co.phone <> '')`);
+  if (q.description) add('co.description ILIKE ?', `%${q.description}%`);
+  if (q.domain) add('co.domain ILIKE ?', `%${q.domain}%`);
+  if (q.contact_min) {
+    values.push(toInt(q.contact_min));
+    where.push(`(SELECT count(*) FROM contacts WHERE company_id = co.id) >= $${values.length}`);
+  }
+  if (q.contact_max) {
+    values.push(toInt(q.contact_max));
+    where.push(`(SELECT count(*) FROM contacts WHERE company_id = co.id) <= $${values.length}`);
+  }
+  if (q.pipeline_min) {
+    values.push(Number(q.pipeline_min));
+    where.push(`(SELECT coalesce(sum(value),0) FROM deals WHERE company_id = co.id AND stage NOT IN ('won','lost')) >= $${values.length}`);
+  }
+  if (q.pipeline_max) {
+    values.push(Number(q.pipeline_max));
+    where.push(`(SELECT coalesce(sum(value),0) FROM deals WHERE company_id = co.id AND stage NOT IN ('won','lost')) <= $${values.length}`);
+  }
+  if (q.task_min) {
+    values.push(toInt(q.task_min));
+    where.push(`(SELECT count(*) FROM tasks WHERE company_id = co.id AND NOT completed) >= $${values.length}`);
+  }
+  if (q.task_max) {
+    values.push(toInt(q.task_max));
+    where.push(`(SELECT count(*) FROM tasks WHERE company_id = co.id AND NOT completed) <= $${values.length}`);
+  }
   if (q.tags) {
     const tagNames = q.tags.split(',').map((t) => t.trim()).filter(Boolean);
     if (tagNames.length) {

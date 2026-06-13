@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, qs } from '../api.js';
-import { useStore } from '../store.js';
+import { useStore, LIFECYCLE_LABELS } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import ContactDrawer from '../components/ContactDrawer.jsx';
 import { CompanySelect, Field, PhoneLink } from '../components/widgets.jsx';
@@ -25,6 +25,17 @@ const DEFAULT_VISIBLE = ['name', 'email', 'phone', 'owner', 'company', 'last_con
 
 const LEAD_STATUSES = ['New', 'Working', 'Open', 'Qualified', 'Unqualified', 'Attempted to Contact', 'Connected', 'Bad Timing'];
 
+const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern' },
+  { value: 'America/Chicago', label: 'Central' },
+  { value: 'America/Denver', label: 'Mountain' },
+  { value: 'America/Phoenix', label: 'Mountain (Arizona, no DST)' },
+  { value: 'America/Los_Angeles', label: 'Pacific' },
+  { value: 'America/Anchorage', label: 'Alaska' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii' },
+];
+
 const BLANK_FILTERS = {
   owner: '', unassigned: false,
   lead_statuses: [],
@@ -35,6 +46,21 @@ const BLANK_FILTERS = {
   last_contact_from: '', last_contact_to: '',
   created_from: '', created_to: '',
   tags: [],
+  email_contains: '',
+  phone_contains: '',
+  company_name: '',
+  company_industry: '',
+  company_type: '',
+  company_lifecycle_stage: '',
+  company_lead_status: '',
+  company_owner: '',
+  company_city: '',
+  company_state: '',
+  company_postal_code: '',
+  company_timezone: '',
+  company_ad_spend: '',
+  company_revenue_min: '', company_revenue_max: '',
+  company_employee_min: '', company_employee_max: '',
 };
 
 function CompanyTypeahead({ value, onChange }) {
@@ -222,6 +248,12 @@ export default function Contacts() {
     filters.inactive_days, filters.last_contact_from, filters.last_contact_to,
     filters.created_from, filters.created_to,
     filters.tags.length > 0,
+    filters.email_contains, filters.phone_contains,
+    filters.company_name, filters.company_industry, filters.company_type,
+    filters.company_lifecycle_stage, filters.company_lead_status, filters.company_owner,
+    filters.company_city, filters.company_state, filters.company_postal_code, filters.company_timezone,
+    filters.company_ad_spend, filters.company_revenue_min, filters.company_revenue_max,
+    filters.company_employee_min, filters.company_employee_max,
   ].filter(Boolean).length, [filters]);
 
   const params = useMemo(() => {
@@ -243,6 +275,23 @@ export default function Contacts() {
     if (filters.created_from) p.created_after = filters.created_from;
     if (filters.created_to) p.created_before = filters.created_to;
     if (filters.tags && filters.tags.length) p.tags = filters.tags.join(',');
+    if (filters.email_contains.trim()) p.email_contains = filters.email_contains.trim();
+    if (filters.phone_contains.trim()) p.phone_contains = filters.phone_contains.trim();
+    if (filters.company_name.trim()) p.company_name = filters.company_name.trim();
+    if (filters.company_industry.trim()) p.company_industry = filters.company_industry.trim();
+    if (filters.company_type) p.company_type = filters.company_type;
+    if (filters.company_lifecycle_stage) p.company_lifecycle_stage = filters.company_lifecycle_stage;
+    if (filters.company_lead_status) p.company_lead_status = filters.company_lead_status;
+    if (filters.company_owner.trim()) p.company_owner = filters.company_owner.trim();
+    if (filters.company_city.trim()) p.company_city = filters.company_city.trim();
+    if (filters.company_state.trim()) p.company_state = filters.company_state.trim();
+    if (filters.company_postal_code.trim()) p.company_postal_code = filters.company_postal_code.trim();
+    if (filters.company_timezone) p.company_timezone = filters.company_timezone;
+    if (filters.company_ad_spend) p.company_ad_spend = filters.company_ad_spend;
+    if (filters.company_revenue_min) p.company_revenue_min = filters.company_revenue_min;
+    if (filters.company_revenue_max) p.company_revenue_max = filters.company_revenue_max;
+    if (filters.company_employee_min) p.company_employee_min = filters.company_employee_min;
+    if (filters.company_employee_max) p.company_employee_max = filters.company_employee_max;
     return p;
   }, [tab, search, filters, sort, page, perPage, me]);
 
@@ -398,12 +447,19 @@ export default function Contacts() {
 
   // Per-section active counts
   const sectionCounts = {
-    details: [filters.source, filters.title, filters.has_email, filters.has_phone].filter(Boolean).length,
+    details: [filters.source, filters.title, filters.has_email, filters.has_phone, filters.email_contains, filters.phone_contains].filter(Boolean).length,
     ownership: [filters.owner, filters.unassigned].filter(Boolean).length,
     leadStatus: filters.lead_statuses.length > 0 ? 1 : 0,
     activity: [filters.never_contacted, filters.inactive_days, filters.last_contact_from, filters.last_contact_to].filter(Boolean).length,
     createDate: [filters.created_from, filters.created_to].filter(Boolean).length,
     tags: filters.tags.length > 0 ? 1 : 0,
+    company: [
+      filters.company_name, filters.company_industry, filters.company_type,
+      filters.company_lifecycle_stage, filters.company_lead_status, filters.company_owner,
+      filters.company_city, filters.company_state, filters.company_postal_code, filters.company_timezone,
+      filters.company_ad_spend, filters.company_revenue_min, filters.company_revenue_max,
+      filters.company_employee_min, filters.company_employee_max,
+    ].filter(Boolean).length,
   };
 
   return (
@@ -561,10 +617,18 @@ export default function Contacts() {
               <label>Source</label>
               <input value={filters.source} onChange={(e) => setF({ source: e.target.value })} placeholder="e.g. Website" />
             </div>
+            <div className="fd-field">
+              <label>Email contains</label>
+              <input value={filters.email_contains} onChange={(e) => setF({ email_contains: e.target.value })} placeholder="e.g. @gmail.com" />
+            </div>
             <label className="fd-checkbox">
               <input type="checkbox" checked={filters.has_email} onChange={(e) => setF({ has_email: e.target.checked })} />
               Has email
             </label>
+            <div className="fd-field">
+              <label>Phone contains</label>
+              <input value={filters.phone_contains} onChange={(e) => setF({ phone_contains: e.target.value })} placeholder="e.g. 404" />
+            </div>
             <label className="fd-checkbox">
               <input type="checkbox" checked={filters.has_phone} onChange={(e) => setF({ has_phone: e.target.checked })} />
               Has phone
@@ -583,6 +647,89 @@ export default function Contacts() {
               <input type="checkbox" checked={filters.unassigned} onChange={(e) => setF({ unassigned: e.target.checked })} />
               Unassigned only
             </label>
+          </FilterSection>
+
+          <FilterSection title="Company" activeCount={sectionCounts.company}>
+            <div className="fd-field">
+              <label>Company name contains</label>
+              <input value={filters.company_name} onChange={(e) => setF({ company_name: e.target.value })} placeholder="e.g. Acme HVAC" />
+            </div>
+            <div className="fd-field">
+              <label>Industry</label>
+              <input value={filters.company_industry} onChange={(e) => setF({ company_industry: e.target.value })} placeholder="e.g. HVAC" />
+            </div>
+            <div className="fd-field">
+              <label>Type</label>
+              <select value={filters.company_type} onChange={(e) => setF({ company_type: e.target.value })}>
+                <option value="">Any type</option>
+                {COMPANY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Lifecycle stage</label>
+              <select value={filters.company_lifecycle_stage} onChange={(e) => setF({ company_lifecycle_stage: e.target.value })}>
+                <option value="">Any stage</option>
+                {meta.lifecycle_stages.map((s) => <option key={s} value={s}>{LIFECYCLE_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Lead status</label>
+              <select value={filters.company_lead_status} onChange={(e) => setF({ company_lead_status: e.target.value })}>
+                <option value="">Any status</option>
+                <option value="New">New</option>
+                <option value="Working">Working</option>
+                <option value="Open">Open</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Unqualified">Unqualified</option>
+                <option value="Attempted to Contact">Attempted to Contact</option>
+                <option value="Connected">Connected</option>
+                <option value="Bad Timing">Bad Timing</option>
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Owner</label>
+              <input value={filters.company_owner} onChange={(e) => setF({ company_owner: e.target.value })} placeholder="e.g. Curt" />
+            </div>
+            <div className="fd-field">
+              <label>City</label>
+              <input value={filters.company_city} onChange={(e) => setF({ company_city: e.target.value })} placeholder="e.g. Atlanta" />
+            </div>
+            <div className="fd-field">
+              <label>State</label>
+              <input value={filters.company_state} onChange={(e) => setF({ company_state: e.target.value })} placeholder="e.g. GA" />
+            </div>
+            <div className="fd-field">
+              <label>Postal code</label>
+              <input value={filters.company_postal_code} onChange={(e) => setF({ company_postal_code: e.target.value })} placeholder="e.g. 30301" />
+            </div>
+            <div className="fd-field">
+              <label>Timezone</label>
+              <select value={filters.company_timezone} onChange={(e) => setF({ company_timezone: e.target.value })}>
+                <option value="">Any timezone</option>
+                {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Google ad spend</label>
+              <select value={filters.company_ad_spend} onChange={(e) => setF({ company_ad_spend: e.target.value })}>
+                <option value="">Any spend</option>
+                {meta.ad_spend_ranges.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Annual revenue</label>
+              <div className="fd-range">
+                <input type="number" placeholder="Min" value={filters.company_revenue_min} onChange={(e) => setF({ company_revenue_min: e.target.value })} />
+                <input type="number" placeholder="Max" value={filters.company_revenue_max} onChange={(e) => setF({ company_revenue_max: e.target.value })} />
+              </div>
+            </div>
+            <div className="fd-field">
+              <label>Employees</label>
+              <div className="fd-range">
+                <input type="number" placeholder="Min" value={filters.company_employee_min} onChange={(e) => setF({ company_employee_min: e.target.value })} />
+                <input type="number" placeholder="Max" value={filters.company_employee_max} onChange={(e) => setF({ company_employee_max: e.target.value })} />
+              </div>
+            </div>
           </FilterSection>
 
           <FilterSection title="Lead status" activeCount={sectionCounts.leadStatus}>

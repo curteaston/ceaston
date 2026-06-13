@@ -69,6 +69,23 @@ router.get('/', h(async (req, res) => {
     values.push(toInt(q.inactive_days));
     where.push(`(ct.last_contacted_at IS NULL OR ct.last_contacted_at < now() - ($${values.length} || ' days')::interval)`);
   }
+  if (q.email_contains) add('ct.email ILIKE ?', `%${q.email_contains}%`);
+  if (q.phone_contains) add('ct.phone ILIKE ?', `%${q.phone_contains}%`);
+  if (q.company_name) add('co.name ILIKE ?', `%${q.company_name}%`);
+  if (q.company_industry) add('co.industry ILIKE ?', `%${q.company_industry}%`);
+  if (q.company_type) add('co.type = ?', q.company_type);
+  if (q.company_lifecycle_stage) add('co.lifecycle_stage = ?', q.company_lifecycle_stage);
+  if (q.company_lead_status) add('co.lead_status = ?', q.company_lead_status);
+  if (q.company_owner) add('lower(co.owner) = lower(?)', q.company_owner);
+  if (q.company_city) add('co.city ILIKE ?', `%${q.company_city}%`);
+  if (q.company_state) add('co.state ILIKE ?', `%${q.company_state}%`);
+  if (q.company_postal_code) add('co.postal_code ILIKE ?', `%${q.company_postal_code}%`);
+  if (q.company_timezone) add('co.timezone = ?', q.company_timezone);
+  if (q.company_ad_spend) add('co.ad_spend_range = ?', q.company_ad_spend);
+  if (q.company_revenue_min) add('co.annual_revenue >= ?', Number(q.company_revenue_min));
+  if (q.company_revenue_max) add('co.annual_revenue <= ?', Number(q.company_revenue_max));
+  if (q.company_employee_min) add('co.employee_count >= ?', toInt(q.company_employee_min));
+  if (q.company_employee_max) add('co.employee_count <= ?', toInt(q.company_employee_max));
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const sortable = {
