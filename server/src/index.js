@@ -16,6 +16,7 @@ import importer from './routes/importer.js';
 import home from './routes/home.js';
 import ai from './routes/ai.js';
 import microsoft from './routes/microsoft.js';
+import sequences, { processDueSteps } from './routes/sequences.js';
 
 const app = express();
 app.use(cors());
@@ -74,6 +75,7 @@ app.use('/api/import', importer);
 app.use('/api/home', home);
 app.use('/api', ai);
 app.use('/api', microsoft);
+app.use('/api/sequences', sequences);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown API route' }));
 
@@ -92,4 +94,19 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001;
 await initDb();
-app.listen(PORT, () => console.log(`HVAC CRM API listening on :${PORT}`));
+
+// Sequence scheduler: send due auto-emails and advance enrollments every 5 minutes.
+let schedulerRunning = false;
+const tick = async () => {
+  if (schedulerRunning) return;
+  schedulerRunning = true;
+  try { await processDueSteps(); }
+  catch (e) { console.error('sequence scheduler:', e.message); }
+  finally { schedulerRunning = false; }
+};
+setInterval(tick, 5 * 60 * 1000);
+
+app.listen(PORT, () => {
+  console.log(`HVAC CRM API listening on :${PORT}`);
+  tick();
+});

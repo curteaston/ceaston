@@ -28,6 +28,13 @@ running concurrent outbound cadences.
   manage deals and tasks, search by name/domain.
 - **Bulk import** — paste or upload a CSV to seed prospect lists; companies are
   matched by domain and updated, never duplicated, so re-importing is safe.
+- **Outbound sequences (cadences)** — build multi-step plays where each step is
+  either a **manual task** (the CRM creates a dated task in your queue) or an
+  **auto-email** that sends on its due date. Enroll a company + contact; the
+  scheduler advances enrollments, sends due emails (with `{{first_name}}` /
+  `{{company}}` merge fields), reconciles completed tasks, and finishes or flags
+  enrollments. Auto-emails send through a **separate sending domain** configured in
+  Settings — never your primary Office 365 mailbox.
 
 ## Quick start (Docker)
 
@@ -145,6 +152,25 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | `POST` | `/api/companies/:id/summary` | AI lead summary (Claude when `ANTHROPIC_API_KEY` set, rule-based otherwise)                    |
 | `POST` | `/api/email/send` | Send via connected Office 365 mailbox and log an email activity                                           |
 | `GET`  | `/api/calendar/today` | Today's Office 365 calendar events (`{connected:false}` when not connected)                          |
+
+### Sequences
+
+| Method   | Path                                          | Notes                                                                                  |
+| -------- | --------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `GET`    | `/api/sequences`                              | List sequences with step + active-enrollment counts                                    |
+| `POST`   | `/api/sequences`                              | `{ name*, description, steps: [{ day_offset, kind: 'task'\|'auto_email', … }] }`        |
+| `GET`/`PUT`/`DELETE` | `/api/sequences/:id`              | Fetch / replace (incl. steps) / delete                                                 |
+| `POST`   | `/api/sequences/:id/enroll`                   | `{ company_id*, contact_id, owner }` — generates dated tasks + email runs              |
+| `GET`    | `/api/sequences/enrollments/list?company_id=` | Enrollments with per-step progress                                                      |
+| `POST`   | `/api/sequences/enrollments/:id/unenroll`     | Cancel remaining steps and delete open tasks                                            |
+| `POST`   | `/api/sequences/enrollments/:id/retry`        | Re-send failed auto-email steps                                                         |
+| `POST`   | `/api/sequences/run`                          | Manually trigger the scheduler (auto-runs every 5 min; handy for n8n)                  |
+| `GET`/`PUT` | `/api/sequences/smtp`                       | Read / set the separate sending-domain SMTP config (`POST /smtp/test` to verify)       |
+
+Step kinds: `task` (creates a dated task — `task_type`, `description`, `priority`) or
+`auto_email` (`subject`, `body` with `{{first_name}}`, `{{last_name}}`, `{{name}}`,
+`{{title}}`, `{{company}}`, `{{domain}}` merge fields). `day_offset` is days after
+enrollment. The auto-email scheduler runs in-process every 5 minutes.
 | `POST` | `/api/import`     | `{ companies: [{ name*, domain, …, contacts: [{ name*, … }] }] }` — transactional upsert, max 2000/call   |
 | `GET`  | `/api/dashboard`  | All dashboard metrics in one call                                                                         |
 | `GET`  | `/api/meta`       | Valid stages / ad-spend ranges / priorities                                                               |

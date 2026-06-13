@@ -13,7 +13,7 @@ const TL_ICONS = {
 };
 
 // ---- Preview side panel ----
-export function PreviewPanel({ company, onClose, onChanged, onEmail, onNote, onSummary }) {
+export function PreviewPanel({ company, onClose, onChanged, onEmail, onNote, onSummary, onSequence }) {
   const { meta, run } = useStore();
   const [full, setFull] = useState(null);
 
@@ -48,6 +48,7 @@ export function PreviewPanel({ company, onClose, onChanged, onEmail, onNote, onS
         <button onClick={onNote}><span>📝</span>Note</button>
         <button onClick={onEmail}><span>✉️</span>Email</button>
         <button onClick={onSummary}><span>✨</span>Summary</button>
+        <button onClick={onSequence}><span>🔁</span>Sequence</button>
         <Link to={`/companies/${c.id}`} className="record-link"><span>📂</span>Record</Link>
       </div>
 

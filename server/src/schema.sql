@@ -24,6 +24,57 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Outbound sequences (cadences): ordered steps that are either manual tasks
+-- or auto-sent emails (sent from a separate sending domain, never the primary mailbox).
+CREATE TABLE IF NOT EXISTS sequences (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sequence_steps (
+  id          SERIAL PRIMARY KEY,
+  sequence_id INTEGER NOT NULL REFERENCES sequences(id) ON DELETE CASCADE,
+  step_order  INTEGER NOT NULL,
+  day_offset  INTEGER NOT NULL DEFAULT 0,
+  kind        TEXT NOT NULL DEFAULT 'task' CHECK (kind IN ('task','auto_email')),
+  task_type   TEXT,                      -- call/email/linkedin/general (kind=task)
+  description TEXT,                       -- task title (kind=task)
+  priority    TEXT DEFAULT 'medium',
+  subject     TEXT,                       -- (kind=auto_email)
+  body        TEXT                        -- (kind=auto_email)
+);
+CREATE INDEX IF NOT EXISTS sequence_steps_seq_idx ON sequence_steps (sequence_id, step_order);
+
+CREATE TABLE IF NOT EXISTS sequence_enrollments (
+  id          SERIAL PRIMARY KEY,
+  sequence_id INTEGER NOT NULL REFERENCES sequences(id) ON DELETE CASCADE,
+  company_id  INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  contact_id  INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+  owner       TEXT,
+  status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','finished','unenrolled')),
+  enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  finished_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS seq_enroll_company_idx ON sequence_enrollments (company_id);
+CREATE INDEX IF NOT EXISTS seq_enroll_status_idx ON sequence_enrollments (status);
+
+CREATE TABLE IF NOT EXISTS sequence_step_runs (
+  id            SERIAL PRIMARY KEY,
+  enrollment_id INTEGER NOT NULL REFERENCES sequence_enrollments(id) ON DELETE CASCADE,
+  step_id       INTEGER NOT NULL REFERENCES sequence_steps(id) ON DELETE CASCADE,
+  kind          TEXT NOT NULL,
+  due_date      DATE NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','done','skipped','sent','failed')),
+  task_id       INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+  sent_at       TIMESTAMPTZ,
+  error         TEXT
+);
+CREATE INDEX IF NOT EXISTS seq_run_due_idx ON sequence_step_runs (due_date) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS seq_run_enroll_idx ON sequence_step_runs (enrollment_id);
+
 CREATE TABLE IF NOT EXISTS contacts (
   id                SERIAL PRIMARY KEY,
   company_id        INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,

@@ -8,6 +8,7 @@ import Companies from './pages/Companies.jsx';
 import Contacts from './pages/Contacts.jsx';
 import CompanyDetail from './pages/CompanyDetail.jsx';
 import Pipeline from './pages/Pipeline.jsx';
+import Sequences from './pages/Sequences.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Import from './pages/Import.jsx';
 import Settings from './pages/Settings.jsx';
@@ -83,6 +84,7 @@ export default function App() {
           <NavLink to="/companies">🏢 Companies</NavLink>
           <NavLink to="/contacts">👤 Contacts</NavLink>
           <NavLink to="/pipeline">🧭 Pipeline</NavLink>
+          <NavLink to="/sequences">🔁 Sequences</NavLink>
           <NavLink to="/tasks">✅ Tasks</NavLink>
           <NavLink to="/import">📥 Import</NavLink>
           <NavLink to="/settings">⚙️ Settings</NavLink>
@@ -100,6 +102,7 @@ export default function App() {
             <Route path="/companies/:id" element={<CompanyDetail />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/pipeline" element={<Pipeline />} />
+            <Route path="/sequences" element={<Sequences />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/import" element={<Import />} />
             <Route path="/settings" element={<Settings />} />

@@ -6,6 +6,7 @@ import Modal from '../components/Modal.jsx';
 import Timeline from '../components/Timeline.jsx';
 import VoiceNoteInput from '../components/VoiceNoteInput.jsx';
 import ContactDrawer, { ContactForm } from '../components/ContactDrawer.jsx';
+import CompanySequences from '../components/CompanySequences.jsx';
 import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx';
 import { CompanyForm } from './Companies.jsx';
 import { fmtDate, fmtMoney, relTime } from '../format.js';
@@ -213,6 +214,8 @@ export default function CompanyDetail() {
               />
             ))}
           </div>
+
+          <CompanySequences company={company} />
         </div>
       </div>
 

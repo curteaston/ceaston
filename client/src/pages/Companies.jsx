@@ -5,6 +5,7 @@ import { useStore, LIFECYCLE_LABELS } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import CompanyBoard from '../components/CompanyBoard.jsx';
 import { PreviewPanel, SummaryPanel, EmailComposer, NoteComposer } from '../components/CompanyActions.jsx';
+import EnrollModal from '../components/EnrollModal.jsx';
 import { Field, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 
@@ -97,6 +98,7 @@ export default function Companies() {
   const [showAdd, setShowAdd] = useState(false);
   const [panel, setPanel] = useState(null);   // { type: 'preview' | 'summary', company }
   const [composer, setComposer] = useState(null); // { type: 'email' | 'note', company }
+  const [enroll, setEnroll] = useState(null); // company being enrolled
   const searchTimer = useRef(null);
   const colPanelRef = useRef(null);
 
@@ -189,6 +191,7 @@ export default function Companies() {
 
   const onCardAction = (type, company) => {
     if (type === 'email' || type === 'note') setComposer({ type, company });
+    else if (type === 'sequence') setEnroll(company);
     else setPanel({ type, company });
   };
 
@@ -389,8 +392,10 @@ export default function Companies() {
           onEmail={() => setComposer({ type: 'email', company: panel.company })}
           onNote={() => setComposer({ type: 'note', company: panel.company })}
           onSummary={() => setPanel({ type: 'summary', company: panel.company })}
+          onSequence={() => setEnroll(panel.company)}
         />
       )}
+      {enroll && <EnrollModal company={enroll} onClose={() => setEnroll(null)} onEnrolled={refreshAll} />}
       {panel?.type === 'summary' && (
         <SummaryPanel company={panel.company} onClose={() => setPanel(null)} />
       )}
