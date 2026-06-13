@@ -468,6 +468,39 @@ pre {
   padding: 10px; font-size: 12px; overflow-x: auto;
 }
 
+/* Tasks page (HubSpot-style) */
+.task-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; }
+.task-tab {
+  font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 10px 16px; color: var(--muted); display: flex; align-items: center; gap: 6px;
+}
+.task-tab:hover { color: var(--text); }
+.task-tab.on { color: var(--primary); border-bottom-color: var(--primary); }
+.task-tab-count {
+  font-size: 11px; background: #eef2f7; color: var(--muted);
+  border-radius: 10px; padding: 1px 7px; font-weight: 600;
+}
+.task-tab.on .task-tab-count { background: #e0ecff; color: var(--primary); }
+.task-filter-bar { align-items: center; }
+.assigned-pill { font-weight: 600; }
+.task-search-row { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.task-search { width: 320px; max-width: 100%; border-radius: 20px; }
+.struck { text-decoration: line-through; color: var(--muted); }
+.task-done-row { opacity: 0.7; }
+.task-empty {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; padding: 50px 40px;
+}
+.task-empty h2 { font-size: 22px; margin: 0 0 6px; }
+.task-empty-art { font-size: 64px; opacity: 0.5; filter: grayscale(0.3); }
+
+/* Focus mode */
+.focus-progress { height: 6px; background: #eef2f7; border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+.focus-bar { height: 100%; background: var(--primary); transition: width 0.25s; }
+.focus-desc { font-size: 20px; margin: 0; }
+.focus-actions { margin-top: 20px; }
+
 /* Import field mapping */
 .map-group { margin-bottom: 16px; }
 .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; }
