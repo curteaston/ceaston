@@ -6,17 +6,20 @@ import { useStore, LIFECYCLE_LABELS } from '../store.js';
 // CRM target fields the importer can fill. `group` drives the section headings.
 const TARGET_FIELDS = [
   { key: 'name', label: 'Company name', group: 'Company', required: true, aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
-  { key: 'domain', label: 'Domain', group: 'Company', aliases: ['domain', 'website domain', 'url', 'site'] },
   { key: 'website', label: 'Website', group: 'Company', aliases: ['website', 'web', 'site', 'homepage', 'url'] },
   { key: 'industry', label: 'Industry', group: 'Company', aliases: ['industry', 'vertical', 'sector', 'category'] },
   { key: 'employee_count', label: 'Employee count', group: 'Company', type: 'number', aliases: ['employees', 'employee count', 'headcount', 'size', 'staff', 'num employees'] },
   { key: 'ad_spend_range', label: 'Monthly ad spend', group: 'Company', aliases: ['ad spend', 'ad spend range', 'monthly ad spend', 'spend', 'budget', 'ad budget'] },
-  { key: 'owner', label: 'Company owner', group: 'Company', aliases: ['owner', 'company owner', 'rep', 'sales rep', 'assigned to', 'account owner'] },
   { key: 'lifecycle_stage', label: 'Lifecycle stage', group: 'Company', aliases: ['lifecycle', 'lifecycle stage', 'stage', 'status'] },
-  { key: 'contact_name', label: 'Contact name', group: 'Contact', aliases: ['contact', 'contact name', 'full name', 'person', 'name', 'first name'] },
+  { key: 'company_phone', label: 'Company phone', group: 'Company', aliases: ['company phone', 'main phone', 'office phone', 'main line', 'company telephone'] },
+  { key: 'contact_first_name', label: 'First name', group: 'Contact', aliases: ['first name', 'firstname', 'first', 'given name', 'contact first name', 'name'] },
+  { key: 'contact_last_name', label: 'Last name', group: 'Contact', aliases: ['last name', 'lastname', 'last', 'surname', 'family name', 'contact last name'] },
   { key: 'contact_title', label: 'Contact title', group: 'Contact', aliases: ['title', 'contact title', 'job title', 'role', 'position'] },
-  { key: 'contact_email', label: 'Contact email', group: 'Contact', aliases: ['email', 'contact email', 'e-mail', 'email address'] },
-  { key: 'contact_phone', label: 'Contact phone', group: 'Contact', aliases: ['phone', 'contact phone', 'telephone', 'mobile', 'cell', 'phone number'] },
+  { key: 'contact_email', label: 'Primary email', group: 'Contact', aliases: ['email', 'contact email', 'e-mail', 'email address', 'primary email'] },
+  { key: 'contact_email_2', label: 'Secondary email', group: 'Contact', aliases: ['email 2', 'secondary email', 'email2', 'alternate email', 'other email'] },
+  { key: 'contact_phone_direct', label: 'Direct phone', group: 'Contact', aliases: ['direct phone', 'work phone', 'work direct phone', 'direct', 'phone', 'telephone', 'work direct', 'direct number'] },
+  { key: 'contact_phone_cell', label: 'Cell phone', group: 'Contact', aliases: ['cell', 'cell phone', 'mobile', 'mobile phone', 'cellphone', 'cell number'] },
+  { key: 'contact_phone_other', label: 'Other phone', group: 'Contact', aliases: ['other phone', 'other', 'alternate phone', 'home phone', 'fax'] },
   { key: 'contact_source', label: 'Contact source', group: 'Contact', aliases: ['source', 'contact source', 'lead source', 'origin'] },
 ];
 
@@ -77,7 +80,7 @@ function gridToTable(grid) {
   return { headers, rows };
 }
 
-// Group consecutive rows by company key (domain, else name) into the import payload.
+// Group consecutive rows by company name into the import payload.
 function buildCompanies(rows, mapping) {
   const col = (row, key) => (mapping[key] ? row[mapping[key]] || '' : '').trim();
   const byKey = new Map();
@@ -85,28 +88,34 @@ function buildCompanies(rows, mapping) {
   for (const row of rows) {
     const name = col(row, 'name');
     if (!name) { skipped++; continue; }
-    const key = (col(row, 'domain') || name).toLowerCase();
+    const key = name.toLowerCase();
     if (!byKey.has(key)) {
       const empRaw = col(row, 'employee_count').replace(/[^\d]/g, '');
       byKey.set(key, {
         name,
-        domain: col(row, 'domain') || undefined,
         website: col(row, 'website') || undefined,
         industry: col(row, 'industry') || undefined,
         employee_count: empRaw ? Number(empRaw) : undefined,
         ad_spend_range: col(row, 'ad_spend_range') || undefined,
-        owner: col(row, 'owner') || undefined,
         lifecycle_stage: normLifecycle(col(row, 'lifecycle_stage')),
+        phone: col(row, 'company_phone') || undefined,
         contacts: [],
       });
     }
-    const contactName = col(row, 'contact_name');
+    const firstName = col(row, 'contact_first_name');
+    const lastName = col(row, 'contact_last_name');
+    const contactName = firstName && lastName ? firstName + ' ' + lastName : firstName || lastName;
     if (contactName) {
       byKey.get(key).contacts.push({
         name: contactName,
+        first_name: firstName || undefined,
+        last_name: lastName || undefined,
         title: col(row, 'contact_title') || undefined,
         email: col(row, 'contact_email') || undefined,
-        phone: col(row, 'contact_phone') || undefined,
+        email_2: col(row, 'contact_email_2') || undefined,
+        phone_direct: col(row, 'contact_phone_direct') || undefined,
+        phone_cell: col(row, 'contact_phone_cell') || undefined,
+        phone_other: col(row, 'contact_phone_other') || undefined,
         source: col(row, 'contact_source') || undefined,
       });
     }
@@ -206,7 +215,7 @@ export default function Import() {
             column names your spreadsheet already has. On the next step you'll map your columns to CRM fields.
           </p>
           <p className="muted small">
-            Companies are matched by <b>domain</b> (then name) and updated rather than duplicated, so re-importing
+            Companies are matched by <b>name</b> and updated rather than duplicated, so re-importing
             an enriched list is safe. Repeat a company across rows to attach multiple contacts.
           </p>
           <div className="row gap pad-top">
@@ -284,19 +293,20 @@ export default function Import() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Company</th><th>Domain</th><th>Industry</th><th>Employees</th>
-                      <th>Ad spend</th><th>Lifecycle</th><th>Contacts</th>
+                      <th>Company</th><th>Website</th><th>Industry</th><th>Employees</th>
+                      <th>Ad spend</th><th>Lifecycle</th><th>Phone</th><th>Contacts</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.companies.slice(0, 50).map((c, i) => (
                       <tr key={i}>
                         <td><b>{c.name}</b></td>
-                        <td>{c.domain || '—'}</td>
+                        <td>{c.website || '—'}</td>
                         <td>{c.industry || '—'}</td>
                         <td>{c.employee_count ?? '—'}</td>
                         <td>{c.ad_spend_range || '—'}</td>
                         <td>{c.lifecycle_stage ? LIFECYCLE_LABELS[c.lifecycle_stage] : '—'}</td>
+                        <td>{c.phone || '—'}</td>
                         <td className="small">{c.contacts.map((ct) => ct.name).join(', ') || '—'}</td>
                       </tr>
                     ))}

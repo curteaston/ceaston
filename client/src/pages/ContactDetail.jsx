@@ -28,8 +28,12 @@ function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
       <Field label="First name"><input value={form.first_name || ''} onChange={upd('first_name')} /></Field>
       <Field label="Last name"><input value={form.last_name || ''} onChange={upd('last_name')} /></Field>
       <Field label="Title"><input value={form.title || ''} onChange={upd('title')} /></Field>
-      <Field label="Email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
-      <Field label="Phone"><input value={form.phone || ''} onChange={upd('phone')} /></Field>
+      <Field label="Primary email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
+      <Field label="Secondary email"><input type="email" value={form.email_2 || ''} onChange={upd('email_2')} /></Field>
+      <Field label="Direct phone"><input value={form.phone_direct || ''} onChange={upd('phone_direct')} /></Field>
+      <Field label="Cell phone"><input value={form.phone_cell || ''} onChange={upd('phone_cell')} /></Field>
+      <Field label="Other phone"><input value={form.phone_other || ''} onChange={upd('phone_other')} /></Field>
+      <Field label="Phone (legacy)"><input value={form.phone || ''} onChange={upd('phone')} /></Field>
       <Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="cold list, referral, LinkedIn…" /></Field>
       <Field label="Owner"><input value={form.owner || ''} onChange={upd('owner')} /></Field>
       <Field label="Lead status">
@@ -166,14 +170,48 @@ export default function ContactDetail() {
                     : <span className="muted">--</span>}
                 </span>
               </div>
-              <div className="key-info-row">
-                <span className="key-info-label">Phone</span>
-                <span className="key-info-value">
-                  {contact.phone
-                    ? <PhoneLink phone={fmtPhone(contact.phone) || contact.phone} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
-                    : <span className="muted">--</span>}
-                </span>
-              </div>
+              {contact.email_2 && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Email 2</span>
+                  <span className="key-info-value">
+                    <a href={`mailto:${contact.email_2}`} style={{ fontSize: 'inherit' }}>✉️ {contact.email_2}</a>
+                  </span>
+                </div>
+              )}
+              {contact.phone_direct && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Direct</span>
+                  <span className="key-info-value">
+                    <PhoneLink phone={fmtPhone(contact.phone_direct) || contact.phone_direct} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
+                  </span>
+                </div>
+              )}
+              {contact.phone_cell && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Cell</span>
+                  <span className="key-info-value">
+                    <PhoneLink phone={fmtPhone(contact.phone_cell) || contact.phone_cell} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
+                  </span>
+                </div>
+              )}
+              {contact.phone_other && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Other</span>
+                  <span className="key-info-value">
+                    <PhoneLink phone={fmtPhone(contact.phone_other) || contact.phone_other} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
+                  </span>
+                </div>
+              )}
+              {!contact.phone_direct && !contact.phone_cell && !contact.phone_other && (
+                <div className="key-info-row">
+                  <span className="key-info-label">Phone</span>
+                  <span className="key-info-value">
+                    {contact.phone
+                      ? <PhoneLink phone={fmtPhone(contact.phone) || contact.phone} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
+                      : <span className="muted">--</span>}
+                  </span>
+                </div>
+              )}
               <div className="key-info-row">
                 <span className="key-info-label">Lead Status</span>
                 <span className="key-info-value">{contact.lead_status || <span className="muted">--</span>}</span>

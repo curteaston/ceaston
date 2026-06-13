@@ -5,7 +5,7 @@ import { emit } from '../events.js';
 
 const router = Router();
 
-const CONTACT_FIELDS = ['company_id', 'name', 'title', 'email', 'phone', 'source', 'last_contacted_at', 'owner', 'lead_status'];
+const CONTACT_FIELDS = ['company_id', 'name', 'first_name', 'last_name', 'title', 'email', 'email_2', 'phone', 'phone_cell', 'phone_direct', 'phone_other', 'source', 'last_contacted_at', 'owner', 'lead_status'];
 
 function validateLeadStatus(status) {
   if (status && !LEAD_STATUSES.includes(status)) {

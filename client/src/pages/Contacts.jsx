@@ -414,8 +414,10 @@ export default function Contacts() {
         );
       case 'email':
         return c.email ? <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()}>{c.email}</a> : '--';
-      case 'phone':
-        return <PhoneLink phone={c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} />;
+      case 'phone': {
+        const ph = c.phone_direct || c.phone_cell || c.phone;
+        return ph ? <PhoneLink phone={ph} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
+      }
       case 'title': return c.title || '--';
       case 'owner': return c.owner || <span className="muted">No owner</span>;
       case 'company':

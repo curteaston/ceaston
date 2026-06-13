@@ -55,10 +55,15 @@ export function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   return (
     <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit(form); }}>
+      <Field label="First name"><input value={form.first_name || ''} onChange={upd('first_name')} /></Field>
+      <Field label="Last name"><input value={form.last_name || ''} onChange={upd('last_name')} /></Field>
       <Field label="Name *"><input required value={form.name} onChange={upd('name')} /></Field>
       <Field label="Title"><input value={form.title || ''} onChange={upd('title')} /></Field>
-      <Field label="Email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
-      <Field label="Phone"><input value={form.phone || ''} onChange={upd('phone')} /></Field>
+      <Field label="Primary email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
+      <Field label="Secondary email"><input type="email" value={form.email_2 || ''} onChange={upd('email_2')} /></Field>
+      <Field label="Direct phone"><input value={form.phone_direct || ''} onChange={upd('phone_direct')} /></Field>
+      <Field label="Cell phone"><input value={form.phone_cell || ''} onChange={upd('phone_cell')} /></Field>
+      <Field label="Other phone"><input value={form.phone_other || ''} onChange={upd('phone_other')} /></Field>
       <Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="cold list, referral, LinkedIn…" /></Field>
       <Field label="Owner"><input value={form.owner || ''} onChange={upd('owner')} placeholder="me" /></Field>
       <Field label="Lead status">
@@ -124,7 +129,11 @@ export default function ContactDrawer({ contact, onClose }) {
           <div>
             <div className="muted">{contact.title || 'No title'}</div>
             {contact.email && <div><a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
-            {contact.phone && <div><PhoneLink phone={contact.phone} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}
+            {contact.email_2 && <div><a href={`mailto:${contact.email_2}`}>{contact.email_2}</a></div>}
+            {contact.phone_direct && <div><span className="muted small">Direct: </span><PhoneLink phone={contact.phone_direct} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}
+            {contact.phone_cell && <div><span className="muted small">Cell: </span><PhoneLink phone={contact.phone_cell} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}
+            {contact.phone_other && <div><span className="muted small">Other: </span><PhoneLink phone={contact.phone_other} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}
+            {!contact.phone_direct && !contact.phone_cell && !contact.phone_other && contact.phone && <div><PhoneLink phone={contact.phone} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}
             <div className="muted small">
               Source: {contact.source || '—'} · Owner: {contact.owner || 'unassigned'} ·
               Status: {contact.lead_status || 'new'} · Last contacted: {relTime(contact.last_contacted_at)}
