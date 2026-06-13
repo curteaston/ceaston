@@ -75,8 +75,14 @@ const ALL_COLUMNS = [
   { key: 'last_activity_at', label: 'Last Activity Date', sort: 'last_activity_at' },
   { key: 'lifecycle_stage', label: 'Lifecycle Stage', sort: 'lifecycle_stage' },
   { key: 'industry', label: 'Industry' },
+  { key: 'type', label: 'Type' },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'postal_code', label: 'Postal Code' },
   { key: 'employee_count', label: 'Employees', sort: 'employee_count' },
-  { key: 'ad_spend_range', label: 'Ad Spend/mo' },
+  { key: 'annual_revenue', label: 'Annual Revenue' },
+  { key: 'ad_spend_range', label: 'Google Ad Spend' },
+  { key: 'timezone', label: 'Time Zone' },
   { key: 'contact_count', label: 'Contacts' },
   { key: 'open_deal_value', label: 'Open Pipeline' },
   { key: 'latest_deal_stage', label: 'Deal Stage' },
@@ -330,8 +336,14 @@ export default function Companies() {
       case 'last_activity_at': return c.last_activity_at ? fmtDateTime(c.last_activity_at) : '--';
       case 'lifecycle_stage': return <span className="chip lifecycle">{LIFECYCLE_LABELS[c.lifecycle_stage] || c.lifecycle_stage}</span>;
       case 'industry': return c.industry || '--';
+      case 'type': return c.type || '--';
+      case 'city': return c.city || '--';
+      case 'state': return c.state || '--';
+      case 'postal_code': return c.postal_code || '--';
       case 'employee_count': return c.employee_count ?? '--';
+      case 'annual_revenue': return c.annual_revenue ? fmtMoney(c.annual_revenue) : '--';
       case 'ad_spend_range': return c.ad_spend_range || '--';
+      case 'timezone': return c.timezone || '--';
       case 'contact_count': return c.contact_count;
       case 'open_deal_value': return Number(c.open_deal_value) > 0 ? fmtMoney(c.open_deal_value) : '--';
       case 'latest_deal_stage': return <StageChip stage={c.latest_deal_stage} />;
