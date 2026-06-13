@@ -540,7 +540,8 @@ export default function CompanyDetail() {
   const navigate = useNavigate();
   const { company, loadingCompany, fetchCompany, mutateCompany, toggleTask, meta, run } = useStore();
   const [openContact, setOpenContact] = useState(null);
-  const [modal, setModal] = useState(null); // 'edit' | 'contact' | 'deal' | 'task' | 'note'
+  const [modal, setModal] = useState(null);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
 
   useEffect(() => { fetchCompany(id); }, [id]);
 
@@ -576,50 +577,68 @@ export default function CompanyDetail() {
         </div>
       </div>
 
-      <div className="detail-grid">
+      <div className={`detail-grid${leftCollapsed ? ' left-collapsed' : ''}`}>
         {/* LEFT COLUMN */}
-        <div className="stack">
+        <div className={`stack left-panel${leftCollapsed ? ' collapsed' : ''}`}>
+          <button
+            className="left-panel-toggle"
+            onClick={() => setLeftCollapsed((v) => !v)}
+            title={leftCollapsed ? 'Expand panel' : 'Collapse panel'}
+          >
+            {leftCollapsed ? '›' : '‹'}
+          </button>
           {/* Company header card */}
           <div className="card company-header-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div className="company-avatar">{company.name.slice(0, 3).toUpperCase()}</div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>{company.name}</div>
-                {company.website && (
-                  <a href={company.website} target="_blank" rel="noreferrer"
-                    style={{ fontSize: 13, color: 'var(--primary)' }}>
-                    {company.domain || company.website} ↗
-                  </a>
-                )}
-                {!company.website && company.domain && (
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{company.domain}</span>
-                )}
+            {/* Collapsed: avatar + icon-only buttons */}
+            {leftCollapsed ? (
+              <div className="collapsed-header">
+                <div className="company-avatar" title={company.name}>{company.name.slice(0, 3).toUpperCase()}</div>
+                <div className="collapsed-action-buttons">
+                  {[
+                    { icon: '📝', label: 'Note', action: 'note' },
+                    { icon: '✉️', label: 'Email', action: 'email' },
+                    { icon: '📞', label: 'Call', action: 'call' },
+                    { icon: '☑️', label: 'Task', action: 'task' },
+                    { icon: '📅', label: 'Meeting', action: 'meeting' },
+                    { icon: '⋯', label: 'More', action: 'edit' },
+                  ].map(({ icon, label, action }) => (
+                    <button key={action} className="collapsed-action-btn" title={label} onClick={() => setModal(action)}>
+                      {icon}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="company-action-buttons">
-              <button className="action-btn" title="Note" onClick={() => setModal('note')}>
-                <span>📝</span><span>Note</span>
-              </button>
-              <button className="action-btn" title="Email" onClick={() => setModal('email')}>
-                <span>✉️</span><span>Email</span>
-              </button>
-              <button className="action-btn" title="Call" onClick={() => setModal('call')}>
-                <span>📞</span><span>Call</span>
-              </button>
-              <button className="action-btn" title="Task" onClick={() => setModal('task')}>
-                <span>☑️</span><span>Task</span>
-              </button>
-              <button className="action-btn" title="Meeting" onClick={() => setModal('meeting')}>
-                <span>📅</span><span>Meeting</span>
-              </button>
-              <button className="action-btn" onClick={() => setModal('edit')}>
-                <span>⋯</span><span>More</span>
-              </button>
-            </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  <div className="company-avatar">{company.name.slice(0, 3).toUpperCase()}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 18 }}>{company.name}</div>
+                    {company.website && (
+                      <a href={company.website} target="_blank" rel="noreferrer"
+                        style={{ fontSize: 13, color: 'var(--primary)' }}>
+                        {company.domain || company.website} ↗
+                      </a>
+                    )}
+                    {!company.website && company.domain && (
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>{company.domain}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="company-action-buttons">
+                  <button className="action-btn" title="Note" onClick={() => setModal('note')}><span>📝</span><span>Note</span></button>
+                  <button className="action-btn" title="Email" onClick={() => setModal('email')}><span>✉️</span><span>Email</span></button>
+                  <button className="action-btn" title="Call" onClick={() => setModal('call')}><span>📞</span><span>Call</span></button>
+                  <button className="action-btn" title="Task" onClick={() => setModal('task')}><span>☑️</span><span>Task</span></button>
+                  <button className="action-btn" title="Meeting" onClick={() => setModal('meeting')}><span>📅</span><span>Meeting</span></button>
+                  <button className="action-btn" onClick={() => setModal('edit')}><span>⋯</span><span>More</span></button>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Key information card */}
-          <div className="card">
+          {/* Key information card — hidden when collapsed */}
+          <div className="card" style={{ display: leftCollapsed ? 'none' : undefined }}>
             <div className="card-head">
               <h3>Key information</h3>
               <button className="btn small" onClick={() => setModal('edit')}>Actions ▾</button>
@@ -697,7 +716,7 @@ export default function CompanyDetail() {
           </div>
 
           {/* Contacts card */}
-          <div className="card">
+          <div className="card" style={{ display: leftCollapsed ? 'none' : undefined }}>
             <div className="card-head">
               <h3>Contacts ({company.contacts.length})</h3>
               <button className="btn small" onClick={() => setModal('contact')}>+ Add</button>
