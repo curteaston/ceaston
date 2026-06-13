@@ -684,7 +684,18 @@ export default function CompanyDetail() {
             <button className="btn small danger" style={{ marginTop: 16 }} onClick={deleteCompany}>Delete company</button>
           </div>
 
-          {/* Contacts card */}
+        </div>
+
+        {/* CENTER — timeline */}
+        <div className="card timeline-card">
+          <h3>Activity timeline</h3>
+          <p className="muted small">All calls, emails, notes and stage changes across every contact at {company.name}.</p>
+          <VoiceNoteInput placeholder={`Company note about ${company.name}…`} onSave={saveNote} />
+          <Timeline items={company.timeline} onEditNote={editNote} onDeleteNote={deleteNote} />
+        </div>
+
+        {/* RIGHT — contacts + deals + tasks */}
+        <div className="stack">
           <div className="card">
             <div className="card-head">
               <h3>Contacts ({company.contacts.length})</h3>
@@ -700,18 +711,7 @@ export default function CompanyDetail() {
               </button>
             ))}
           </div>
-        </div>
 
-        {/* CENTER — timeline */}
-        <div className="card timeline-card">
-          <h3>Activity timeline</h3>
-          <p className="muted small">All calls, emails, notes and stage changes across every contact at {company.name}.</p>
-          <VoiceNoteInput placeholder={`Company note about ${company.name}…`} onSave={saveNote} />
-          <Timeline items={company.timeline} onEditNote={editNote} onDeleteNote={deleteNote} />
-        </div>
-
-        {/* RIGHT — deals + tasks */}
-        <div className="stack">
           <div className="card">
             <div className="card-head">
               <h3>Deals</h3>
