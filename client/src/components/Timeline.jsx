@@ -1,6 +1,23 @@
 import { useState } from 'react';
 import { fmtDateTime } from '../format.js';
 
+function EmailBody({ body, outcome, contactName }) {
+  const [subject, ...rest] = (body || '').split('\n\n');
+  const preview = rest.join('\n\n').trim();
+  const direction = outcome?.toLowerCase();
+  return (
+    <div className="tl-email-body">
+      <div><strong>{subject}</strong></div>
+      {direction && contactName && (
+        <div className="muted small">
+          {direction === 'sent' ? `From you to ${contactName}` : `From ${contactName} to you`}
+        </div>
+      )}
+      {preview && <p className="tl-text" style={{ marginTop: 4 }}>{preview}</p>}
+    </div>
+  );
+}
+
 const ICONS = {
   call: '📞', email: '✉️', sms: '💬', meeting: '📅',
   linkedin: '💼', stage_change: '🔀', other: '📌', note: '📝',
@@ -43,6 +60,8 @@ function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
               <button className="btn small" onClick={() => setEditing(false)}>Cancel</button>
             </div>
           </div>
+        ) : item.type === 'email' && item.body ? (
+          <EmailBody body={item.body} outcome={item.outcome} contactName={item.contact_name} />
         ) : (
           item.body && <p className="tl-text">{item.body}</p>
         )}
