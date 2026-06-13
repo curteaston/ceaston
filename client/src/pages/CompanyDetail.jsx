@@ -306,7 +306,9 @@ function ActivityForm({ type, company, onSubmit }) {
       </div>
     </div>
   );
-}({ companyId, initial = {}, onSubmit, submitLabel = 'Save' }) {
+}
+
+function DealForm({ companyId, initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
   const [form, setForm] = useState({
     name: '', value: '', stage: 'lead', probability: '', expected_close_date: '', ...initial,
