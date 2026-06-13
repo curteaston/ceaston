@@ -11,6 +11,52 @@ import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx'
 import { CompanyForm } from './Companies.jsx';
 import { fmtDate, fmtMoney, relTime } from '../format.js';
 
+function NoteForm({ onSubmit }) {
+  const [body, setBody] = useState('');
+  return (
+    <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit(body); }}>
+      <Field label="Note">
+        <textarea required rows={4} value={body} onChange={(e) => setBody(e.target.value)}
+          style={{ width: '100%', resize: 'vertical' }} />
+      </Field>
+      <div className="form-actions"><button className="btn primary" type="submit">Save note</button></div>
+    </form>
+  );
+}
+
+function ActivityForm({ type, company, onSubmit }) {
+  const [form, setForm] = useState({ body: '', outcome: '', contact_id: '', occurred_at: new Date().toISOString().slice(0, 16) });
+  const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const outcomeOptions = type === 'call'
+    ? ['Connected', 'Left voicemail', 'No answer', 'Wrong number']
+    : type === 'email'
+    ? ['Sent', 'Opened', 'Replied', 'Bounced']
+    : ['Completed', 'No show', 'Rescheduled'];
+  return (
+    <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...form, contact_id: form.contact_id || null }); }}>
+      <Field label="Outcome">
+        <select value={form.outcome} onChange={upd('outcome')}>
+          <option value="">Select outcome…</option>
+          {outcomeOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </Field>
+      <Field label="Notes">
+        <textarea rows={3} value={form.body} onChange={upd('body')} style={{ width: '100%', resize: 'vertical' }} />
+      </Field>
+      <Field label="Contact (optional)">
+        <select value={form.contact_id} onChange={upd('contact_id')}>
+          <option value="">Whole company</option>
+          {company.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </Field>
+      <Field label="Date & time">
+        <input type="datetime-local" value={form.occurred_at} onChange={upd('occurred_at')} />
+      </Field>
+      <div className="form-actions"><button className="btn primary" type="submit">Log {type}</button></div>
+    </form>
+  );
+}
+
 function DealForm({ companyId, initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
   const [form, setForm] = useState({
@@ -85,12 +131,68 @@ function TaskForm({ company, onSubmit }) {
   );
 }
 
+const US_STATES = [
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware',
+  'Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky',
+  'Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi',
+  'Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico',
+  'New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania',
+  'Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
+  'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
+];
+
+function StateTypeahead({ value, onChange }) {
+  const [query, setQuery] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const close = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const filtered = query.trim()
+    ? US_STATES.filter((s) => s.toLowerCase().startsWith(query.toLowerCase()))
+    : US_STATES;
+
+  const select = (state) => { setQuery(state); onChange(state); setOpen(false); };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        value={query}
+        placeholder="Type to search states…"
+        onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        autoComplete="off"
+        style={{ width: '100%' }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 400,
+          background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)', maxHeight: 200, overflowY: 'auto'
+        }}>
+          {filtered.map((s) => (
+            <div key={s} style={{ padding: '7px 12px', cursor: 'pointer' }}
+              onMouseDown={() => select(s)}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseLeave={(e) => e.currentTarget.style.background = ''}
+            >{s}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CompanyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { company, loadingCompany, fetchCompany, mutateCompany, toggleTask, meta, run } = useStore();
   const [openContact, setOpenContact] = useState(null);
-  const [modal, setModal] = useState(null); // 'edit' | 'contact' | 'deal' | 'task'
+  const [modal, setModal] = useState(null); // 'edit' | 'contact' | 'deal' | 'task' | 'note'
 
   useEffect(() => { fetchCompany(id); }, [id]);
 
@@ -150,16 +252,16 @@ export default function CompanyDetail() {
               <button className="action-btn" title="Note" onClick={() => setModal('note')}>
                 <span>📝</span><span>Note</span>
               </button>
-              <button className="action-btn" title="Email">
+              <button className="action-btn" title="Email" onClick={() => setModal('email')}>
                 <span>✉️</span><span>Email</span>
               </button>
-              <button className="action-btn" title="Call">
+              <button className="action-btn" title="Call" onClick={() => setModal('call')}>
                 <span>📞</span><span>Call</span>
               </button>
               <button className="action-btn" title="Task" onClick={() => setModal('task')}>
                 <span>☑️</span><span>Task</span>
               </button>
-              <button className="action-btn" title="Meeting">
+              <button className="action-btn" title="Meeting" onClick={() => setModal('meeting')}>
                 <span>📅</span><span>Meeting</span>
               </button>
               <button className="action-btn" onClick={() => setModal('edit')}>
@@ -177,21 +279,54 @@ export default function CompanyDetail() {
             <div className="key-info-grid">
               <div className="key-info-row">
                 <span className="key-info-label">Company owner</span>
-                <span className="key-info-value">{company.owner || <span className="muted">--</span>}</span>
+                <input
+                  className="key-info-input"
+                  defaultValue={company.owner || ''}
+                  placeholder="--"
+                  onBlur={(e) => { if (e.target.value !== (company.owner || '')) mutateCompany(() => api.patch(`/companies/${company.id}`, { owner: e.target.value || null }), 'Saved'); }}
+                />
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">City</span>
-                <span className="key-info-value muted">--</span>
+                <input
+                  className="key-info-input"
+                  defaultValue={company.city || ''}
+                  placeholder="--"
+                  onBlur={(e) => { if (e.target.value !== (company.city || '')) mutateCompany(() => api.patch(`/companies/${company.id}`, { city: e.target.value || null }), 'Saved'); }}
+                />
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">State</span>
+                <StateTypeahead
+                  value={company.state || ''}
+                  onChange={(val) => { if (US_STATES.includes(val) && val !== company.state) mutateCompany(() => api.patch(`/companies/${company.id}`, { state: val }), 'Saved'); }}
+                />
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">Lifecycle Stage</span>
-                <span className="key-info-value" style={{ color: 'var(--primary)', fontWeight: 600, textTransform: 'capitalize' }}>
-                  {company.lifecycle_stage || <span className="muted">--</span>}
-                </span>
+                <select
+                  className="key-info-select"
+                  value={company.lifecycle_stage || ''}
+                  onChange={(e) => mutateCompany(() => api.patch(`/companies/${company.id}`, { lifecycle_stage: e.target.value }), 'Saved')}
+                >
+                  <option value="">--</option>
+                  {meta.lifecycle_stages.map((s) => (
+                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">Lead Status</span>
-                <span className="key-info-value muted">--</span>
+                <select
+                  className="key-info-select"
+                  value={company.lead_status || ''}
+                  onChange={(e) => mutateCompany(() => api.patch(`/companies/${company.id}`, { lead_status: e.target.value || null }), 'Saved')}
+                >
+                  <option value="">--</option>
+                  {meta.lead_statuses.map((s) => (
+                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">Industry</span>
@@ -338,6 +473,52 @@ export default function CompanyDetail() {
               await api.post('/tasks', form);
               close();
             }, 'Task created')}
+          />
+        </Modal>
+      )}
+      {modal === 'note' && (
+        <Modal title="Add note" onClose={close}>
+          <NoteForm
+            onSubmit={(body) => mutateCompany(async () => {
+              await api.post('/notes', { company_id: company.id, body, source: 'typed' });
+              close();
+            }, 'Note saved')}
+          />
+        </Modal>
+      )}
+      {modal === 'email' && (
+        <Modal title="Log email" onClose={close}>
+          <ActivityForm
+            type="email"
+            company={company}
+            onSubmit={(form) => mutateCompany(async () => {
+              await api.post('/activities', { ...form, company_id: company.id, type: 'email' });
+              close();
+            }, 'Email logged')}
+          />
+        </Modal>
+      )}
+      {modal === 'call' && (
+        <Modal title="Log call" onClose={close}>
+          <ActivityForm
+            type="call"
+            company={company}
+            onSubmit={(form) => mutateCompany(async () => {
+              await api.post('/activities', { ...form, company_id: company.id, type: 'call' });
+              close();
+            }, 'Call logged')}
+          />
+        </Modal>
+      )}
+      {modal === 'meeting' && (
+        <Modal title="Log meeting" onClose={close}>
+          <ActivityForm
+            type="meeting"
+            company={company}
+            onSubmit={(form) => mutateCompany(async () => {
+              await api.post('/activities', { ...form, company_id: company.id, type: 'meeting' });
+              close();
+            }, 'Meeting logged')}
           />
         </Modal>
       )}

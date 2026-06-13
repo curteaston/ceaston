@@ -174,3 +174,7 @@ CREATE TABLE IF NOT EXISTS activities (
 CREATE INDEX IF NOT EXISTS activities_company_idx ON activities (company_id);
 CREATE INDEX IF NOT EXISTS activities_contact_idx ON activities (contact_id);
 CREATE INDEX IF NOT EXISTS activities_occurred_idx ON activities (occurred_at);
+
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS state TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS lead_status TEXT;

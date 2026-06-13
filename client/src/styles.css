@@ -639,3 +639,12 @@ pre {
 .key-info-row:last-child { border-bottom: none; }
 .key-info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
 .key-info-value { font-size: 14px; font-weight: 500; }
+
+/* Key info inline editable fields */
+.key-info-input, .key-info-select {
+  border: none; background: transparent; font-size: 14px; font-weight: 500;
+  color: var(--text); padding: 0; width: 100%; outline: none; cursor: pointer;
+}
+.key-info-input:hover, .key-info-select:hover { background: #f3f4f6; border-radius: 4px; padding: 1px 4px; }
+.key-info-input:focus, .key-info-select:focus { background: #fff; border: 1px solid var(--primary); border-radius: 4px; padding: 1px 4px; }
+.key-info-input::placeholder { color: var(--muted); font-weight: 400; }
