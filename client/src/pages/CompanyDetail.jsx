@@ -11,16 +11,209 @@ import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx'
 import { CompanyForm } from './Companies.jsx';
 import { fmtDate, fmtMoney, relTime } from '../format.js';
 
-function NoteForm({ onSubmit }) {
+// Returns a date N business days from today, formatted as YYYY-MM-DD
+function addBusinessDays(n) {
+  const d = new Date();
+  let added = 0;
+  while (added < n) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+  }
+  return d;
+}
+function fmtBusinessDate(d) {
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+function toDateInput(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+const DUE_PRESETS = [
+  { label: 'Today', days: 0 },
+  { label: 'Tomorrow', days: 1 },
+  { label: 'In 3 business days', days: 3, business: true },
+  { label: 'In 1 week', days: 7 },
+  { label: 'Custom', days: null },
+];
+
+function NoteForm({ company, onSubmit }) {
   const [body, setBody] = useState('');
+  const [followUp, setFollowUp] = useState(false);
+  const [followUpDays, setFollowUpDays] = useState(3);
+  const textRef = useRef(null);
+
+  const format = (cmd) => { textRef.current?.focus(); document.execCommand(cmd); };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!body.trim()) return;
+    onSubmit(body, followUp ? { days: followUpDays } : null);
+  };
+
   return (
-    <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit(body); }}>
-      <Field label="Note">
-        <textarea required rows={4} value={body} onChange={(e) => setBody(e.target.value)}
-          style={{ width: '100%', resize: 'vertical' }} />
-      </Field>
-      <div className="form-actions"><button className="btn primary" type="submit">Save note</button></div>
-    </form>
+    <div className="activity-modal">
+      <div className="activity-modal-for">
+        For <span className="activity-tag">{company.name}</span>
+      </div>
+      <div className="activity-toolbar">
+        <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('bold'); }}><b>B</b></button>
+        <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('italic'); }}><i>I</i></button>
+        <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('underline'); }}><u>U</u></button>
+        <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('insertUnorderedList'); }}>≡</button>
+      </div>
+      <div
+        ref={textRef}
+        className="activity-editor"
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder="Start typing to leave a note…"
+        onInput={(e) => setBody(e.currentTarget.innerText)}
+      />
+      <div className="activity-assoc">Associated with 1 record: <b>{company.name}</b></div>
+      <div className="activity-followup">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} />
+          Create a <strong>To-do</strong> task to follow up in{' '}
+          <select value={followUpDays} onChange={(e) => setFollowUpDays(Number(e.target.value))}
+            style={{ margin: '0 4px' }}>
+            <option value={1}>1 business day</option>
+            <option value={2}>2 business days</option>
+            <option value={3}>3 business days</option>
+            <option value={5}>5 business days</option>
+            <option value={7}>1 week</option>
+          </select>
+          <b>({fmtBusinessDate(addBusinessDays(followUpDays))})</b>
+        </label>
+      </div>
+      <div className="activity-footer">
+        <button className="btn primary" onClick={handleSubmit}>Create note</button>
+      </div>
+    </div>
+  );
+}
+
+function TaskForm({ company, onSubmit }) {
+  const me = localStorage.getItem('crm_display_name') || 'me';
+  const defaultDate = addBusinessDays(3);
+  const [description, setDescription] = useState('');
+  const [duePreset, setDuePreset] = useState('In 3 business days');
+  const [dueDate, setDueDate] = useState(toDateInput(defaultDate));
+  const [dueTime, setDueTime] = useState('08:00');
+  const [reminder, setReminder] = useState('No reminder');
+  const [repeat, setRepeat] = useState(false);
+  const [taskType, setTaskType] = useState('To-do');
+  const [priority, setPriority] = useState('None');
+  const [assignedTo, setAssignedTo] = useState(me);
+  const [notes, setNotes] = useState('');
+  const [contactId, setContactId] = useState('');
+  const notesRef = useRef(null);
+
+  const applyPreset = (preset) => {
+    setDuePreset(preset.label);
+    if (preset.days === null) return;
+    const d = preset.business ? addBusinessDays(preset.days) : (() => { const x = new Date(); x.setDate(x.getDate() + preset.days); return x; })();
+    setDueDate(toDateInput(d));
+  };
+
+  const dueDateLabel = () => {
+    if (duePreset === 'Custom') return dueDate;
+    const d = new Date(dueDate + 'T12:00:00');
+    return fmtBusinessDate(d);
+  };
+
+  const handleSubmit = () => {
+    if (!description.trim()) return;
+    onSubmit({
+      description,
+      due_date: dueDate || null,
+      priority: priority.toLowerCase() === 'none' ? 'medium' : priority.toLowerCase(),
+      owner: assignedTo || null,
+      company_id: contactId ? null : company.id,
+      contact_id: contactId || null,
+    });
+  };
+
+  return (
+    <div className="activity-modal">
+      <input
+        className="task-title-input"
+        placeholder="Enter your task"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        autoFocus
+      />
+      <div className="task-meta-row">
+        <div className="task-meta-block">
+          <div className="task-meta-label">Activity date</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select className="task-meta-select" value={duePreset}
+              onChange={(e) => applyPreset(DUE_PRESETS.find((p) => p.label === e.target.value) || DUE_PRESETS[4])}>
+              {DUE_PRESETS.map((p) => <option key={p.label}>{p.label}</option>)}
+            </select>
+            {duePreset === 'Custom' && (
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="task-meta-select" />
+            )}
+            <span className="task-meta-value">🕐 {dueTime}</span>
+            <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="task-meta-select" style={{ width: 110 }} />
+          </div>
+          {duePreset !== 'Custom' && <div className="task-meta-sublabel"><b>{dueDateLabel()}</b></div>}
+        </div>
+        <div className="task-meta-block">
+          <div className="task-meta-label">Send reminder</div>
+          <select className="task-meta-select" value={reminder} onChange={(e) => setReminder(e.target.value)}>
+            <option>No reminder</option>
+            <option>At time of task</option>
+            <option>30 min before</option>
+            <option>1 hour before</option>
+            <option>1 day before</option>
+          </select>
+        </div>
+      </div>
+      <div className="task-repeat-row">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} />
+          Set to repeat
+        </label>
+      </div>
+      <div className="task-attrs-row">
+        <div className="task-attr">
+          <div className="task-meta-label">Task Type</div>
+          <select className="task-meta-select" value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+            <option>To-do</option><option>Call</option><option>Email</option><option>LinkedIn</option>
+          </select>
+        </div>
+        <div className="task-attr">
+          <div className="task-meta-label">Priority</div>
+          <select className="task-meta-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <option>None</option><option>Low</option><option>Medium</option><option>High</option>
+          </select>
+        </div>
+        <div className="task-attr">
+          <div className="task-meta-label">Contact</div>
+          <select className="task-meta-select" value={contactId} onChange={(e) => setContactId(e.target.value)}>
+            <option value="">None</option>
+            {company.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="task-attr">
+          <div className="task-meta-label">Assigned to</div>
+          <input className="task-meta-select" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} />
+        </div>
+      </div>
+      <div
+        ref={notesRef}
+        className="activity-editor"
+        contentEditable
+        suppressContentEditableWarning
+        data-placeholder="Notes…"
+        onInput={(e) => setNotes(e.currentTarget.innerText)}
+        style={{ minHeight: 80 }}
+      />
+      <div className="activity-assoc">Associated with 1 record: <b>{company.name}</b></div>
+      <div className="activity-footer">
+        <button className="btn primary" onClick={handleSubmit} disabled={!description.trim()}>Create</button>
+      </div>
+    </div>
   );
 }
 
@@ -32,8 +225,68 @@ function ActivityForm({ type, company, onSubmit }) {
     : type === 'email'
     ? ['Sent', 'Opened', 'Replied', 'Bounced']
     : ['Completed', 'No show', 'Rescheduled'];
+
+  // For calls: find the first contact phone or company-level
+  const callPhone = type === 'call'
+    ? (company.contacts[0]?.phone || '')
+    : null;
+
+  const handleCall = () => {
+    if (callPhone) window.location.href = `tel:${callPhone.replace(/[^+\d]/g, '')}`;
+  };
+
   return (
-    <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...form, contact_id: form.contact_id || null }); }}>
+    <div className="activity-modal">
+      <div className="activity-modal-for">
+        For <span className="activity-tag">{company.name}</span>
+      </div>
+
+      {type === 'call' && (
+        <div style={{ margin: '12px 0' }}>
+          <Field label="Contact to call">
+            <select value={form.contact_id} onChange={upd('contact_id')}>
+              <option value="">Whole company</option>
+              {company.contacts.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.phone ? ` — ${c.phone}` : ''}</option>
+              ))}
+            </select>
+          </Field>
+          {callPhone && (
+            <button type="button" className="btn primary" style={{ marginTop: 8 }} onClick={handleCall}>
+              📞 Dial {callPhone}
+            </button>
+          )}
+        </div>
+      )}
+
+      {type === 'email' && (
+        <div style={{ margin: '12px 0' }}>
+          <Field label="Contact to email">
+            <select value={form.contact_id} onChange={upd('contact_id')}>
+              <option value="">Whole company</option>
+              {company.contacts.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>
+              ))}
+            </select>
+          </Field>
+          {company.contacts.length > 0 && (() => {
+            const contact = form.contact_id
+              ? company.contacts.find((c) => String(c.id) === String(form.contact_id))
+              : company.contacts[0];
+            return contact?.email ? (
+              <a
+                href={`https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(contact.email)}&subject=${encodeURIComponent(`Re: ${company.name}`)}`}
+                target="_blank" rel="noreferrer"
+                className="btn primary"
+                style={{ display: 'inline-block', marginTop: 8, textDecoration: 'none' }}
+              >
+                ✉️ Open in Outlook
+              </a>
+            ) : null;
+          })()}
+        </div>
+      )}
+
       <Field label="Outcome">
         <select value={form.outcome} onChange={upd('outcome')}>
           <option value="">Select outcome…</option>
@@ -43,21 +296,17 @@ function ActivityForm({ type, company, onSubmit }) {
       <Field label="Notes">
         <textarea rows={3} value={form.body} onChange={upd('body')} style={{ width: '100%', resize: 'vertical' }} />
       </Field>
-      <Field label="Contact (optional)">
-        <select value={form.contact_id} onChange={upd('contact_id')}>
-          <option value="">Whole company</option>
-          {company.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </Field>
       <Field label="Date & time">
         <input type="datetime-local" value={form.occurred_at} onChange={upd('occurred_at')} />
       </Field>
-      <div className="form-actions"><button className="btn primary" type="submit">Log {type}</button></div>
-    </form>
+      <div className="activity-footer">
+        <button className="btn primary" onClick={() => onSubmit({ ...form, contact_id: form.contact_id || null })}>
+          Log {type}
+        </button>
+      </div>
+    </div>
   );
-}
-
-function DealForm({ companyId, initial = {}, onSubmit, submitLabel = 'Save' }) {
+}({ companyId, initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
   const [form, setForm] = useState({
     name: '', value: '', stage: 'lead', probability: '', expected_close_date: '', ...initial,
@@ -466,7 +715,7 @@ export default function CompanyDetail() {
         </Modal>
       )}
       {modal === 'task' && (
-        <Modal title="Add task" onClose={close}>
+        <Modal title="Task" onClose={close}>
           <TaskForm
             company={company}
             onSubmit={(form) => mutateCompany(async () => {
@@ -477,10 +726,20 @@ export default function CompanyDetail() {
         </Modal>
       )}
       {modal === 'note' && (
-        <Modal title="Add note" onClose={close}>
+        <Modal title="Note" onClose={close}>
           <NoteForm
-            onSubmit={(body) => mutateCompany(async () => {
+            company={company}
+            onSubmit={(body, followUp) => mutateCompany(async () => {
               await api.post('/notes', { company_id: company.id, body, source: 'typed' });
+              if (followUp) {
+                const d = addBusinessDays(followUp.days);
+                await api.post('/tasks', {
+                  company_id: company.id,
+                  description: `Follow up on note — ${company.name}`,
+                  due_date: toDateInput(d),
+                  priority: 'medium',
+                });
+              }
               close();
             }, 'Note saved')}
           />
@@ -510,18 +769,13 @@ export default function CompanyDetail() {
           />
         </Modal>
       )}
-      {modal === 'meeting' && (
-        <Modal title="Log meeting" onClose={close}>
-          <ActivityForm
-            type="meeting"
-            company={company}
-            onSubmit={(form) => mutateCompany(async () => {
-              await api.post('/activities', { ...form, company_id: company.id, type: 'meeting' });
-              close();
-            }, 'Meeting logged')}
-          />
-        </Modal>
-      )}
+      {modal === 'meeting' && (() => {
+        const subject = encodeURIComponent(`Meeting — ${company.name}`);
+        const outlookUrl = `https://outlook.office.com/calendar/action/compose?subject=${subject}&body=${encodeURIComponent(company.website || '')}`;
+        window.open(outlookUrl, '_blank');
+        close();
+        return null;
+      })()}
     </div>
   );
 }
