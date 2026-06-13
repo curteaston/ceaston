@@ -24,6 +24,41 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS contacts (
+  id                SERIAL PRIMARY KEY,
+  company_id        INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  title             TEXT,
+  email             TEXT,
+  phone             TEXT,
+  source            TEXT,
+  last_contacted_at TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts (company_id);
+CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (lower(email));
+-- Additive migrations for databases created before these columns existed.
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS owner TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_status TEXT NOT NULL DEFAULT 'new';
+CREATE INDEX IF NOT EXISTS contacts_lead_status_idx ON contacts (lead_status);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id           SERIAL PRIMARY KEY,
+  company_id   INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+  contact_id   INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+  description  TEXT NOT NULL,
+  due_date     DATE,
+  priority     TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
+  completed    BOOLEAN NOT NULL DEFAULT false,
+  completed_at TIMESTAMPTZ,
+  owner        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (company_id IS NOT NULL OR contact_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS tasks_company_idx ON tasks (company_id);
+CREATE INDEX IF NOT EXISTS tasks_contact_idx ON tasks (contact_id);
+CREATE INDEX IF NOT EXISTS tasks_due_idx ON tasks (due_date) WHERE NOT completed;
+
 -- Outbound sequences (cadences): ordered steps that are either manual tasks
 -- or auto-sent emails (sent from a separate sending domain, never the primary mailbox).
 CREATE TABLE IF NOT EXISTS sequences (
@@ -99,24 +134,6 @@ CREATE TABLE IF NOT EXISTS webhooks (
   last_fired_at TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS contacts (
-  id                SERIAL PRIMARY KEY,
-  company_id        INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  name              TEXT NOT NULL,
-  title             TEXT,
-  email             TEXT,
-  phone             TEXT,
-  source            TEXT,
-  last_contacted_at TIMESTAMPTZ,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts (company_id);
-CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts (lower(email));
--- Additive migrations for databases created before these columns existed.
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS owner TEXT;
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_status TEXT NOT NULL DEFAULT 'new';
-CREATE INDEX IF NOT EXISTS contacts_lead_status_idx ON contacts (lead_status);
-
 CREATE TABLE IF NOT EXISTS deals (
   id                  SERIAL PRIMARY KEY,
   company_id          INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -130,23 +147,6 @@ CREATE TABLE IF NOT EXISTS deals (
 );
 CREATE INDEX IF NOT EXISTS deals_company_idx ON deals (company_id);
 CREATE INDEX IF NOT EXISTS deals_stage_idx ON deals (stage);
-
-CREATE TABLE IF NOT EXISTS tasks (
-  id           SERIAL PRIMARY KEY,
-  company_id   INTEGER REFERENCES companies(id) ON DELETE CASCADE,
-  contact_id   INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
-  description  TEXT NOT NULL,
-  due_date     DATE,
-  priority     TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
-  completed    BOOLEAN NOT NULL DEFAULT false,
-  completed_at TIMESTAMPTZ,
-  owner        TEXT,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK (company_id IS NOT NULL OR contact_id IS NOT NULL)
-);
-CREATE INDEX IF NOT EXISTS tasks_company_idx ON tasks (company_id);
-CREATE INDEX IF NOT EXISTS tasks_contact_idx ON tasks (contact_id);
-CREATE INDEX IF NOT EXISTS tasks_due_idx ON tasks (due_date) WHERE NOT completed;
 
 CREATE TABLE IF NOT EXISTS notes (
   id         SERIAL PRIMARY KEY,
