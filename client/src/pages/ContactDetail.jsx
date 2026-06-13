@@ -236,12 +236,11 @@ export default function ContactDetail() {
                     </a>
                   </div>
                 )}
-                {company?.contacts?.filter((c) => c.phone).slice(0, 3).map((c) => (
-                  <div key={c.id} className="small" style={{ marginTop: 4 }}>
-                    <PhoneLink phone={fmtPhone(c.phone) || c.phone} contactId={c.id} companyId={contact.company_id} contactName={c.name} />
-                    <span className="muted"> · {c.name}</span>
+                {company?.phone && (
+                  <div className="small" style={{ marginTop: 4 }}>
+                    <PhoneLink phone={fmtPhone(company.phone) || company.phone} contactId={null} companyId={contact.company_id} contactName={company.name} />
                   </div>
-                ))}
+                )}
               </>
             ) : (
               <p className="muted">No company linked.</p>

@@ -24,7 +24,7 @@ const TIMEZONES = [
 export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
   const [form, setForm] = useState({
-    website: '', name: '', industry: 'HVAC', type: '', city: '', state: '',
+    website: '', name: '', phone: '', industry: 'HVAC', type: '', city: '', state: '',
     postal_code: '', employee_count: '', annual_revenue: '', ad_spend_range: '',
     timezone: '', description: '', owner: '', lifecycle_stage: 'lead', ...initial,
   });
@@ -44,6 +44,7 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
     >
       <Field label="Company website"><input value={form.website || ''} onChange={upd('website')} placeholder="https://acmehvac.com" /></Field>
       <Field label="Company name"><input value={form.name} onChange={upd('name')} /></Field>
+      <Field label="Company phone"><input value={form.phone || ''} onChange={upd('phone')} placeholder="+1 (215) 555-0100" /></Field>
       <Field label="Industry"><input value={form.industry || ''} onChange={upd('industry')} /></Field>
       <Field label="City"><input value={form.city || ''} onChange={upd('city')} /></Field>
       <Field label="State"><input value={form.state || ''} onChange={upd('state')} /></Field>
