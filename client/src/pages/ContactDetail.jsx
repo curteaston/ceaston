@@ -33,8 +33,7 @@ function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
       <Field label="Direct phone"><input value={form.phone_direct || ''} onChange={upd('phone_direct')} /></Field>
       <Field label="Cell phone"><input value={form.phone_cell || ''} onChange={upd('phone_cell')} /></Field>
       <Field label="Other phone"><input value={form.phone_other || ''} onChange={upd('phone_other')} /></Field>
-      <Field label="Phone (legacy)"><input value={form.phone || ''} onChange={upd('phone')} /></Field>
-      <Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="cold list, referral, LinkedIn…" /></Field>
+<Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="cold list, referral, LinkedIn…" /></Field>
       <Field label="Owner"><input value={form.owner || ''} onChange={upd('owner')} /></Field>
       <Field label="Lead status">
         <select value={form.lead_status || 'new'} onChange={upd('lead_status')}>
