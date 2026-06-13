@@ -722,7 +722,7 @@ export default function CompanyDetail() {
         </Modal>
       )}
       {modal === 'task' && (
-        <Modal title="Task" onClose={close}>
+        <Modal title="Task" onClose={close} wide>
           <TaskForm
             company={company}
             onSubmit={(form) => mutateCompany(async () => {
