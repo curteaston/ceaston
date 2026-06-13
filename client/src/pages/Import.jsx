@@ -1,13 +1,48 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { api } from '../api.js';
-import { useStore } from '../store.js';
+import { useStore, LIFECYCLE_LABELS } from '../store.js';
 
-const COMPANY_COLS = ['name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website'];
-const CONTACT_COLS = ['contact_name', 'contact_title', 'contact_email', 'contact_phone', 'contact_source'];
+// CRM target fields the importer can fill. `group` drives the section headings.
+const TARGET_FIELDS = [
+  { key: 'name', label: 'Company name', group: 'Company', required: true, aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
+  { key: 'domain', label: 'Domain', group: 'Company', aliases: ['domain', 'website domain', 'url', 'site'] },
+  { key: 'website', label: 'Website', group: 'Company', aliases: ['website', 'web', 'site', 'homepage', 'url'] },
+  { key: 'industry', label: 'Industry', group: 'Company', aliases: ['industry', 'vertical', 'sector', 'category'] },
+  { key: 'employee_count', label: 'Employee count', group: 'Company', type: 'number', aliases: ['employees', 'employee count', 'headcount', 'size', 'staff', 'num employees'] },
+  { key: 'ad_spend_range', label: 'Monthly ad spend', group: 'Company', aliases: ['ad spend', 'ad spend range', 'monthly ad spend', 'spend', 'budget', 'ad budget'] },
+  { key: 'owner', label: 'Company owner', group: 'Company', aliases: ['owner', 'company owner', 'rep', 'sales rep', 'assigned to', 'account owner'] },
+  { key: 'lifecycle_stage', label: 'Lifecycle stage', group: 'Company', aliases: ['lifecycle', 'lifecycle stage', 'stage', 'status'] },
+  { key: 'contact_name', label: 'Contact name', group: 'Contact', aliases: ['contact', 'contact name', 'full name', 'person', 'name', 'first name'] },
+  { key: 'contact_title', label: 'Contact title', group: 'Contact', aliases: ['title', 'contact title', 'job title', 'role', 'position'] },
+  { key: 'contact_email', label: 'Contact email', group: 'Contact', aliases: ['email', 'contact email', 'e-mail', 'email address'] },
+  { key: 'contact_phone', label: 'Contact phone', group: 'Contact', aliases: ['phone', 'contact phone', 'telephone', 'mobile', 'cell', 'phone number'] },
+  { key: 'contact_source', label: 'Contact source', group: 'Contact', aliases: ['source', 'contact source', 'lead source', 'origin'] },
+];
 
-// Minimal CSV parser with quoted-field support.
+const norm = (s) => String(s || '').trim().toLowerCase().replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ');
+
+// Best-guess mapping: exact alias match first, then substring.
+function autoMap(headers) {
+  const used = new Set();
+  const mapping = {};
+  const normHeaders = headers.map((h) => ({ raw: h, n: norm(h) }));
+  for (const field of TARGET_FIELDS) {
+    const exact = normHeaders.find((h) => !used.has(h.raw) && field.aliases.includes(h.n));
+    const hit = exact || normHeaders.find((h) => !used.has(h.raw) && field.aliases.some((a) => h.n.includes(a) || a.includes(h.n)));
+    if (hit) {
+      mapping[field.key] = hit.raw;
+      used.add(hit.raw);
+    } else {
+      mapping[field.key] = '';
+    }
+  }
+  return mapping;
+}
+
+// Parse CSV text -> { headers, rows }. Handles quoted fields.
 function parseCsv(text) {
-  const rows = [];
+  const grid = [];
   let row = [];
   let cell = '';
   let inQuotes = false;
@@ -22,145 +57,269 @@ function parseCsv(text) {
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && text[i + 1] === '\n') i++;
       row.push(cell); cell = '';
-      if (row.some((c) => c.trim() !== '')) rows.push(row);
+      if (row.some((c) => c.trim() !== '')) grid.push(row);
       row = [];
     } else cell += ch;
   }
   row.push(cell);
-  if (row.some((c) => c.trim() !== '')) rows.push(row);
-  return rows;
+  if (row.some((c) => c.trim() !== '')) grid.push(row);
+  if (!grid.length) return { headers: [], rows: [] };
+  return gridToTable(grid);
 }
 
-// Rows sharing a domain (or name) merge into one company with multiple contacts.
-function rowsToCompanies(rows) {
-  const header = rows[0].map((han) => han.trim().toLowerCase());
+function gridToTable(grid) {
+  const headers = grid[0].map((h, i) => String(h).trim() || `Column ${i + 1}`);
+  const rows = grid.slice(1).map((r) => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = r[i] != null ? String(r[i]).trim() : ''; });
+    return obj;
+  });
+  return { headers, rows };
+}
+
+// Group consecutive rows by company key (domain, else name) into the import payload.
+function buildCompanies(rows, mapping) {
+  const col = (row, key) => (mapping[key] ? row[mapping[key]] || '' : '').trim();
   const byKey = new Map();
-  for (const raw of rows.slice(1)) {
-    const get = (col) => {
-      const idx = header.indexOf(col);
-      return idx >= 0 ? (raw[idx] || '').trim() : '';
-    };
-    const name = get('name');
-    if (!name) continue;
-    const key = (get('domain') || name).toLowerCase();
+  let skipped = 0;
+  for (const row of rows) {
+    const name = col(row, 'name');
+    if (!name) { skipped++; continue; }
+    const key = (col(row, 'domain') || name).toLowerCase();
     if (!byKey.has(key)) {
+      const empRaw = col(row, 'employee_count').replace(/[^\d]/g, '');
       byKey.set(key, {
         name,
-        domain: get('domain') || undefined,
-        industry: get('industry') || undefined,
-        employee_count: get('employee_count') ? Number(get('employee_count')) : undefined,
-        ad_spend_range: get('ad_spend_range') || undefined,
-        website: get('website') || undefined,
+        domain: col(row, 'domain') || undefined,
+        website: col(row, 'website') || undefined,
+        industry: col(row, 'industry') || undefined,
+        employee_count: empRaw ? Number(empRaw) : undefined,
+        ad_spend_range: col(row, 'ad_spend_range') || undefined,
+        owner: col(row, 'owner') || undefined,
+        lifecycle_stage: normLifecycle(col(row, 'lifecycle_stage')),
         contacts: [],
       });
     }
-    if (get('contact_name')) {
+    const contactName = col(row, 'contact_name');
+    if (contactName) {
       byKey.get(key).contacts.push({
-        name: get('contact_name'),
-        title: get('contact_title') || undefined,
-        email: get('contact_email') || undefined,
-        phone: get('contact_phone') || undefined,
-        source: get('contact_source') || undefined,
+        name: contactName,
+        title: col(row, 'contact_title') || undefined,
+        email: col(row, 'contact_email') || undefined,
+        phone: col(row, 'contact_phone') || undefined,
+        source: col(row, 'contact_source') || undefined,
       });
     }
   }
-  return [...byKey.values()];
+  return { companies: [...byKey.values()], skipped };
+}
+
+const LIFECYCLE_KEYS = Object.keys(LIFECYCLE_LABELS);
+function normLifecycle(v) {
+  if (!v) return undefined;
+  const n = norm(v);
+  const exact = LIFECYCLE_KEYS.find((k) => k === n || norm(LIFECYCLE_LABELS[k]) === n);
+  return exact || undefined;
 }
 
 export default function Import() {
   const { run } = useStore();
+  const [step, setStep] = useState('upload'); // upload | map | done
+  const [table, setTable] = useState(null);   // { headers, rows }
+  const [mapping, setMapping] = useState({});
   const [text, setText] = useState('');
-  const [preview, setPreview] = useState(null);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+  const [fileName, setFileName] = useState('');
 
-  const buildPreview = (csv) => {
+  const startMapping = (parsed, label) => {
+    if (!parsed.headers.length || !parsed.rows.length) {
+      setError('Could not find a header row plus at least one data row.');
+      return;
+    }
     setError(null);
     setResult(null);
-    try {
-      const rows = parseCsv(csv);
-      if (rows.length < 2) throw new Error('Need a header row plus at least one data row.');
-      const header = rows[0].map((han) => han.trim().toLowerCase());
-      if (!header.includes('name')) throw new Error('CSV must include a "name" column for the company.');
-      setPreview(rowsToCompanies(rows));
-    } catch (e) {
-      setPreview(null);
-      setError(e.message);
-    }
+    setTable(parsed);
+    setMapping(autoMap(parsed.headers));
+    setFileName(label || '');
+    setStep('map');
   };
 
   const onFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const content = await file.text();
-    setText(content);
-    buildPreview(content);
+    try {
+      if (/\.(xlsx|xls)$/i.test(file.name)) {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' });
+        startMapping(gridToTable(grid.filter((r) => r.some((c) => String(c).trim() !== ''))), file.name);
+      } else {
+        startMapping(parseCsv(await file.text()), file.name);
+      }
+    } catch (err) {
+      setError(`Could not read file: ${err.message}`);
+    }
+    e.target.value = '';
   };
+
+  const parsePasted = () => {
+    if (!text.trim()) return;
+    startMapping(parseCsv(text), 'pasted data');
+  };
+
+  const preview = useMemo(
+    () => (table ? buildCompanies(table.rows, mapping) : null),
+    [table, mapping]
+  );
+  const nameMapped = Boolean(mapping.name);
+
+  const setField = (key, header) => setMapping((m) => ({ ...m, [key]: header }));
 
   const doImport = () =>
     run(async () => {
-      const summary = await api.post('/import', { companies: preview });
+      const summary = await api.post('/import', { companies: preview.companies });
       setResult(summary);
-      setPreview(null);
+      setStep('done');
+      setTable(null);
       setText('');
     }, 'Import complete');
+
+  const reset = () => {
+    setStep('upload');
+    setTable(null);
+    setText('');
+    setError(null);
+    setResult(null);
+    setMapping({});
+  };
 
   return (
     <div>
       <div className="page-head"><h1>Bulk import</h1></div>
-      <div className="card">
-        <p>
-          Paste or upload a CSV to seed your prospect list. Companies are matched by <b>domain</b> (then name)
-          and updated rather than duplicated, so re-importing an enriched list is safe.
-        </p>
-        <p className="muted small">
-          Columns — company: <code>{COMPANY_COLS.join(', ')}</code> · contact (optional): <code>{CONTACT_COLS.join(', ')}</code>.
-          Repeat the company on multiple rows to add several contacts.
-        </p>
-        <textarea
-          rows={8}
-          placeholder={'name,domain,employee_count,ad_spend_range,contact_name,contact_email\nAcme HVAC,acmehvac.com,25,$1k-$5k,Jane Doe,jane@acmehvac.com'}
-          value={text}
-          onChange={(e) => { setText(e.target.value); if (e.target.value.trim()) buildPreview(e.target.value); }}
-        />
-        <div className="row gap pad-top">
-          <input type="file" accept=".csv,text/csv" onChange={onFile} />
-        </div>
-        {error && <p className="error-text">{error}</p>}
-      </div>
 
-      {preview && (
+      {step === 'upload' && (
         <div className="card">
-          <div className="card-head">
-            <h3>Preview — {preview.length} companies, {preview.reduce((s, c) => s + c.contacts.length, 0)} contacts</h3>
-            <button className="btn primary" onClick={doImport}>Import now</button>
+          <p>
+            Upload a <b>CSV or Excel file</b> (or paste rows below) to seed your prospect list — use whatever
+            column names your spreadsheet already has. On the next step you'll map your columns to CRM fields.
+          </p>
+          <p className="muted small">
+            Companies are matched by <b>domain</b> (then name) and updated rather than duplicated, so re-importing
+            an enriched list is safe. Repeat a company across rows to attach multiple contacts.
+          </p>
+          <div className="row gap pad-top">
+            <label className="btn primary" style={{ cursor: 'pointer' }}>
+              Choose CSV / Excel file
+              <input type="file" accept=".csv,.xlsx,.xls,text/csv" onChange={onFile} style={{ display: 'none' }} />
+            </label>
+            <span className="muted small">or paste rows below</span>
           </div>
-          <table>
-            <thead><tr><th>Company</th><th>Domain</th><th>Employees</th><th>Ad spend</th><th>Contacts</th></tr></thead>
-            <tbody>
-              {preview.slice(0, 50).map((c, i) => (
-                <tr key={i}>
-                  <td>{c.name}</td><td>{c.domain || '—'}</td><td>{c.employee_count ?? '—'}</td>
-                  <td>{c.ad_spend_range || '—'}</td>
-                  <td className="small">{c.contacts.map((ct) => ct.name).join(', ') || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {preview.length > 50 && <p className="muted small">…and {preview.length - 50} more.</p>}
+          <textarea
+            className="pad-top"
+            rows={6}
+            style={{ marginTop: 10 }}
+            placeholder={'Paste CSV or tab/comma-separated rows with a header line, e.g.\nBusiness,Web,# Staff,Primary Contact,Email\nAcme HVAC,acmehvac.com,25,Jane Doe,jane@acmehvac.com'}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="row pad-top">
+            <button className="btn" onClick={parsePasted} disabled={!text.trim()}>Use pasted data →</button>
+          </div>
+          {error && <p className="error-text">{error}</p>}
         </div>
       )}
 
-      {result && (
+      {step === 'map' && table && (
+        <>
+          <div className="card">
+            <div className="card-head">
+              <h3>Map your columns {fileName && <span className="muted small">— {fileName}</span>}</h3>
+              <button className="link-btn" onClick={reset}>↺ Start over</button>
+            </div>
+            <p className="muted small">
+              We guessed the matches below from your headers — adjust any that are wrong. Only <b>Company name</b> is
+              required; leave the rest as “— ignore —” if you don't have them.
+            </p>
+
+            {['Company', 'Contact'].map((group) => (
+              <div key={group} className="map-group">
+                <h4>{group} fields</h4>
+                <div className="map-grid">
+                  {TARGET_FIELDS.filter((f) => f.group === group).map((field) => (
+                    <div key={field.key} className="map-row">
+                      <label className="map-target">
+                        {field.label}{field.required && <span className="req"> *</span>}
+                      </label>
+                      <select
+                        className={field.required && !mapping[field.key] ? 'needs' : ''}
+                        value={mapping[field.key] || ''}
+                        onChange={(e) => setField(field.key, e.target.value)}
+                      >
+                        <option value="">— ignore —</option>
+                        {table.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {!nameMapped && <p className="error-text">Map a column to <b>Company name</b> to continue.</p>}
+          </div>
+
+          {preview && (
+            <div className="card">
+              <div className="card-head">
+                <h3>
+                  Preview — {preview.companies.length} companies,{' '}
+                  {preview.companies.reduce((s, c) => s + c.contacts.length, 0)} contacts
+                  {preview.skipped > 0 && <span className="muted small"> · {preview.skipped} rows skipped (no company name)</span>}
+                </h3>
+                <button className="btn primary" onClick={doImport} disabled={!nameMapped || preview.companies.length === 0}>
+                  Import {preview.companies.length} companies
+                </button>
+              </div>
+              <div className="table-card" style={{ border: 'none' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Company</th><th>Domain</th><th>Industry</th><th>Employees</th>
+                      <th>Ad spend</th><th>Lifecycle</th><th>Contacts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.companies.slice(0, 50).map((c, i) => (
+                      <tr key={i}>
+                        <td><b>{c.name}</b></td>
+                        <td>{c.domain || '—'}</td>
+                        <td>{c.industry || '—'}</td>
+                        <td>{c.employee_count ?? '—'}</td>
+                        <td>{c.ad_spend_range || '—'}</td>
+                        <td>{c.lifecycle_stage ? LIFECYCLE_LABELS[c.lifecycle_stage] : '—'}</td>
+                        <td className="small">{c.contacts.map((ct) => ct.name).join(', ') || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {preview.companies.length > 50 && <p className="muted small">…and {preview.companies.length - 50} more.</p>}
+            </div>
+          )}
+        </>
+      )}
+
+      {step === 'done' && result && (
         <div className="card">
-          <h3>Import result</h3>
+          <h3>Import complete ✅</h3>
           <p>
-            ✅ {result.companies_created} companies created, {result.companies_updated} updated ·{' '}
+            {result.companies_created} companies created, {result.companies_updated} updated ·{' '}
             {result.contacts_created} contacts created, {result.contacts_updated} updated.
           </p>
-          {result.skipped.length > 0 && (
+          {result.skipped?.length > 0 && (
             <p className="muted small">Skipped rows: {result.skipped.map((s) => `#${s.index} (${s.reason})`).join(', ')}</p>
           )}
+          <button className="btn primary" onClick={reset}>Import another file</button>
         </div>
       )}
     </div>

@@ -159,15 +159,20 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 4. GET  /api/companies/lookup?domain=acmehvac.com   → full history payload for the next touch
 ```
 
-## CSV import format
+## Importing data
 
-Header row required. Company columns: `name` (required), `domain`, `industry`,
-`employee_count`, `ad_spend_range`, `website`. Optional contact columns on the
-same row: `contact_name`, `contact_title`, `contact_email`, `contact_phone`,
-`contact_source`. Repeat a company across rows to attach multiple contacts.
+The **Bulk import** page accepts a **CSV or Excel (`.xlsx`/`.xls`) file** — or pasted
+rows — with **whatever column names your spreadsheet already uses**. After upload you
+map each of your columns to a CRM field; the importer auto-guesses the obvious matches
+(e.g. "Business"→Company name, "# Staff"→Employee count) and you adjust the rest. Only
+**Company name** must be mapped.
 
-```csv
-name,domain,employee_count,ad_spend_range,contact_name,contact_email
-Acme HVAC,acmehvac.com,25,$1k-$5k,Jane Doe,jane@acmehvac.com
-Acme HVAC,acmehvac.com,25,$1k-$5k,Bob Roe,bob@acmehvac.com
-```
+Mappable fields — company: name (required), domain, website, industry, employee_count,
+ad_spend_range, owner, lifecycle_stage · contact: contact_name, contact_title,
+contact_email, contact_phone, contact_source. Repeat a company across rows to attach
+multiple contacts. Companies are matched by domain (then name) and updated rather than
+duplicated, so re-importing an enriched list is safe.
+
+The underlying `POST /api/import` endpoint takes a pre-shaped JSON payload (see the API
+table above) and is what n8n should call directly; the mapping step is a convenience in
+the UI for ad-hoc spreadsheet uploads.

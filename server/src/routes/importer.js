@@ -39,17 +39,20 @@ router.post('/', h(async (req, res) => {
           `UPDATE companies SET
              name = coalesce($2, name), domain = coalesce($3, domain),
              industry = coalesce($4, industry), employee_count = coalesce($5, employee_count),
-             ad_spend_range = coalesce($6, ad_spend_range), website = coalesce($7, website)
+             ad_spend_range = coalesce($6, ad_spend_range), website = coalesce($7, website),
+             owner = coalesce($8, owner), lifecycle_stage = coalesce($9, lifecycle_stage)
            WHERE id = $1 RETURNING *`,
           [company.id, c.name, c.domain || null, c.industry || null,
-           c.employee_count ?? null, c.ad_spend_range || null, c.website || null]));
+           c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
+           c.owner || null, c.lifecycle_stage || null]));
         summary.companies_updated++;
       } else {
         ({ rows: [company] } = await client.query(
-          `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website)
-           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6) RETURNING *`,
+          `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website, owner, lifecycle_stage)
+           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, coalesce($8, 'lead')) RETURNING *`,
           [c.name, c.domain || null, c.industry || null,
-           c.employee_count ?? null, c.ad_spend_range || null, c.website || null]));
+           c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
+           c.owner || null, c.lifecycle_stage || null]));
         summary.companies_created++;
       }
 

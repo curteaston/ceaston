@@ -468,6 +468,15 @@ pre {
   padding: 10px; font-size: 12px; overflow-x: auto;
 }
 
+/* Import field mapping */
+.map-group { margin-bottom: 16px; }
+.map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 16px; }
+.map-row { display: flex; align-items: center; gap: 10px; }
+.map-target { width: 130px; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.map-target .req { color: var(--danger); }
+.map-row select { flex: 1; min-width: 0; }
+.map-row select.needs { border-color: var(--danger); }
+
 /* Click-to-call */
 .phone-link { white-space: nowrap; font-weight: 500; }
 .phone-link:hover { text-decoration: underline; }
