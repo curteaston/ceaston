@@ -344,44 +344,6 @@ function DealForm({ companyId, initial = {}, onSubmit, submitLabel = 'Save' }) {
   );
 }
 
-function TaskForm({ company, onSubmit }) {
-  const { meta } = useStore();
-  const [form, setForm] = useState({ description: '', due_date: '', priority: 'medium', owner: '', contact_id: '' });
-  const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  return (
-    <form
-      className="form-grid"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit({
-          description: form.description,
-          due_date: form.due_date || null,
-          priority: form.priority,
-          owner: form.owner || null,
-          company_id: form.contact_id ? null : company.id,
-          contact_id: form.contact_id || null,
-        });
-      }}
-    >
-      <Field label="Description *"><input required value={form.description} onChange={upd('description')} /></Field>
-      <Field label="Due date"><input type="date" value={form.due_date} onChange={upd('due_date')} /></Field>
-      <Field label="Priority">
-        <select value={form.priority} onChange={upd('priority')}>
-          {meta.priorities.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </Field>
-      <Field label="Owner"><input value={form.owner} onChange={upd('owner')} placeholder="me" /></Field>
-      <Field label="Tie to contact (optional)">
-        <select value={form.contact_id} onChange={upd('contact_id')}>
-          <option value="">Whole company</option>
-          {company.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </Field>
-      <div className="form-actions"><button className="btn primary" type="submit">Create task</button></div>
-    </form>
-  );
-}
-
 const US_STATES = [
   'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware',
   'Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky',
