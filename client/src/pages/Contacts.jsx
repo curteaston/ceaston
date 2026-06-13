@@ -586,7 +586,7 @@ export default function Contacts() {
           </thead>
           <tbody>
             {data.contacts.map((c) => (
-              <tr key={c.id} className="row-link" onClick={() => setDrawerContact(c)}>
+              <tr key={c.id} className="row-link" onClick={() => navigate(`/contacts/${c.id}`)}>
                 <td className="check-col" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleOne(c.id)} />
                 </td>

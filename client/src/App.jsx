@@ -8,6 +8,7 @@ import Reports from './pages/Reports.jsx';
 import Companies from './pages/Companies.jsx';
 import CallLogModal from './components/CallLogModal.jsx';
 import Contacts from './pages/Contacts.jsx';
+import ContactDetail from './pages/ContactDetail.jsx';
 import CompanyDetail from './pages/CompanyDetail.jsx';
 import Pipeline from './pages/Pipeline.jsx';
 import Sequences from './pages/Sequences.jsx';
@@ -157,6 +158,7 @@ export default function App() {
             <Route path="/companies" element={<Companies />} />
             <Route path="/companies/:id" element={<CompanyDetail />} />
             <Route path="/contacts" element={<Contacts />} />
+            <Route path="/contacts/:id" element={<ContactDetail />} />
             <Route path="/pipeline" element={<Pipeline />} />
             <Route path="/sequences" element={<Sequences />} />
             <Route path="/tasks" element={<Tasks />} />
