@@ -5,10 +5,6 @@ import { h, badRequest } from '../util.js';
 const router = Router();
 
 // POST /api/import — bulk seed prospect lists.
-// Body: { companies: [{ name, domain, industry, employee_count, ad_spend_range, website,
-//                       contacts: [{ name, title, email, phone, source }] }] }
-// Companies are upserted by domain (fallback: exact name match); contacts by email
-// (fallback: name within the company). Runs in a single transaction.
 router.post('/', h(async (req, res) => {
   const companies = req.body.companies;
   if (!Array.isArray(companies) || companies.length === 0) {
@@ -40,19 +36,20 @@ router.post('/', h(async (req, res) => {
              name = coalesce($2, name), domain = coalesce($3, domain),
              industry = coalesce($4, industry), employee_count = coalesce($5, employee_count),
              ad_spend_range = coalesce($6, ad_spend_range), website = coalesce($7, website),
-             owner = coalesce($8, owner), lifecycle_stage = coalesce($9, lifecycle_stage)
+             lifecycle_stage = coalesce($8, lifecycle_stage),
+             phone = coalesce($9, phone)
            WHERE id = $1 RETURNING *`,
           [company.id, c.name, c.domain || null, c.industry || null,
            c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
-           c.owner || null, c.lifecycle_stage || null]));
+           c.lifecycle_stage || null, c.phone || null]));
         summary.companies_updated++;
       } else {
         ({ rows: [company] } = await client.query(
-          `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website, owner, lifecycle_stage)
-           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, coalesce($8, 'lead')) RETURNING *`,
+          `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website, lifecycle_stage, phone)
+           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, coalesce($7, 'lead'), $8) RETURNING *`,
           [c.name, c.domain || null, c.industry || null,
            c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
-           c.owner || null, c.lifecycle_stage || null]));
+           c.lifecycle_stage || null, c.phone || null]));
         summary.companies_created++;
       }
 
@@ -71,16 +68,33 @@ router.post('/', h(async (req, res) => {
         }
         if (existing) {
           await client.query(
-            `UPDATE contacts SET title = coalesce($2, title), email = coalesce($3, email),
-               phone = coalesce($4, phone), source = coalesce($5, source)
+            `UPDATE contacts SET
+               first_name = coalesce($2, first_name), last_name = coalesce($3, last_name),
+               title = coalesce($4, title),
+               email = coalesce($5, email), email_2 = coalesce($6, email_2),
+               phone_direct = coalesce($7, phone_direct), phone_cell = coalesce($8, phone_cell),
+               phone_other = coalesce($9, phone_other),
+               source = coalesce($10, source)
              WHERE id = $1`,
-            [existing.id, ct.title || null, ct.email || null, ct.phone || null, ct.source || null]);
+            [existing.id,
+             ct.first_name || null, ct.last_name || null,
+             ct.title || null,
+             ct.email || null, ct.email_2 || null,
+             ct.phone_direct || null, ct.phone_cell || null, ct.phone_other || null,
+             ct.source || null]);
           summary.contacts_updated++;
         } else {
           await client.query(
-            `INSERT INTO contacts (company_id, name, title, email, phone, source)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [company.id, ct.name, ct.title || null, ct.email || null, ct.phone || null, ct.source || null]);
+            `INSERT INTO contacts
+               (company_id, name, first_name, last_name, title, email, email_2,
+                phone_direct, phone_cell, phone_other, source)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [company.id, ct.name,
+             ct.first_name || null, ct.last_name || null,
+             ct.title || null,
+             ct.email || null, ct.email_2 || null,
+             ct.phone_direct || null, ct.phone_cell || null, ct.phone_other || null,
+             ct.source || null]);
           summary.contacts_created++;
         }
       }
