@@ -595,7 +595,11 @@ export default function CompanyDetail() {
   const [openContact, setOpenContact] = useState(null);
   const [modal, setModal] = useState(null);
 
-  useEffect(() => { fetchCompany(id); }, [id]);
+  useEffect(() => {
+    fetchCompany(id);
+    // Silently sync recent emails in the background whenever a company is opened
+    api.post('/email/sync', { days: 7 }).then(() => fetchCompany(id)).catch(() => {});
+  }, [id]);
 
   if (loadingCompany && !company) return <p className="muted">Loading…</p>;
   if (!company) return <p className="muted">Company not found.</p>;
