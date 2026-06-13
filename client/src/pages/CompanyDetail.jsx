@@ -120,44 +120,118 @@ export default function CompanyDetail() {
 
   return (
     <div>
-      <div className="page-head">
-        <div>
-          <h1>{company.name}</h1>
-          <div className="company-meta">
-            {company.domain && <span>🌐 {company.domain}</span>}
-            <span>{company.industry || 'No industry'}</span>
-            <span>{company.employee_count != null ? `${company.employee_count} employees` : 'Size unknown'}</span>
-            <span>Ad spend: {company.ad_spend_range || 'unknown'}</span>
-            {company.website && <a href={company.website} target="_blank" rel="noreferrer">Website ↗</a>}
-            <span className="muted">Added {fmtDate(company.created_at)}</span>
-            <span className="muted">Last activity {relTime(company.last_activity_at)}</span>
-          </div>
-        </div>
-        <div className="row gap">
-          <button className="btn" onClick={() => setModal('edit')}>Edit</button>
-          <button className="btn danger" onClick={deleteCompany}>Delete</button>
+      <div className="page-head" style={{ alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn small" onClick={() => navigate('/companies')}>← Companies</button>
         </div>
       </div>
 
       <div className="detail-grid">
-        {/* Contacts */}
-        <div className="card">
-          <div className="card-head">
-            <h3>Contacts ({company.contacts.length})</h3>
-            <button className="btn small" onClick={() => setModal('contact')}>+ Add</button>
+        {/* LEFT COLUMN */}
+        <div className="stack">
+          {/* Company header card */}
+          <div className="card company-header-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div className="company-avatar">{company.name.slice(0, 3).toUpperCase()}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>{company.name}</div>
+                {company.website && (
+                  <a href={company.website} target="_blank" rel="noreferrer"
+                    style={{ fontSize: 13, color: 'var(--primary)' }}>
+                    {company.domain || company.website} ↗
+                  </a>
+                )}
+                {!company.website && company.domain && (
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{company.domain}</span>
+                )}
+              </div>
+            </div>
+            <div className="company-action-buttons">
+              <button className="action-btn" title="Note" onClick={() => setModal('note')}>
+                <span>📝</span><span>Note</span>
+              </button>
+              <button className="action-btn" title="Email">
+                <span>✉️</span><span>Email</span>
+              </button>
+              <button className="action-btn" title="Call">
+                <span>📞</span><span>Call</span>
+              </button>
+              <button className="action-btn" title="Task" onClick={() => setModal('task')}>
+                <span>☑️</span><span>Task</span>
+              </button>
+              <button className="action-btn" title="Meeting">
+                <span>📅</span><span>Meeting</span>
+              </button>
+              <button className="action-btn" onClick={() => setModal('edit')}>
+                <span>⋯</span><span>More</span>
+              </button>
+            </div>
           </div>
-          {company.contacts.length === 0 && <p className="muted">No contacts yet.</p>}
-          {company.contacts.map((c) => (
-            <button key={c.id} className="contact-card" onClick={() => setOpenContact(c)}>
-              <div className="contact-name">{c.name}</div>
-              <div className="muted small">{c.title || '—'}</div>
-              {c.phone && <div className="small"><PhoneLink phone={c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
-              <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
-            </button>
-          ))}
+
+          {/* Key information card */}
+          <div className="card">
+            <div className="card-head">
+              <h3>Key information</h3>
+              <button className="btn small" onClick={() => setModal('edit')}>Actions ▾</button>
+            </div>
+            <div className="key-info-grid">
+              <div className="key-info-row">
+                <span className="key-info-label">Company owner</span>
+                <span className="key-info-value">{company.owner || <span className="muted">--</span>}</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">City</span>
+                <span className="key-info-value muted">--</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Lifecycle Stage</span>
+                <span className="key-info-value" style={{ color: 'var(--primary)', fontWeight: 600, textTransform: 'capitalize' }}>
+                  {company.lifecycle_stage || <span className="muted">--</span>}
+                </span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Lead Status</span>
+                <span className="key-info-value muted">--</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Industry</span>
+                <span className="key-info-value">{company.industry || <span className="muted">--</span>}</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Last Contacted</span>
+                <span className="key-info-value muted">{company.last_activity_at ? relTime(company.last_activity_at) : '--'}</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Employees</span>
+                <span className="key-info-value">{company.employee_count != null ? company.employee_count : <span className="muted">--</span>}</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Ad Spend</span>
+                <span className="key-info-value">{company.ad_spend_range || <span className="muted">--</span>}</span>
+              </div>
+            </div>
+            <button className="btn small danger" style={{ marginTop: 16 }} onClick={deleteCompany}>Delete company</button>
+          </div>
+
+          {/* Contacts card */}
+          <div className="card">
+            <div className="card-head">
+              <h3>Contacts ({company.contacts.length})</h3>
+              <button className="btn small" onClick={() => setModal('contact')}>+ Add</button>
+            </div>
+            {company.contacts.length === 0 && <p className="muted">No contacts yet.</p>}
+            {company.contacts.map((c) => (
+              <button key={c.id} className="contact-card" onClick={() => setOpenContact(c)}>
+                <div className="contact-name">{c.name}</div>
+                <div className="muted small">{c.title || '—'}</div>
+                {c.phone && <div className="small"><PhoneLink phone={c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
+                <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Unified timeline */}
+        {/* CENTER — timeline */}
         <div className="card timeline-card">
           <h3>Activity timeline</h3>
           <p className="muted small">All calls, emails, notes and stage changes across every contact at {company.name}.</p>
@@ -165,7 +239,7 @@ export default function CompanyDetail() {
           <Timeline items={company.timeline} onEditNote={editNote} onDeleteNote={deleteNote} />
         </div>
 
-        {/* Deals + tasks */}
+        {/* RIGHT — deals + tasks */}
         <div className="stack">
           <div className="card">
             <div className="card-head">
