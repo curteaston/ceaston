@@ -124,7 +124,7 @@ export default function ContactDrawer({ contact, onClose }) {
           <div>
             <div className="muted">{contact.title || 'No title'}</div>
             {contact.email && <div><a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
-            {contact.phone && <div><PhoneLink phone={contact.phone} /></div>}
+            {contact.phone && <div><PhoneLink phone={contact.phone} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}
             <div className="muted small">
               Source: {contact.source || '—'} · Owner: {contact.owner || 'unassigned'} ·
               Status: {contact.lead_status || 'new'} · Last contacted: {relTime(contact.last_contacted_at)}

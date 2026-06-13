@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import { h, badRequest, notFound } from '../util.js';
 import { emit } from '../events.js';
+import { handleContactReply } from './sequences.js';
 
 const router = Router();
 
@@ -51,7 +52,12 @@ router.post('/', h(async (req, res) => {
       [activity.contact_id, activity.occurred_at]
     );
   }
-  res.status(201).json(activity);
+  // A reply pulls the contact out of any active sequence (cadence hygiene).
+  let unenrolled = 0;
+  if (activity.contact_id && (activity.outcome || '').toLowerCase() === 'replied') {
+    unenrolled = await handleContactReply(activity.contact_id);
+  }
+  res.status(201).json({ ...activity, sequences_stopped: unenrolled });
 }));
 
 router.delete('/:id', h(async (req, res) => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, qs } from '../api.js';
+import { useStore } from '../store.js';
 import { isOverdue, fmtDate } from '../format.js';
 
 export function CompanySelect({ value, onChange, required = true }) {
@@ -17,12 +18,19 @@ export function CompanySelect({ value, onChange, required = true }) {
   );
 }
 
-// Click-to-call link: dials via the OS handler (mobile, Teams, Google Voice, RingCentral, …).
-export function PhoneLink({ phone }) {
+// Click-to-call link: dials via the OS handler (mobile, Teams, Google Voice, RingCentral, …)
+// and, when contact/company context is given, pops the quick call-log dialog.
+export function PhoneLink({ phone, contactId, companyId, contactName, companyName }) {
   if (!phone) return <span className="muted">--</span>;
   const href = `tel:${phone.replace(/[^+\d]/g, '')}`;
+  const onClick = (e) => {
+    e.stopPropagation();
+    if (contactId || companyId) {
+      useStore.getState().startCall({ phone, contactId, companyId, contactName, companyName });
+    }
+  };
   return (
-    <a href={href} className="phone-link" title={`Call ${phone}`} onClick={(e) => e.stopPropagation()}>
+    <a href={href} className="phone-link" title={`Call ${phone}`} onClick={onClick}>
       📞 {phone}
     </a>
   );

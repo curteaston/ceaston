@@ -468,6 +468,21 @@ pre {
   padding: 10px; font-size: 12px; overflow-x: auto;
 }
 
+/* Quick call logging */
+.call-outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.call-outcome {
+  font: inherit; cursor: pointer; text-align: left; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: #fff; font-weight: 500;
+}
+.call-outcome:hover { background: #f0f5ff; border-color: var(--primary); }
+.call-outcome.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* Reports bar chart */
+.bar-chart { display: flex; align-items: flex-end; gap: 2px; }
+.bar-col { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.bar-fill { width: 100%; background: var(--primary); border-radius: 3px 3px 0 0; min-height: 2px; opacity: 0.85; }
+.bar-col:hover .bar-fill { opacity: 1; }
+
 /* Saved views */
 .tab-add { color: var(--primary); font-weight: 600; }
 .view-del { margin-left: 6px; opacity: 0.5; font-size: 11px; }

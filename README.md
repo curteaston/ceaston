@@ -28,6 +28,14 @@ running concurrent outbound cadences.
   manage deals and tasks, search by name/domain.
 - **Bulk import** — paste or upload a CSV to seed prospect lists; companies are
   matched by domain and updated, never duplicated, so re-importing is safe.
+- **Reports** — a date-range analytics page: activity over time, activity by type,
+  pipeline snapshot, deal win rate, task completion, and per-sequence performance
+  (enrollments / emails sent / replies), with CSV export.
+- **Quick call logging** — clicking a phone number dials *and* pops a one-tap dialog
+  to record the call outcome (connected, voicemail, booked meeting, …) to the timeline.
+- **Sequence reply handling** — logging an interaction with outcome "replied" (or the
+  "Mark replied" button on an enrollment) automatically pulls the contact out of every
+  active sequence and cancels their remaining steps.
 - **Saved views** — save a named, filtered/sorted preset on Companies and Contacts
   (e.g. "Untouched 14+ days, 50+ employees") and switch between them as tabs.
 - **Bulk actions** — multi-select rows on Companies and Contacts to assign owner,
@@ -187,6 +195,8 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | `POST`   | `/api/sequences/:id/enroll`                   | `{ company_id*, contact_id, owner }` — generates dated tasks + email runs              |
 | `GET`    | `/api/sequences/enrollments/list?company_id=` | Enrollments with per-step progress                                                      |
 | `POST`   | `/api/sequences/enrollments/:id/unenroll`     | Cancel remaining steps and delete open tasks                                            |
+| `POST`   | `/api/sequences/enrollments/:id/replied`      | Mark replied — stop the cadence and cancel remaining steps                              |
+| `GET`    | `/api/reports?from=&to=`                      | Date-range analytics (activity, deals, tasks, sequences, funnel)                       |
 | `POST`   | `/api/sequences/enrollments/:id/retry`        | Re-send failed auto-email steps                                                         |
 | `POST`   | `/api/sequences/run`                          | Manually trigger the scheduler (auto-runs every 5 min; handy for n8n)                  |
 | `GET`/`PUT` | `/api/sequences/smtp`                       | Read / set the separate sending-domain SMTP config (`POST /smtp/test` to verify)       |

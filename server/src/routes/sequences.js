@@ -285,25 +285,49 @@ router.get('/enrollments/list', h(async (req, res) => {
   res.json(enrollments);
 }));
 
-router.post('/enrollments/:id/unenroll', h(async (req, res) => {
-  const { rows } = await query('SELECT * FROM sequence_enrollments WHERE id = $1', [req.params.id]);
-  const enrollment = rows[0];
-  if (!enrollment) throw notFound('Enrollment not found');
-
-  // Cancel pending steps: delete the generated task if still open, mark run skipped.
+// Cancel an enrollment's remaining steps (delete open tasks, skip pending runs).
+async function cancelPendingSteps(enrollmentId) {
   const { rows: pending } = await query(
     `SELECT * FROM sequence_step_runs WHERE enrollment_id = $1 AND status = 'pending'`,
-    [req.params.id]
+    [enrollmentId]
   );
   for (const run of pending) {
-    if (run.task_id) {
-      await query('DELETE FROM tasks WHERE id = $1 AND NOT completed', [run.task_id]);
-    }
+    if (run.task_id) await query('DELETE FROM tasks WHERE id = $1 AND NOT completed', [run.task_id]);
   }
   await query(
     `UPDATE sequence_step_runs SET status = 'skipped' WHERE enrollment_id = $1 AND status = 'pending'`,
-    [req.params.id]
+    [enrollmentId]
   );
+}
+
+// When a contact replies, pull them out of every active sequence (cadence hygiene).
+// Called from the activities route when an interaction is logged with outcome 'replied',
+// and from the manual "mark replied" button. Returns how many enrollments were stopped.
+export async function handleContactReply(contactId) {
+  if (!contactId) return 0;
+  const { rows } = await query(
+    `SELECT id FROM sequence_enrollments WHERE contact_id = $1 AND status = 'active'`,
+    [contactId]
+  );
+  for (const e of rows) {
+    await cancelPendingSteps(e.id);
+    await query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [e.id]);
+  }
+  return rows.length;
+}
+
+router.post('/enrollments/:id/replied', h(async (req, res) => {
+  const { rows } = await query('SELECT * FROM sequence_enrollments WHERE id = $1', [req.params.id]);
+  if (!rows[0]) throw notFound('Enrollment not found');
+  await cancelPendingSteps(req.params.id);
+  await query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [req.params.id]);
+  res.json({ ok: true });
+}));
+
+router.post('/enrollments/:id/unenroll', h(async (req, res) => {
+  const { rows } = await query('SELECT id FROM sequence_enrollments WHERE id = $1', [req.params.id]);
+  if (!rows[0]) throw notFound('Enrollment not found');
+  await cancelPendingSteps(req.params.id);
   await query(
     `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now() WHERE id = $1`,
     [req.params.id]

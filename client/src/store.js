@@ -23,6 +23,11 @@ export const useStore = create((set, get) => ({
   meta: DEFAULT_META,
   toast: null,
 
+  // Quick call logging: set when a phone number is clicked, read by the global modal.
+  pendingCall: null,
+  startCall(info) { set({ pendingCall: info }); },
+  clearCall() { set({ pendingCall: null }); },
+
   notify(message, isError = false) {
     set({ toast: { message, isError, id: Date.now() } });
     setTimeout(() => {

@@ -4,7 +4,9 @@ import { useStore } from './store.js';
 import { api } from './api.js';
 import Home from './pages/Home.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Reports from './pages/Reports.jsx';
 import Companies from './pages/Companies.jsx';
+import CallLogModal from './components/CallLogModal.jsx';
 import Contacts from './pages/Contacts.jsx';
 import CompanyDetail from './pages/CompanyDetail.jsx';
 import Pipeline from './pages/Pipeline.jsx';
@@ -105,6 +107,7 @@ export default function App() {
         <nav>
           <NavLink to="/" end>🏠 Home</NavLink>
           <NavLink to="/dashboard">📊 Dashboard</NavLink>
+          <NavLink to="/reports">📈 Reports</NavLink>
           <NavLink to="/companies">🏢 Companies</NavLink>
           <NavLink to="/contacts">👤 Contacts</NavLink>
           <NavLink to="/pipeline">🧭 Pipeline</NavLink>
@@ -123,6 +126,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/companies" element={<Companies />} />
             <Route path="/companies/:id" element={<CompanyDetail />} />
             <Route path="/contacts" element={<Contacts />} />
@@ -135,6 +139,7 @@ export default function App() {
         </main>
       </div>
       {toast && <div className={`toast ${toast.isError ? 'error' : ''}`}>{toast.message}</div>}
+      <CallLogModal />
     </div>
   );
 }

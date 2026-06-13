@@ -22,6 +22,8 @@ export default function CompanySequences({ company }) {
     if (!confirm(`Unenroll from "${e.sequence_name}"? Remaining open tasks will be removed.`)) return;
     run(async () => { await api.post(`/sequences/enrollments/${e.id}/unenroll`); load(); }, 'Unenrolled');
   };
+  const markReplied = (e) =>
+    run(async () => { await api.post(`/sequences/enrollments/${e.id}/replied`); load(); }, 'Marked replied — sequence stopped');
   const retry = (e) =>
     run(async () => { await api.post(`/sequences/enrollments/${e.id}/retry`); load(); }, 'Retried failed steps');
 
@@ -43,7 +45,7 @@ export default function CompanySequences({ company }) {
           <div key={e.id} className={`enroll-card ${e.status !== 'active' ? 'muted-card' : ''}`}>
             <div className="row between">
               <b>{e.sequence_name}</b>
-              <span className={`chip ${e.status === 'active' ? 'outcome' : ''}`}>{e.status}</span>
+              <span className={`chip ${e.status === 'active' ? 'outcome' : e.status === 'replied' ? 'stage stage-won' : ''}`}>{e.status}</span>
             </div>
             <div className="muted small">
               {e.contact_name ? `${e.contact_name} · ` : ''}{e.completed}/{e.total} steps
@@ -67,7 +69,10 @@ export default function CompanySequences({ company }) {
               </div>
             )}
             {e.status === 'active' && (
-              <button className="link-btn danger" onClick={() => unenroll(e)}>Unenroll</button>
+              <div className="row gap">
+                <button className="link-btn" onClick={() => markReplied(e)}>Mark replied</button>
+                <button className="link-btn danger" onClick={() => unenroll(e)}>Unenroll</button>
+              </div>
             )}
           </div>
         );

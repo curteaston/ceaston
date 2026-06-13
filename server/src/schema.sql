@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS sequence_enrollments (
 );
 CREATE INDEX IF NOT EXISTS seq_enroll_company_idx ON sequence_enrollments (company_id);
 CREATE INDEX IF NOT EXISTS seq_enroll_status_idx ON sequence_enrollments (status);
+-- Allow a 'replied' status (added after initial release): drop the original inline CHECK.
+ALTER TABLE sequence_enrollments DROP CONSTRAINT IF EXISTS sequence_enrollments_status_check;
 
 CREATE TABLE IF NOT EXISTS sequence_step_runs (
   id            SERIAL PRIMARY KEY,
