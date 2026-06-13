@@ -29,7 +29,7 @@ code { background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .app { display: flex; min-height: 100vh; }
 .sidebar {
   width: 200px; background: var(--sidebar); color: #cdd6e4;
-  padding: 18px 12px; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow: hidden;
+  padding: 18px 12px; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
 }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; }
 
