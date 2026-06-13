@@ -163,16 +163,26 @@ router.get('/:id/history', h(async (req, res) => {
 router.post('/', h(async (req, res) => {
   const b = req.body;
   const companyId = await resolveCompanyId(b);
-  if (!companyId) throw badRequest('company_id (or company_domain / company_name of an existing company) is required');
-  if (!b.name) throw badRequest('name is required');
+  // company_id and name are still NOT NULL in the DB schema; fall back to sentinel values
+  // when the user creates a contact without filling those fields.
+  if (!b.name && !b.first_name && !b.last_name) b.name = '(unnamed)';
+  if (!b.name) b.name = [b.first_name, b.last_name].filter(Boolean).join(' ') || '(unnamed)';
+  let resolvedCompanyId = companyId;
+  if (!resolvedCompanyId) {
+    // Create a placeholder company so the NOT NULL constraint is satisfied
+    const { rows: co } = await query(
+      `INSERT INTO companies (name, industry) VALUES ('(no company)', 'HVAC') RETURNING id`
+    );
+    resolvedCompanyId = co[0].id;
+  }
   validateLeadStatus(b.lead_status);
   const { rows } = await query(
     `INSERT INTO contacts (company_id, name, title, email, phone, source, last_contacted_at, owner, lead_status)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, 'new')) RETURNING *`,
-    [companyId, b.name, b.title || null, b.email || null, b.phone || null, b.source || null,
+    [resolvedCompanyId, b.name, b.title || null, b.email || null, b.phone || null, b.source || null,
      b.last_contacted_at || null, b.owner || null, b.lead_status || null]
   );
-  await touchCompany(companyId);
+  await touchCompany(resolvedCompanyId);
   emit('contact.created', { contact: rows[0] });
   res.status(201).json(rows[0]);
 }));

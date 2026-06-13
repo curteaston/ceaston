@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, qs } from '../api.js';
 import { useStore } from '../store.js';
 import Modal from '../components/Modal.jsx';
@@ -34,18 +34,121 @@ function daysAgoIso(days) {
   return new Date(Date.now() - days * 86400000).toISOString();
 }
 
+function CompanyTypeahead({ value, onChange }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [selectedName, setSelectedName] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const { run } = useStore();
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const close = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    api.get(`/companies${qs({ sort: 'name', order: 'asc', limit: 10, q: query.trim() })}`)
+      .then((d) => setResults(d.companies || []))
+      .catch(() => {});
+  }, [query]);
+
+  const select = (company) => {
+    onChange(company.id);
+    setSelectedName(company.name);
+    setQuery(company.name);
+    setOpen(false);
+  };
+
+  const createCompany = () => {
+    if (!newCompanyName.trim()) return;
+    run(async () => {
+      const company = await api.post('/companies', { name: newCompanyName.trim() });
+      select(company);
+      setShowCreate(false);
+      setNewCompanyName('');
+    }, 'Company created');
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <input
+        value={query}
+        placeholder="Type to search companies…"
+        onChange={(e) => { setQuery(e.target.value); setSelectedName(''); onChange(''); setOpen(true); }}
+        onFocus={() => { if (query.trim()) setOpen(true); }}
+        autoComplete="off"
+      />
+      {open && (query.trim()) && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300,
+          background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)', maxHeight: 220, overflowY: 'auto'
+        }}>
+          {results.map((c) => (
+            <div key={c.id} style={{ padding: '8px 12px', cursor: 'pointer' }}
+              onMouseDown={() => select(c)}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseLeave={(e) => e.currentTarget.style.background = ''}
+            >{c.name}</div>
+          ))}
+          {results.length === 0 && <div style={{ padding: '8px 12px', color: '#9ca3af' }}>No matches found</div>}
+          <div
+            style={{ padding: '8px 12px', cursor: 'pointer', color: '#2563eb', fontWeight: 600, borderTop: '1px solid #e5e7eb' }}
+            onMouseDown={() => { setShowCreate(true); setOpen(false); setNewCompanyName(query.trim()); }}
+          >+ Create New</div>
+        </div>
+      )}
+      {showCreate && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300,
+          background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: 12
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>New company name</div>
+          <input
+            autoFocus
+            value={newCompanyName}
+            onChange={(e) => setNewCompanyName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); createCompany(); } }}
+            style={{ width: '100%', marginBottom: 8 }}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="btn small primary" onClick={createCompany}>Create</button>
+            <button type="button" className="btn small" onClick={() => setShowCreate(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddContactModal({ onClose, onSaved }) {
   const { run, meta } = useStore();
   const [companyId, setCompanyId] = useState('');
   const [form, setForm] = useState({
-    name: '', title: '', email: '', phone: '', source: '', owner: '', lead_status: 'new',
+    firstName: '', lastName: '', title: '', email: '', phone: '', source: '', owner: '', lead_status: 'new',
   });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = (e) => {
     e.preventDefault();
+    const name = [form.firstName.trim(), form.lastName.trim()].filter(Boolean).join(' ');
     run(async () => {
-      await api.post('/contacts', { ...form, company_id: Number(companyId) });
+      await api.post('/contacts', {
+        name: name || undefined,
+        title: form.title || undefined,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        source: form.source || undefined,
+        owner: form.owner || undefined,
+        lead_status: form.lead_status || undefined,
+        company_id: companyId ? Number(companyId) : undefined,
+      });
       onSaved();
       onClose();
     }, 'Contact added');
@@ -54,8 +157,9 @@ function AddContactModal({ onClose, onSaved }) {
   return (
     <Modal title="Add contact" onClose={onClose}>
       <form className="form-grid" onSubmit={submit}>
-        <Field label="Company *"><CompanySelect value={companyId} onChange={setCompanyId} /></Field>
-        <Field label="Name *"><input required value={form.name} onChange={upd('name')} /></Field>
+        <Field label="First name"><input value={form.firstName} onChange={upd('firstName')} /></Field>
+        <Field label="Last name"><input value={form.lastName} onChange={upd('lastName')} /></Field>
+        <Field label="Company"><CompanyTypeahead value={companyId} onChange={setCompanyId} /></Field>
         <Field label="Title"><input value={form.title} onChange={upd('title')} /></Field>
         <Field label="Email"><input type="email" value={form.email} onChange={upd('email')} /></Field>
         <Field label="Phone"><input value={form.phone} onChange={upd('phone')} /></Field>
@@ -99,6 +203,9 @@ export default function Contacts() {
   const [showColumns, setShowColumns] = useState(false);
   const [drawerContact, setDrawerContact] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef(null);
+  const navigate = useNavigate();
   const [bulkStatus, setBulkStatus] = useState('');
   const searchTimer = useRef(null);
   const colPanelRef = useRef(null);
@@ -139,6 +246,7 @@ export default function Contacts() {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
       if (statusDropRef.current && !statusDropRef.current.contains(e.target)) setShowStatusDrop(false);
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -293,7 +401,29 @@ export default function Contacts() {
           ))}
           <SavedViews entity="contact" captureState={captureState} applyState={applyState} />
         </div>
-        <button className="btn primary" onClick={() => setShowAdd(true)}>Add contact</button>
+        <div ref={addMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
+          <button className="btn primary" onClick={() => setShowAddMenu((v) => !v)}>
+            Add contacts ▾
+          </button>
+          {showAddMenu && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, zIndex: 200, minWidth: 160,
+              background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '4px 0'
+            }}>
+              <div style={{ padding: '8px 16px', cursor: 'pointer' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                onClick={() => { setShowAdd(true); setShowAddMenu(false); }}
+              >Add contact</div>
+              <div style={{ padding: '8px 16px', cursor: 'pointer' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                onMouseLeave={(e) => e.currentTarget.style.background = ''}
+                onClick={() => { navigate('/import'); setShowAddMenu(false); }}
+              >Import contacts</div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="filter-bar">
