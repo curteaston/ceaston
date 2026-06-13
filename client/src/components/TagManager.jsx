@@ -44,6 +44,18 @@ export default function TagManager({ entityType, entityId, tags = [], onChanged 
     return t.name.toLowerCase().includes(inputValue.toLowerCase());
   });
 
+  const deleteTagGlobally = async (tag, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete tag "${tag.name}" everywhere?`)) return;
+    try {
+      await api.del(`/tags/${tag.id}`);
+      loadAllTags();
+      onChanged();
+    } catch (err) {
+      console.error('Failed to delete tag', err);
+    }
+  };
+
   const removeTag = async (tag) => {
     const tagId = typeof tag === 'object' ? tag.id : null;
     if (!tagId) return;
@@ -118,11 +130,17 @@ export default function TagManager({ entityType, entityId, tags = [], onChanged 
               <div
                 key={t.id}
                 className="tag-dropdown-item"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                 onMouseDown={(e) => { e.preventDefault(); addTag(t); }}
               >
                 <span className="tag-chip" style={{ backgroundColor: lightenColor(t.color || '#6366f1'), color: t.color || '#6366f1' }}>
                   {t.name}
                 </span>
+                <span
+                  title="Delete tag everywhere"
+                  style={{ marginLeft: 8, color: '#ef4444', cursor: 'pointer', fontSize: 13, lineHeight: 1 }}
+                  onMouseDown={(e) => { e.preventDefault(); deleteTagGlobally(t, e); }}
+                >🗑</span>
               </div>
             ))}
             {showCreateOption && (
