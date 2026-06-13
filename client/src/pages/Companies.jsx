@@ -9,6 +9,7 @@ import EnrollModal from '../components/EnrollModal.jsx';
 import SavedViews from '../components/SavedViews.jsx';
 import { Field, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
+import FilterDrawer, { FilterSection } from '../components/FilterDrawer.jsx';
 
 const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
 const TIMEZONES = [
@@ -20,6 +21,18 @@ const TIMEZONES = [
   { value: 'America/Anchorage', label: 'Alaska' },
   { value: 'Pacific/Honolulu', label: 'Hawaii' },
 ];
+
+const BLANK_FILTERS = {
+  owner: '', unassigned: false, lifecycle_stage: '',
+  industry: '', type: '', city: '', state: '', postal_code: '', timezone: '',
+  ad_spend_range: '', employee_min: '', employee_max: '',
+  revenue_min: '', revenue_max: '',
+  deal_stage: '', no_deals: false,
+  inactive_days: '',
+  last_activity_from: '', last_activity_to: '',
+  created_from: '', created_to: '',
+  tags: [],
+};
 
 export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
@@ -93,15 +106,6 @@ const ALL_COLUMNS = [
 ];
 const DEFAULT_VISIBLE = ['name', 'owner', 'created_at', 'last_activity_at', 'lifecycle_stage', 'industry', 'contact_count', 'open_deal_value'];
 
-const CREATED_PRESETS = [
-  ['', 'Create date: any'], ['7', 'Created last 7 days'], ['30', 'Created last 30 days'], ['90', 'Created last 90 days'],
-];
-const ACTIVITY_PRESETS = [
-  ['', 'Last activity: any'], ['7', 'Untouched 7+ days'], ['14', 'Untouched 14+ days'], ['30', 'Untouched 30+ days'],
-];
-
-const daysAgoIso = (days) => new Date(Date.now() - days * 86400000).toISOString();
-
 function BulkEnrollModal({ count, onClose, onEnroll }) {
   const [sequences, setSequences] = useState([]);
   const [sequenceId, setSequenceId] = useState('');
@@ -132,12 +136,9 @@ export default function Companies() {
   const [view, setView] = useState(() => localStorage.getItem('crm_company_view') || 'table');
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ owner: '', created: '', inactive: '', lifecycle_stage: '' });
-  const [advanced, setAdvanced] = useState({ industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false, city: '', state: '', timezone: '', revenue_min: '', revenue_max: '', tags: [], created_from: '', created_to: '' });
+  const [filters, setFilters] = useState(BLANK_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
   const [allTags, setAllTags] = useState([]);
-  const [showTagsDrop, setShowTagsDrop] = useState(false);
-  const tagsDropRef = useRef(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [sort, setSort] = useState({ by: 'last_activity_at', order: 'desc' });
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(25);
@@ -153,15 +154,28 @@ export default function Companies() {
   const [showAdd, setShowAdd] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const addMenuRef = useRef(null);
-  const [panel, setPanel] = useState(null);   // { type: 'preview' | 'summary', company }
-  const [composer, setComposer] = useState(null); // { type: 'email' | 'note', company }
-  const [enroll, setEnroll] = useState(null); // company being enrolled
+  const [panel, setPanel] = useState(null);
+  const [composer, setComposer] = useState(null);
+  const [enroll, setEnroll] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [bulkEnroll, setBulkEnroll] = useState(false);
   const [bulkLifecycle, setBulkLifecycle] = useState('');
-  const [searchKey, setSearchKey] = useState(0); // bump to remount the search input on view-apply
+  const [searchKey, setSearchKey] = useState(0);
   const searchTimer = useRef(null);
   const colPanelRef = useRef(null);
+
+  const setF = (patch) => { setPage(0); setFilters((f) => ({ ...f, ...patch })); };
+
+  const activeFilterCount = useMemo(() => [
+    filters.owner, filters.unassigned, filters.lifecycle_stage,
+    filters.industry, filters.type, filters.city, filters.state, filters.postal_code, filters.timezone,
+    filters.ad_spend_range, filters.employee_min, filters.employee_max,
+    filters.revenue_min, filters.revenue_max,
+    filters.deal_stage, filters.no_deals,
+    filters.inactive_days, filters.last_activity_from, filters.last_activity_to,
+    filters.created_from, filters.created_to,
+    filters.tags.length > 0,
+  ].filter(Boolean).length, [filters]);
 
   const params = useMemo(() => {
     const p = { sort: sort.by, order: sort.order };
@@ -175,42 +189,45 @@ export default function Companies() {
     if (search.trim()) p.q = search.trim();
     if (tab === 'mine') p.owner = me;
     if (tab === 'all' && filters.owner) p.owner = filters.owner;
-    if (filters.created) p.created_after = daysAgoIso(Number(filters.created));
-    if (filters.inactive) p.inactive_days = filters.inactive;
+    if (filters.unassigned) p.unassigned = 'true';
     if (filters.lifecycle_stage) p.lifecycle_stage = filters.lifecycle_stage;
-    if (advanced.industry.trim()) p.industry = advanced.industry.trim();
-    if (advanced.ad_spend_range) p.ad_spend_range = advanced.ad_spend_range;
-    if (advanced.employee_min) p.employee_min = advanced.employee_min;
-    if (advanced.employee_max) p.employee_max = advanced.employee_max;
-    if (advanced.deal_stage) p.deal_stage = advanced.deal_stage;
-    if (advanced.no_deals) p.no_deals = 'true';
-    if (advanced.city.trim()) p.city = advanced.city.trim();
-    if (advanced.state.trim()) p.state = advanced.state.trim();
-    if (advanced.timezone) p.timezone = advanced.timezone;
-    if (advanced.revenue_min) p.revenue_min = advanced.revenue_min;
-    if (advanced.revenue_max) p.revenue_max = advanced.revenue_max;
-    if (advanced.tags && advanced.tags.length) p.tags = advanced.tags.join(',');
-    if (advanced.created_from) p.created_after = advanced.created_from;
-    if (advanced.created_to) p.created_before = advanced.created_to;
+    if (filters.industry) p.industry = filters.industry;
+    if (filters.type) p.type = filters.type;
+    if (filters.city) p.city = filters.city;
+    if (filters.state) p.state = filters.state;
+    if (filters.postal_code) p.postal_code = filters.postal_code;
+    if (filters.timezone) p.timezone = filters.timezone;
+    if (filters.ad_spend_range) p.ad_spend_range = filters.ad_spend_range;
+    if (filters.employee_min) p.employee_min = filters.employee_min;
+    if (filters.employee_max) p.employee_max = filters.employee_max;
+    if (filters.revenue_min) p.revenue_min = filters.revenue_min;
+    if (filters.revenue_max) p.revenue_max = filters.revenue_max;
+    if (filters.deal_stage) p.deal_stage = filters.deal_stage;
+    if (filters.no_deals) p.no_deals = 'true';
+    if (filters.inactive_days) p.inactive_days = filters.inactive_days;
+    if (filters.last_activity_from) p.last_contact_after = filters.last_activity_from;
+    if (filters.last_activity_to) p.last_contact_before = filters.last_activity_to;
+    if (filters.created_from) p.created_after = filters.created_from;
+    if (filters.created_to) p.created_before = filters.created_to;
+    if (filters.tags && filters.tags.length) p.tags = filters.tags.join(',');
     return p;
-  }, [view, tab, search, filters, advanced, sort, page, perPage, me]);
+  }, [view, tab, search, filters, sort, page, perPage, me]);
 
   const load = () => {
     api.get(`/companies${qs(params)}`).then((d) => { setData(d); setSelected(new Set()); }).catch((e) => notify(e.message, true));
   };
 
-  // Saved-view capture/apply over the whole filter state.
-  const captureState = () => ({ tab, search, filters, advanced, sort, view });
+  const captureState = () => ({ tab, search, filters, sort, view });
   const applyState = (s) => {
     if (s.tab) setTab(s.tab);
     setSearch(s.search || '');
-    setFilters(s.filters || { owner: '', created: '', inactive: '', lifecycle_stage: '' });
-    setAdvanced(s.advanced || { industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false, city: '', state: '', timezone: '', revenue_min: '', revenue_max: '', tags: [], created_from: '', created_to: '' });
+    setFilters(s.filters || BLANK_FILTERS);
     if (s.sort) setSort(s.sort);
     if (s.view) switchView(s.view);
     setPage(0);
     setSearchKey((k) => k + 1);
   };
+
   const loadFacets = () => {
     api.get(`/companies/facets?me=${encodeURIComponent(me)}`).then(setFacets).catch(() => {});
   };
@@ -222,7 +239,6 @@ export default function Companies() {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
       if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
-      if (tagsDropRef.current && !tagsDropRef.current.contains(e.target)) setShowTagsDrop(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -239,8 +255,6 @@ export default function Companies() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => { setPage(0); setSearch(value); }, 300);
   };
-  const setFilter = (patch) => { setPage(0); setFilters((f) => ({ ...f, ...patch })); };
-  const setAdv = (patch) => { setPage(0); setAdvanced((a) => ({ ...a, ...patch })); };
 
   const toggleSort = (col) => {
     if (!col.sort) return;
@@ -263,7 +277,6 @@ export default function Companies() {
       navigate(`/companies/${company.id}`);
     }, 'Company created');
 
-  // Drag-and-drop between board columns: optimistic update, then PATCH.
   const moveLifecycle = (company, lifecycle_stage) => {
     setData((d) => ({
       ...d,
@@ -327,7 +340,7 @@ export default function Companies() {
   const bulkDelete = () => {
     if (confirm(`Delete ${selected.size} compan${selected.size === 1 ? 'y' : 'ies'} and all their data?`)) bulk('delete');
   };
-  const doBulkEnroll = (sequenceId, contactId) =>
+  const doBulkEnroll = (sequenceId) =>
     run(async () => {
       const results = await Promise.allSettled(
         [...selected].map((id) => api.post(`/sequences/${sequenceId}/enroll`, { company_id: id, owner: me }))
@@ -366,6 +379,19 @@ export default function Companies() {
       case 'open_task_count': return c.open_task_count > 0 ? c.open_task_count : '--';
       default: return null;
     }
+  };
+
+  // Per-section active counts
+  const sectionCounts = {
+    companyInfo: [filters.industry, filters.type, filters.city, filters.state, filters.postal_code, filters.timezone].filter(Boolean).length,
+    ownership: [filters.owner, filters.unassigned].filter(Boolean).length,
+    lifecycle: filters.lifecycle_stage ? 1 : 0,
+    financial: [filters.revenue_min, filters.revenue_max, filters.ad_spend_range].filter(Boolean).length,
+    size: [filters.employee_min, filters.employee_max].filter(Boolean).length,
+    deals: [filters.deal_stage, filters.no_deals].filter(Boolean).length,
+    activity: [filters.inactive_days, filters.last_activity_from, filters.last_activity_to].filter(Boolean).length,
+    createDate: [filters.created_from, filters.created_to].filter(Boolean).length,
+    tags: filters.tags.length > 0 ? 1 : 0,
   };
 
   return (
@@ -408,24 +434,8 @@ export default function Companies() {
           <button className={view === 'table' ? 'on' : ''} onClick={() => switchView('table')}>☷ Table view</button>
           <button className={view === 'board' ? 'on' : ''} onClick={() => switchView('board')}>▦ Board view</button>
         </span>
-        {tab === 'all' && (
-          <select value={filters.owner} onChange={(e) => setFilter({ owner: e.target.value })}>
-            <option value="">Company owner: any</option>
-            {facets.owners.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        )}
-        <select value={filters.created} onChange={(e) => setFilter({ created: e.target.value })}>
-          {CREATED_PRESETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        <select value={filters.inactive} onChange={(e) => setFilter({ inactive: e.target.value })}>
-          {ACTIVITY_PRESETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        <select value={filters.lifecycle_stage} onChange={(e) => setFilter({ lifecycle_stage: e.target.value })}>
-          <option value="">Lifecycle: any</option>
-          {meta.lifecycle_stages.map((s) => <option key={s} value={s}>{LIFECYCLE_LABELS[s]}</option>)}
-        </select>
-        <button className="link-btn" onClick={() => setShowAdvanced(!showAdvanced)}>
-          ⚙ Advanced filters {showAdvanced ? '▴' : '▾'}
+        <button className="btn small" onClick={() => setShowFilters(true)}>
+          ⚙ Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </button>
         <span className="grow" />
         {view === 'table' && (
@@ -449,65 +459,6 @@ export default function Companies() {
         )}
         <button className="btn small" onClick={exportCsv}>Export</button>
       </div>
-
-      {showAdvanced && (
-        <div className="filter-bar advanced" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <input placeholder="Industry" style={{ width: 120 }} value={advanced.industry} onChange={(e) => setAdv({ industry: e.target.value })} />
-          <input placeholder="City" style={{ width: 110 }} value={advanced.city} onChange={(e) => setAdv({ city: e.target.value })} />
-          <input placeholder="State" style={{ width: 90 }} value={advanced.state} onChange={(e) => setAdv({ state: e.target.value })} />
-          <select value={advanced.timezone} onChange={(e) => setAdv({ timezone: e.target.value })} style={{ width: 170 }}>
-            <option value="">Timezone: any</option>
-            {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
-          </select>
-          <select value={advanced.ad_spend_range} onChange={(e) => setAdv({ ad_spend_range: e.target.value })}>
-            <option value="">Ad spend: any</option>
-            {meta.ad_spend_ranges.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-          <input type="number" placeholder="Emp ≥" style={{ width: 80 }} value={advanced.employee_min} onChange={(e) => setAdv({ employee_min: e.target.value })} />
-          <input type="number" placeholder="Emp ≤" style={{ width: 80 }} value={advanced.employee_max} onChange={(e) => setAdv({ employee_max: e.target.value })} />
-          <input type="number" placeholder="Revenue ≥" style={{ width: 110 }} value={advanced.revenue_min} onChange={(e) => setAdv({ revenue_min: e.target.value })} />
-          <input type="number" placeholder="Revenue ≤" style={{ width: 110 }} value={advanced.revenue_max} onChange={(e) => setAdv({ revenue_max: e.target.value })} />
-          <select value={advanced.deal_stage} onChange={(e) => setAdv({ deal_stage: e.target.value })}>
-            <option value="">Deal stage: any</option>
-            {meta.stages.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <label className="checkbox-inline">
-            <input type="checkbox" checked={advanced.no_deals} onChange={(e) => setAdv({ no_deals: e.target.checked })} />
-            No deals yet
-          </label>
-          <div ref={tagsDropRef} style={{ position: 'relative', display: 'inline-block' }}>
-            <button className="btn small" style={{ minWidth: 140, textAlign: 'left' }} onClick={() => setShowTagsDrop((v) => !v)}>
-              {advanced.tags.length === 0 ? 'Tags: any' : `Tags: ${advanced.tags.length} selected`} ▾
-            </button>
-            {showTagsDrop && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 200, background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 180, maxHeight: 200, overflowY: 'auto' }}>
-                {allTags.map((t) => (
-                  <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={advanced.tags.includes(t.name)}
-                      onChange={(e) => {
-                        const next = e.target.checked ? [...advanced.tags, t.name] : advanced.tags.filter((x) => x !== t.name);
-                        setAdv({ tags: next });
-                      }}
-                    />
-                    {t.name}
-                  </label>
-                ))}
-                {allTags.length === 0 && <div style={{ padding: '8px 14px', color: '#9ca3af' }}>No tags yet</div>}
-              </div>
-            )}
-          </div>
-          <label style={{ fontSize: 12, color: 'var(--muted)' }}>Created from</label>
-          <input type="date" style={{ width: 140 }} value={advanced.created_from} onChange={(e) => setAdv({ created_from: e.target.value })} />
-          <label style={{ fontSize: 12, color: 'var(--muted)' }}>to</label>
-          <input type="date" style={{ width: 140 }} value={advanced.created_to} onChange={(e) => setAdv({ created_to: e.target.value })} />
-          <button
-            className="link-btn"
-            onClick={() => setAdv({ industry: '', ad_spend_range: '', employee_min: '', employee_max: '', deal_stage: '', no_deals: false, city: '', state: '', timezone: '', revenue_min: '', revenue_max: '', tags: [], created_from: '', created_to: '' })}
-          >Clear advanced</button>
-        </div>
-      )}
 
       {view === 'table' && selected.size > 0 && (
         <div className="bulk-bar">
@@ -579,6 +530,161 @@ export default function Companies() {
         </>
       )}
 
+      {showFilters && (
+        <FilterDrawer
+          title="Filter companies"
+          activeCount={activeFilterCount}
+          onClose={() => setShowFilters(false)}
+          onClear={() => { setFilters(BLANK_FILTERS); setPage(0); }}
+        >
+          <FilterSection title="Company information" activeCount={sectionCounts.companyInfo}>
+            <div className="fd-field">
+              <label>Industry</label>
+              <input value={filters.industry} onChange={(e) => setF({ industry: e.target.value })} placeholder="e.g. HVAC" />
+            </div>
+            <div className="fd-field">
+              <label>Type</label>
+              <select value={filters.type} onChange={(e) => setF({ type: e.target.value })}>
+                <option value="">Any type</option>
+                {COMPANY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>City</label>
+              <input value={filters.city} onChange={(e) => setF({ city: e.target.value })} placeholder="e.g. Atlanta" />
+            </div>
+            <div className="fd-field">
+              <label>State</label>
+              <input value={filters.state} onChange={(e) => setF({ state: e.target.value })} placeholder="e.g. GA" />
+            </div>
+            <div className="fd-field">
+              <label>Postal code</label>
+              <input value={filters.postal_code} onChange={(e) => setF({ postal_code: e.target.value })} placeholder="e.g. 30301" />
+            </div>
+            <div className="fd-field">
+              <label>Timezone</label>
+              <select value={filters.timezone} onChange={(e) => setF({ timezone: e.target.value })}>
+                <option value="">Any timezone</option>
+                {TIMEZONES.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+              </select>
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Ownership" activeCount={sectionCounts.ownership}>
+            <div className="fd-field">
+              <label>Owner</label>
+              <select value={filters.owner} onChange={(e) => setF({ owner: e.target.value })}>
+                <option value="">Any owner</option>
+                {facets.owners.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.unassigned} onChange={(e) => setF({ unassigned: e.target.checked })} />
+              Unassigned only
+            </label>
+          </FilterSection>
+
+          <FilterSection title="Lifecycle stage" activeCount={sectionCounts.lifecycle}>
+            <div className="fd-field">
+              <label>Stage</label>
+              <select value={filters.lifecycle_stage} onChange={(e) => setF({ lifecycle_stage: e.target.value })}>
+                <option value="">Any stage</option>
+                {meta.lifecycle_stages.map((s) => <option key={s} value={s}>{LIFECYCLE_LABELS[s]}</option>)}
+              </select>
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Financial" activeCount={sectionCounts.financial}>
+            <div className="fd-field">
+              <label>Annual revenue</label>
+              <div className="fd-range">
+                <input type="number" placeholder="Min" value={filters.revenue_min} onChange={(e) => setF({ revenue_min: e.target.value })} />
+                <input type="number" placeholder="Max" value={filters.revenue_max} onChange={(e) => setF({ revenue_max: e.target.value })} />
+              </div>
+            </div>
+            <div className="fd-field">
+              <label>Google ad spend</label>
+              <select value={filters.ad_spend_range} onChange={(e) => setF({ ad_spend_range: e.target.value })}>
+                <option value="">Any spend</option>
+                {meta.ad_spend_ranges.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Company size" activeCount={sectionCounts.size}>
+            <div className="fd-field">
+              <label>Employees</label>
+              <div className="fd-range">
+                <input type="number" placeholder="Min" value={filters.employee_min} onChange={(e) => setF({ employee_min: e.target.value })} />
+                <input type="number" placeholder="Max" value={filters.employee_max} onChange={(e) => setF({ employee_max: e.target.value })} />
+              </div>
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Deals" activeCount={sectionCounts.deals}>
+            <div className="fd-field">
+              <label>Deal stage</label>
+              <select value={filters.deal_stage} onChange={(e) => setF({ deal_stage: e.target.value })}>
+                <option value="">Any stage</option>
+                {meta.stages.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.no_deals} onChange={(e) => setF({ no_deals: e.target.checked })} />
+              No deals yet
+            </label>
+          </FilterSection>
+
+          <FilterSection title="Activity" activeCount={sectionCounts.activity}>
+            <div className="fd-field">
+              <label>Untouched days</label>
+              <select value={filters.inactive_days} onChange={(e) => setF({ inactive_days: e.target.value })}>
+                <option value="">Any</option>
+                <option value="7">7+ days untouched</option>
+                <option value="14">14+ days untouched</option>
+                <option value="30">30+ days untouched</option>
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Last activity from</label>
+              <input type="date" value={filters.last_activity_from} onChange={(e) => setF({ last_activity_from: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Last activity to</label>
+              <input type="date" value={filters.last_activity_to} onChange={(e) => setF({ last_activity_to: e.target.value })} />
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Create date" activeCount={sectionCounts.createDate}>
+            <div className="fd-field">
+              <label>Created from</label>
+              <input type="date" value={filters.created_from} onChange={(e) => setF({ created_from: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Created to</label>
+              <input type="date" value={filters.created_to} onChange={(e) => setF({ created_to: e.target.value })} />
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Tags" activeCount={sectionCounts.tags}>
+            {allTags.map((t) => (
+              <label key={t.id} className="fd-checkbox">
+                <input
+                  type="checkbox"
+                  checked={filters.tags.includes(t.name)}
+                  onChange={(e) => {
+                    const next = e.target.checked ? [...filters.tags, t.name] : filters.tags.filter((x) => x !== t.name);
+                    setF({ tags: next });
+                  }}
+                />
+                {t.name}
+              </label>
+            ))}
+            {allTags.length === 0 && <span className="muted small">No tags yet</span>}
+          </FilterSection>
+        </FilterDrawer>
+      )}
+
       {panel?.type === 'preview' && (
         <PreviewPanel
           company={panel.company}
@@ -609,7 +715,6 @@ export default function Companies() {
           <CompanyForm onSubmit={createCompany} submitLabel="Create company" />
         </Modal>
       )}
-
     </div>
   );
 }

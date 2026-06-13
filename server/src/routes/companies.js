@@ -86,6 +86,8 @@ router.get('/', h(async (req, res) => {
   if (q.no_deals === 'true') where.push('NOT EXISTS (SELECT 1 FROM deals d WHERE d.company_id = co.id)');
   if (q.city) add('co.city ILIKE ?', `%${q.city}%`);
   if (q.state) add('co.state ILIKE ?', `%${q.state}%`);
+  if (q.type) add('co.type = ?', q.type);
+  if (q.postal_code) add('co.postal_code ILIKE ?', `%${q.postal_code}%`);
   if (q.timezone) add('co.timezone = ?', q.timezone);
   if (q.revenue_min) add('co.annual_revenue >= ?', Number(q.revenue_min));
   if (q.revenue_max) add('co.annual_revenue <= ?', Number(q.revenue_max));

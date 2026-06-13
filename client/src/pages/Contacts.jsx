@@ -7,6 +7,7 @@ import ContactDrawer from '../components/ContactDrawer.jsx';
 import { CompanySelect, Field, PhoneLink } from '../components/widgets.jsx';
 import SavedViews from '../components/SavedViews.jsx';
 import { fmtDate, fmtDateTime, relTime } from '../format.js';
+import FilterDrawer, { FilterSection } from '../components/FilterDrawer.jsx';
 
 const ALL_COLUMNS = [
   { key: 'name', label: 'Name', sort: 'name', always: true },
@@ -22,17 +23,19 @@ const ALL_COLUMNS = [
 ];
 const DEFAULT_VISIBLE = ['name', 'email', 'phone', 'owner', 'company', 'last_contacted_at', 'lead_status'];
 
-const CREATED_PRESETS = [
-  ['', 'Create date: any'], ['7', 'Created last 7 days'], ['30', 'Created last 30 days'], ['90', 'Created last 90 days'],
-];
-const ACTIVITY_PRESETS = [
-  ['', 'Last activity: any'], ['recent7', 'Active last 7 days'], ['recent30', 'Active last 30 days'],
-  ['inactive30', 'Inactive 30+ days'], ['never', 'Never contacted'],
-];
+const LEAD_STATUSES = ['New', 'Working', 'Open', 'Qualified', 'Unqualified', 'Attempted to Contact', 'Connected', 'Bad Timing'];
 
-function daysAgoIso(days) {
-  return new Date(Date.now() - days * 86400000).toISOString();
-}
+const BLANK_FILTERS = {
+  owner: '', unassigned: false,
+  lead_statuses: [],
+  source: '', title: '',
+  has_email: false, has_phone: false,
+  never_contacted: false,
+  inactive_days: '',
+  last_contact_from: '', last_contact_to: '',
+  created_from: '', created_to: '',
+  tags: [],
+};
 
 function CompanyTypeahead({ value, onChange }) {
   const [query, setQuery] = useState('');
@@ -183,14 +186,9 @@ export default function Contacts() {
   const [tab, setTab] = useState('all'); // all | mine | unassigned
   const [search, setSearch] = useState('');
   const [searchKey, setSearchKey] = useState(0);
-  const [filters, setFilters] = useState({ owner: '', lead_status: [], created: '', activity: '' });
-  const [showStatusDrop, setShowStatusDrop] = useState(false);
-  const statusDropRef = useRef(null);
-  const [advanced, setAdvanced] = useState({ source: '', title: '', has_email: false, has_phone: false, tags: [], created_from: '', created_to: '' });
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [filters, setFilters] = useState(BLANK_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
   const [allTags, setAllTags] = useState([]);
-  const [showTagsDrop, setShowTagsDrop] = useState(false);
-  const tagsDropRef = useRef(null);
   const [sort, setSort] = useState({ by: 'name', order: 'asc' });
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(25);
@@ -213,27 +211,40 @@ export default function Contacts() {
   const searchTimer = useRef(null);
   const colPanelRef = useRef(null);
 
+  const setF = (patch) => { setPage(0); setFilters((f) => ({ ...f, ...patch })); };
+
+  const activeFilterCount = useMemo(() => [
+    filters.owner, filters.unassigned,
+    filters.lead_statuses.length > 0,
+    filters.source, filters.title,
+    filters.has_email, filters.has_phone,
+    filters.never_contacted,
+    filters.inactive_days, filters.last_contact_from, filters.last_contact_to,
+    filters.created_from, filters.created_to,
+    filters.tags.length > 0,
+  ].filter(Boolean).length, [filters]);
+
   const params = useMemo(() => {
     const p = { sort: sort.by, order: sort.order, limit: perPage, offset: page * perPage };
     if (search.trim()) p.q = search.trim();
     if (tab === 'mine') p.owner = me;
     if (tab === 'unassigned') p.unassigned = 'true';
     if (tab === 'all' && filters.owner) p.owner = filters.owner;
-    if (filters.lead_status.length) p.lead_status = filters.lead_status.join(',');
-    if (filters.created) p.created_after = daysAgoIso(Number(filters.created));
-    if (filters.activity === 'recent7') p.last_contact_after = daysAgoIso(7);
-    if (filters.activity === 'recent30') p.last_contact_after = daysAgoIso(30);
-    if (filters.activity === 'inactive30') p.inactive_days = 30;
-    if (filters.activity === 'never') p.never_contacted = 'true';
-    if (advanced.source.trim()) p.source = advanced.source.trim();
-    if (advanced.title.trim()) p.title = advanced.title.trim();
-    if (advanced.has_email) p.has_email = 'true';
-    if (advanced.has_phone) p.has_phone = 'true';
-    if (advanced.tags && advanced.tags.length) p.tags = advanced.tags.join(',');
-    if (advanced.created_from) p.created_after = advanced.created_from;
-    if (advanced.created_to) p.created_before = advanced.created_to;
+    if (filters.unassigned) p.unassigned = 'true';
+    if (filters.lead_statuses.length) p.lead_status = filters.lead_statuses.join(',');
+    if (filters.source.trim()) p.source = filters.source.trim();
+    if (filters.title.trim()) p.title = filters.title.trim();
+    if (filters.has_email) p.has_email = 'true';
+    if (filters.has_phone) p.has_phone = 'true';
+    if (filters.never_contacted) p.never_contacted = 'true';
+    if (filters.inactive_days) p.inactive_days = filters.inactive_days;
+    if (filters.last_contact_from) p.last_contact_after = filters.last_contact_from;
+    if (filters.last_contact_to) p.last_contact_before = filters.last_contact_to;
+    if (filters.created_from) p.created_after = filters.created_from;
+    if (filters.created_to) p.created_before = filters.created_to;
+    if (filters.tags && filters.tags.length) p.tags = filters.tags.join(',');
     return p;
-  }, [tab, search, filters, advanced, sort, page, perPage, me]);
+  }, [tab, search, filters, sort, page, perPage, me]);
 
   const load = () => {
     api.get(`/contacts${qs(params)}`).then((d) => {
@@ -252,9 +263,7 @@ export default function Contacts() {
   useEffect(() => {
     const close = (e) => {
       if (colPanelRef.current && !colPanelRef.current.contains(e.target)) setShowColumns(false);
-      if (statusDropRef.current && !statusDropRef.current.contains(e.target)) setShowStatusDrop(false);
       if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setShowAddMenu(false);
-      if (tagsDropRef.current && !tagsDropRef.current.contains(e.target)) setShowTagsDrop(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -262,12 +271,11 @@ export default function Contacts() {
 
   const refreshAll = () => { load(); loadFacets(); };
 
-  const captureState = () => ({ tab, search, filters, advanced, sort });
+  const captureState = () => ({ tab, search, filters, sort });
   const applyState = (s) => {
     if (s.tab) setTab(s.tab);
     setSearch(s.search || '');
-    setFilters(s.filters || { owner: '', lead_status: [], created: '', activity: '' });
-    setAdvanced(s.advanced || { source: '', title: '', has_email: false, has_phone: false, tags: [], created_from: '', created_to: '' });
+    setFilters(s.filters || BLANK_FILTERS);
     if (s.sort) setSort(s.sort);
     setPage(0);
     setSearchKey((k) => k + 1);
@@ -277,8 +285,6 @@ export default function Contacts() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => { setPage(0); setSearch(value); }, 300);
   };
-
-  const setFilter = (patch) => { setPage(0); setFilters((f) => ({ ...f, ...patch })); };
 
   const toggleSort = (col) => {
     if (!col.sort) return;
@@ -390,6 +396,16 @@ export default function Contacts() {
     }
   };
 
+  // Per-section active counts
+  const sectionCounts = {
+    details: [filters.source, filters.title, filters.has_email, filters.has_phone].filter(Boolean).length,
+    ownership: [filters.owner, filters.unassigned].filter(Boolean).length,
+    leadStatus: filters.lead_statuses.length > 0 ? 1 : 0,
+    activity: [filters.never_contacted, filters.inactive_days, filters.last_contact_from, filters.last_contact_to].filter(Boolean).length,
+    createDate: [filters.created_from, filters.created_to].filter(Boolean).length,
+    tags: filters.tags.length > 0 ? 1 : 0,
+  };
+
   return (
     <div>
       <div className="page-head">
@@ -442,66 +458,8 @@ export default function Contacts() {
           defaultValue={search}
           onChange={(e) => onSearch(e.target.value)}
         />
-        {tab === 'all' && (
-          <select value={filters.owner} onChange={(e) => setFilter({ owner: e.target.value })}>
-            <option value="">Contact owner: any</option>
-            {facets.owners.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        )}
-        <select value={filters.created} onChange={(e) => setFilter({ created: e.target.value })}>
-          {CREATED_PRESETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        <select value={filters.activity} onChange={(e) => setFilter({ activity: e.target.value })}>
-          {ACTIVITY_PRESETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-        <div className="multi-select-wrap" ref={statusDropRef} style={{ position: 'relative', display: 'inline-block' }}>
-          <button
-            className="btn small"
-            style={{ minWidth: 160, textAlign: 'left' }}
-            onClick={() => setShowStatusDrop((v) => !v)}
-          >
-            {filters.lead_status.length === 0
-              ? 'Lead status: any'
-              : filters.lead_status.length === meta.lead_statuses.length
-                ? 'Lead status: all'
-                : `Lead status: ${filters.lead_status.length} selected`}
-            {' '}▾
-          </button>
-          {showStatusDrop && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, zIndex: 200,
-              background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 180
-            }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer', fontWeight: 600 }}>
-                <input
-                  type="checkbox"
-                  checked={filters.lead_status.length === meta.lead_statuses.length}
-                  onChange={(e) => setFilter({ lead_status: e.target.checked ? [...meta.lead_statuses] : [] })}
-                />
-                Select all
-              </label>
-              <div style={{ borderTop: '1px solid #e5e7eb', margin: '4px 0' }} />
-              {meta.lead_statuses.map((s) => (
-                <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={filters.lead_status.includes(s)}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...filters.lead_status, s]
-                        : filters.lead_status.filter((x) => x !== s);
-                      setFilter({ lead_status: next });
-                    }}
-                  />
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-        <button className="link-btn" onClick={() => setShowAdvanced(!showAdvanced)}>
-          ⚙ Advanced filters {showAdvanced ? '▴' : '▾'}
+        <button className="btn small" onClick={() => setShowFilters(true)}>
+          ⚙ Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </button>
         <span className="grow" />
         <div className="col-panel-wrap" ref={colPanelRef}>
@@ -523,64 +481,6 @@ export default function Contacts() {
         </div>
         <button className="btn small" onClick={exportCsv}>Export</button>
       </div>
-
-      {showAdvanced && (
-        <div className="filter-bar advanced" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <input
-            placeholder="Source contains…" style={{ width: 150 }}
-            value={advanced.source}
-            onChange={(e) => { setPage(0); setAdvanced({ ...advanced, source: e.target.value }); }}
-          />
-          <input
-            placeholder="Title contains…" style={{ width: 150 }}
-            value={advanced.title}
-            onChange={(e) => { setPage(0); setAdvanced({ ...advanced, title: e.target.value }); }}
-          />
-          <label className="checkbox-inline">
-            <input
-              type="checkbox" checked={advanced.has_email}
-              onChange={(e) => { setPage(0); setAdvanced({ ...advanced, has_email: e.target.checked }); }}
-            /> Has email
-          </label>
-          <label className="checkbox-inline">
-            <input
-              type="checkbox" checked={advanced.has_phone}
-              onChange={(e) => { setPage(0); setAdvanced({ ...advanced, has_phone: e.target.checked }); }}
-            /> Has phone
-          </label>
-          <div ref={tagsDropRef} style={{ position: 'relative', display: 'inline-block' }}>
-            <button className="btn small" style={{ minWidth: 140, textAlign: 'left' }} onClick={() => setShowTagsDrop((v) => !v)}>
-              {advanced.tags.length === 0 ? 'Tags: any' : `Tags: ${advanced.tags.length} selected`} ▾
-            </button>
-            {showTagsDrop && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 200, background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.12)', padding: '6px 0', minWidth: 180, maxHeight: 200, overflowY: 'auto' }}>
-                {allTags.map((t) => (
-                  <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={advanced.tags.includes(t.name)}
-                      onChange={(e) => {
-                        const next = e.target.checked ? [...advanced.tags, t.name] : advanced.tags.filter((x) => x !== t.name);
-                        setPage(0); setAdvanced({ ...advanced, tags: next });
-                      }}
-                    />
-                    {t.name}
-                  </label>
-                ))}
-                {allTags.length === 0 && <div style={{ padding: '8px 14px', color: '#9ca3af' }}>No tags yet</div>}
-              </div>
-            )}
-          </div>
-          <label style={{ fontSize: 12, color: 'var(--muted)' }}>Created from</label>
-          <input type="date" style={{ width: 140 }} value={advanced.created_from} onChange={(e) => { setPage(0); setAdvanced({ ...advanced, created_from: e.target.value }); }} />
-          <label style={{ fontSize: 12, color: 'var(--muted)' }}>to</label>
-          <input type="date" style={{ width: 140 }} value={advanced.created_to} onChange={(e) => { setPage(0); setAdvanced({ ...advanced, created_to: e.target.value }); }} />
-          <button
-            className="link-btn"
-            onClick={() => { setPage(0); setAdvanced({ source: '', title: '', has_email: false, has_phone: false, tags: [], created_from: '', created_to: '' }); }}
-          >Clear advanced</button>
-        </div>
-      )}
 
       {selected.size > 0 && (
         <div className="bulk-bar">
@@ -644,6 +544,119 @@ export default function Contacts() {
         </select>
         <span className="muted small">{data.total} total</span>
       </div>
+
+      {showFilters && (
+        <FilterDrawer
+          title="Filter contacts"
+          activeCount={activeFilterCount}
+          onClose={() => setShowFilters(false)}
+          onClear={() => { setFilters(BLANK_FILTERS); setPage(0); }}
+        >
+          <FilterSection title="Contact details" activeCount={sectionCounts.details}>
+            <div className="fd-field">
+              <label>Title</label>
+              <input value={filters.title} onChange={(e) => setF({ title: e.target.value })} placeholder="e.g. Service Manager" />
+            </div>
+            <div className="fd-field">
+              <label>Source</label>
+              <input value={filters.source} onChange={(e) => setF({ source: e.target.value })} placeholder="e.g. Website" />
+            </div>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.has_email} onChange={(e) => setF({ has_email: e.target.checked })} />
+              Has email
+            </label>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.has_phone} onChange={(e) => setF({ has_phone: e.target.checked })} />
+              Has phone
+            </label>
+          </FilterSection>
+
+          <FilterSection title="Ownership" activeCount={sectionCounts.ownership}>
+            <div className="fd-field">
+              <label>Owner</label>
+              <select value={filters.owner} onChange={(e) => setF({ owner: e.target.value })}>
+                <option value="">Any owner</option>
+                {facets.owners.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.unassigned} onChange={(e) => setF({ unassigned: e.target.checked })} />
+              Unassigned only
+            </label>
+          </FilterSection>
+
+          <FilterSection title="Lead status" activeCount={sectionCounts.leadStatus}>
+            {LEAD_STATUSES.map((s) => (
+              <label key={s} className="fd-checkbox">
+                <input
+                  type="checkbox"
+                  checked={filters.lead_statuses.includes(s.toLowerCase())}
+                  onChange={(e) => {
+                    const val = s.toLowerCase();
+                    const next = e.target.checked
+                      ? [...filters.lead_statuses, val]
+                      : filters.lead_statuses.filter((x) => x !== val);
+                    setF({ lead_statuses: next });
+                  }}
+                />
+                {s}
+              </label>
+            ))}
+          </FilterSection>
+
+          <FilterSection title="Activity" activeCount={sectionCounts.activity}>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.never_contacted} onChange={(e) => setF({ never_contacted: e.target.checked })} />
+              Never contacted
+            </label>
+            <div className="fd-field">
+              <label>Inactive days</label>
+              <select value={filters.inactive_days} onChange={(e) => setF({ inactive_days: e.target.value })}>
+                <option value="">Any</option>
+                <option value="7">7+ days inactive</option>
+                <option value="14">14+ days inactive</option>
+                <option value="30">30+ days inactive</option>
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Last contacted from</label>
+              <input type="date" value={filters.last_contact_from} onChange={(e) => setF({ last_contact_from: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Last contacted to</label>
+              <input type="date" value={filters.last_contact_to} onChange={(e) => setF({ last_contact_to: e.target.value })} />
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Create date" activeCount={sectionCounts.createDate}>
+            <div className="fd-field">
+              <label>Created from</label>
+              <input type="date" value={filters.created_from} onChange={(e) => setF({ created_from: e.target.value })} />
+            </div>
+            <div className="fd-field">
+              <label>Created to</label>
+              <input type="date" value={filters.created_to} onChange={(e) => setF({ created_to: e.target.value })} />
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Tags" activeCount={sectionCounts.tags}>
+            {allTags.map((t) => (
+              <label key={t.id} className="fd-checkbox">
+                <input
+                  type="checkbox"
+                  checked={filters.tags.includes(t.name)}
+                  onChange={(e) => {
+                    const next = e.target.checked ? [...filters.tags, t.name] : filters.tags.filter((x) => x !== t.name);
+                    setF({ tags: next });
+                  }}
+                />
+                {t.name}
+              </label>
+            ))}
+            {allTags.length === 0 && <span className="muted small">No tags yet</span>}
+          </FilterSection>
+        </FilterDrawer>
+      )}
 
       {drawerContact && (
         <ContactDrawer
