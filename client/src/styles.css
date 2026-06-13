@@ -705,3 +705,6 @@ pre {
 }
 .task-attr { display: flex; flex-direction: column; gap: 6px; }
 @media (max-width: 600px) { .task-attrs-row { grid-template-columns: 1fr 1fr; } .task-meta-row { grid-template-columns: 1fr; } }
+
+.activity-editor.listening { background: #fef9f0; border-color: #f59e0b; }
+.activity-editor.listening:empty:before { color: #f59e0b; }

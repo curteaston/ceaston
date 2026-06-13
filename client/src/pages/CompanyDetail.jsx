@@ -36,19 +36,50 @@ const DUE_PRESETS = [
   { label: 'Custom', days: null },
 ];
 
+const SpeechRecognition =
+  typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
 function NoteForm({ company, onSubmit }) {
   const [body, setBody] = useState('');
   const [followUp, setFollowUp] = useState(false);
   const [followUpDays, setFollowUpDays] = useState(3);
+  const [listening, setListening] = useState(false);
   const textRef = useRef(null);
+  const recRef = useRef(null);
+  const baseRef = useRef('');
 
   const format = (cmd) => { textRef.current?.focus(); document.execCommand(cmd); };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (!body.trim()) return;
     onSubmit(body, followUp ? { days: followUpDays } : null);
   };
+
+  const startListening = () => {
+    if (!SpeechRecognition) return;
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = navigator.language || 'en-US';
+    baseRef.current = body ? body.replace(/\s*$/, ' ') : '';
+    rec.onresult = (event) => {
+      let final = '', interim = '';
+      for (const r of event.results) {
+        if (r.isFinal) final += r[0].transcript + ' ';
+        else interim += r[0].transcript;
+      }
+      const newText = (baseRef.current + final + interim).replace(/\s+/g, ' ').trimStart();
+      setBody(newText);
+      if (textRef.current) textRef.current.innerText = newText;
+    };
+    rec.onerror = () => {};
+    rec.onend = () => { setListening(false); recRef.current = null; };
+    recRef.current = rec;
+    rec.start();
+    setListening(true);
+  };
+
+  const stopListening = () => { recRef.current?.stop(); };
 
   return (
     <div className="activity-modal">
@@ -60,20 +91,32 @@ function NoteForm({ company, onSubmit }) {
         <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('italic'); }}><i>I</i></button>
         <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('underline'); }}><u>U</u></button>
         <button type="button" className="fmt-btn" onMouseDown={(e) => { e.preventDefault(); format('insertUnorderedList'); }}>≡</button>
+        <span style={{ flex: 1 }} />
+        {SpeechRecognition && (
+          <button
+            type="button"
+            className={`fmt-btn mic-btn ${listening ? 'recording' : ''}`}
+            title={listening ? 'Stop dictation' : 'Dictate note (speech-to-text)'}
+            onClick={listening ? stopListening : startListening}
+            style={{ fontSize: 15, padding: '2px 10px' }}
+          >
+            {listening ? '◼ Stop' : '🎤 Dictate'}
+          </button>
+        )}
       </div>
       <div
         ref={textRef}
-        className="activity-editor"
+        className={`activity-editor${listening ? ' listening' : ''}`}
         contentEditable
         suppressContentEditableWarning
-        data-placeholder="Start typing to leave a note…"
+        data-placeholder={listening ? 'Listening… speak now' : 'Start typing to leave a note…'}
         onInput={(e) => setBody(e.currentTarget.innerText)}
       />
       <div className="activity-assoc">Associated with 1 record: <b>{company.name}</b></div>
       <div className="activity-followup">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
           <input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} />
-          Create a <strong>To-do</strong> task to follow up in{' '}
+          Create a <strong>To-do</strong> task to follow up in
           <select value={followUpDays} onChange={(e) => setFollowUpDays(Number(e.target.value))}
             style={{ margin: '0 4px' }}>
             <option value={1}>1 business day</option>
@@ -690,7 +733,7 @@ export default function CompanyDetail() {
         </Modal>
       )}
       {modal === 'note' && (
-        <Modal title="Note" onClose={close}>
+        <Modal title="Note" onClose={close} wide>
           <NoteForm
             company={company}
             onSubmit={(body, followUp) => mutateCompany(async () => {
