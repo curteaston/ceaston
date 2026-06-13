@@ -6,28 +6,26 @@ const ICONS = {
   linkedin: '💼', stage_change: '🔀', other: '📌', note: '📝',
 };
 
-function TimelineItem({ item, onEditNote, onDeleteNote }) {
+function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const isNote = item.kind === 'note';
   const icon = isNote ? ICONS.note : ICONS[item.type] || ICONS.other;
 
-  const startEdit = () => {
-    setDraft(item.body);
-    setEditing(true);
-  };
+  const startEdit = () => { setDraft(item.body); setEditing(true); };
   const submit = async () => {
     if (draft.trim()) await onEditNote(item.id, draft.trim());
     setEditing(false);
   };
 
   return (
-    <div className="tl-item">
+    <div className={`tl-item${isNote && item.pinned ? ' tl-pinned' : ''}`}>
       <div className="tl-icon">{icon}</div>
       <div className="tl-body">
         <div className="tl-head">
           <span className="tl-type">
             {isNote ? 'Note' : (item.type || 'activity').replace('_', ' ')}
+            {isNote && item.pinned && <span className="chip tl-pin-chip">📌 pinned</span>}
             {isNote && item.source === 'voice' && <span className="chip voice">🎙 voice</span>}
             {item.outcome && <span className="chip outcome">{item.outcome}</span>}
           </span>
@@ -50,6 +48,9 @@ function TimelineItem({ item, onEditNote, onDeleteNote }) {
         )}
         {isNote && !editing && (
           <div className="tl-actions">
+            <button className="link-btn" onClick={() => onPinNote(item.id, !item.pinned)}>
+              {item.pinned ? 'Unpin' : 'Pin'}
+            </button>
             <button className="link-btn" onClick={startEdit}>Edit</button>
             <button className="link-btn danger" onClick={() => onDeleteNote(item.id)}>Delete</button>
           </div>
@@ -59,7 +60,7 @@ function TimelineItem({ item, onEditNote, onDeleteNote }) {
   );
 }
 
-export default function Timeline({ items, onEditNote, onDeleteNote, emptyText = 'No activity yet.' }) {
+export default function Timeline({ items, onEditNote, onDeleteNote, onPinNote, emptyText = 'No activity yet.' }) {
   if (!items?.length) return <p className="muted">{emptyText}</p>;
   return (
     <div className="timeline">
@@ -69,6 +70,7 @@ export default function Timeline({ items, onEditNote, onDeleteNote, emptyText = 
           item={item}
           onEditNote={onEditNote}
           onDeleteNote={onDeleteNote}
+          onPinNote={onPinNote}
         />
       ))}
     </div>

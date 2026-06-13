@@ -544,7 +544,7 @@ const ACTIVITY_TABS = [
   { key: 'meeting', label: 'Meetings' },
 ];
 
-function TimelineWithFilters({ items, onEditNote, onDeleteNote, company, onSave }) {
+function TimelineWithFilters({ items, onEditNote, onDeleteNote, onPinNote }) {
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -582,9 +582,8 @@ function TimelineWithFilters({ items, onEditNote, onDeleteNote, company, onSave 
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-      <VoiceNoteInput placeholder={`Company note about ${company.name}…`} onSave={onSave} />
       <Timeline items={filtered} onEditNote={onEditNote} onDeleteNote={onDeleteNote}
-        emptyText="No activities match." />
+        onPinNote={onPinNote} emptyText="No activities match." />
     </>
   );
 }
@@ -610,6 +609,7 @@ export default function CompanyDetail() {
       source === 'voice' ? 'Voice note saved' : 'Note saved');
   const editNote = (noteId, body) => mutateCompany(() => api.patch(`/notes/${noteId}`, { body }), 'Note updated');
   const deleteNote = (noteId) => mutateCompany(() => api.del(`/notes/${noteId}`), 'Note deleted');
+  const pinNote = (noteId, pinned) => mutateCompany(() => api.patch(`/notes/${noteId}`, { pinned }), pinned ? 'Note pinned' : 'Note unpinned');
 
   const deleteCompany = () => {
     if (!confirm(`Delete ${company.name} and ALL its contacts, deals, tasks and notes?`)) return;
@@ -746,8 +746,7 @@ export default function CompanyDetail() {
             items={company.timeline}
             onEditNote={editNote}
             onDeleteNote={deleteNote}
-            company={company}
-            onSave={saveNote}
+            onPinNote={pinNote}
           />
         </div>
 

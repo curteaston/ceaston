@@ -49,12 +49,19 @@ router.post('/', h(async (req, res) => {
   res.status(201).json(rows[0]);
 }));
 
-// PATCH /api/notes/:id — edit a transcription / note body
+// PATCH /api/notes/:id — edit body and/or pinned
 router.patch('/:id', h(async (req, res) => {
-  if (!req.body.body || !req.body.body.trim()) throw badRequest('body is required');
+  const { body, pinned } = req.body;
+  if (body !== undefined && !body.trim()) throw badRequest('body cannot be empty');
+  const sets = [];
+  const values = [];
+  if (body !== undefined) { values.push(body.trim()); sets.push(`body = $${values.length}`); values.push(new Date()); sets.push(`updated_at = $${values.length}`); }
+  if (pinned !== undefined) { values.push(Boolean(pinned)); sets.push(`pinned = $${values.length}`); }
+  if (!sets.length) throw badRequest('Nothing to update');
+  values.push(req.params.id);
   const { rows } = await query(
-    'UPDATE notes SET body = $1, updated_at = now() WHERE id = $2 RETURNING *',
-    [req.body.body.trim(), req.params.id]
+    `UPDATE notes SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`,
+    values
   );
   if (!rows[0]) throw notFound('Note not found');
   res.json(rows[0]);

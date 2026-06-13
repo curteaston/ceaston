@@ -13,20 +13,22 @@ function validateLifecycle(stage) {
   }
 }
 
-// Shared timeline query: notes + activities for a company, newest first.
+// Shared timeline query: notes + activities for a company, pinned notes first then newest first.
 export async function companyTimeline(companyId) {
   const { rows } = await query(
     `SELECT * FROM (
        SELECT 'note' AS kind, n.id, n.contact_id, c.name AS contact_name, n.body,
-              n.source, NULL AS type, NULL AS outcome, n.created_at AS occurred_at, n.updated_at
+              n.source, NULL AS type, NULL AS outcome, n.created_at AS occurred_at, n.updated_at,
+              n.pinned
          FROM notes n LEFT JOIN contacts c ON c.id = n.contact_id
         WHERE n.company_id = $1
        UNION ALL
        SELECT 'activity', a.id, a.contact_id, c.name, a.body,
-              NULL, a.type, a.outcome, a.occurred_at, NULL
+              NULL, a.type, a.outcome, a.occurred_at, NULL,
+              false
          FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id
         WHERE a.company_id = $1
-     ) t ORDER BY occurred_at DESC`,
+     ) t ORDER BY pinned DESC, occurred_at DESC`,
     [companyId]
   );
   return rows;
