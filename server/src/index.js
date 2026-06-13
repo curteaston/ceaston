@@ -17,24 +17,22 @@ import home from './routes/home.js';
 import ai from './routes/ai.js';
 import microsoft from './routes/microsoft.js';
 import sequences, { processDueSteps } from './routes/sequences.js';
+import { authRouter, requireAuth } from './auth.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Optional API key: set API_KEY env var and send X-Api-Key (or Bearer token) — used by n8n.
-const API_KEY = process.env.API_KEY;
-app.use('/api', (req, res, next) => {
-  if (!API_KEY) return next();
-  const provided = req.get('x-api-key') || (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  if (provided === API_KEY) return next();
-  res.status(401).json({ error: 'Invalid or missing API key' });
-});
-
+// Liveness and login endpoints are reachable without authentication.
 app.get('/api/health', h(async (req, res) => {
   await query('SELECT 1');
   res.json({ ok: true });
 }));
+app.use('/api/auth', authRouter);
+
+// Everything else under /api requires a session cookie (browser) or API key (n8n),
+// unless neither APP_PASSWORD nor API_KEY is configured.
+app.use('/api', requireAuth);
 
 // Enum metadata for clients (filter dropdowns, n8n option lists).
 app.get('/api/meta', (req, res) => {

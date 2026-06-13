@@ -69,10 +69,27 @@ serves the built React app on a single port.
 | ------------------- | ------------------ | ------------------------------------------------------------------------- |
 | `DATABASE_URL`      | local Postgres env | Postgres connection string                                                |
 | `PORT`              | `3001`             | HTTP port                                                                 |
-| `API_KEY`           | _(unset = open)_   | If set, all `/api` calls need `X-Api-Key` header                          |
+| `APP_PASSWORD`      | _(unset = open UI)_ | If set, the web UI requires this password to sign in (session cookie)     |
+| `APP_SECRET`        | _(derived)_        | Optional extra secret mixed into session-cookie signing                   |
+| `API_KEY`           | _(unset = open)_   | If set, `/api` calls need `X-Api-Key` header — used by n8n automations    |
 | `ANTHROPIC_API_KEY` | _(unset)_          | Enables AI-powered company summaries (Claude); falls back to rules if unset |
 | `MS_CLIENT_ID` / `MS_CLIENT_SECRET` | _(unset)_ | Microsoft Entra app credentials for the Office 365 email + calendar integration |
 | `APP_BASE_URL`      | `http://localhost:3001` | Public base URL, used for the Office 365 OAuth redirect URI          |
+
+## Authentication
+
+The web UI and API are open by default (convenient for local/dev). For a hosted
+deployment with real data, set credentials:
+
+- **`APP_PASSWORD`** protects the **web UI** — visitors get a login screen and a
+  signed, HttpOnly session cookie (30-day expiry; changing the password invalidates
+  existing sessions). Set this before exposing the app publicly.
+- **`API_KEY`** protects the **API for automations** (n8n) — send it as `X-Api-Key`
+  or `Authorization: Bearer <key>`. API-key requests bypass the login cookie.
+
+Set **both** for a hosted setup: the password for your browser, the key for n8n. If
+only `API_KEY` is set, the browser app has no way to authenticate — use a password
+too. Auth endpoints: `GET /api/auth/status`, `POST /api/auth/login`, `POST /api/auth/logout`.
 
 ## REST API (n8n-ready)
 

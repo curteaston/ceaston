@@ -146,6 +146,18 @@ export default function Settings() {
       <SequenceSending />
 
       <div className="card">
+        <h3>Access &amp; security</h3>
+        <p className="small">
+          Sign-in is controlled by server environment variables (no passwords are stored in the app):
+        </p>
+        <ul className="small">
+          <li><b>Web login</b> — set <code>APP_PASSWORD</code> on the server to require a password to open the CRM. Leave unset for an open instance (fine on a private/local URL).</li>
+          <li><b>Automation key</b> — set <code>API_KEY</code> so n8n can call the API with an <code>X-Api-Key</code> header. API-key calls skip the web login.</li>
+        </ul>
+        <p className="muted small">Set both before hosting the CRM publicly. The mic and remote login also require HTTPS.</p>
+      </div>
+
+      <div className="card">
         <h3>AI summaries</h3>
         <p className="small">
           The ✨ Summary action on company records is powered by Claude when the server has an

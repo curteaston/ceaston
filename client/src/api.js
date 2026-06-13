@@ -6,6 +6,10 @@ async function req(method, path, body) {
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== '/auth/login') {
+    // Session expired or missing — let the app drop back to the login screen.
+    window.dispatchEvent(new CustomEvent('crm-unauthorized'));
+  }
   if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
   return data;
 }

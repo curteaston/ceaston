@@ -12,6 +12,7 @@ import Sequences from './pages/Sequences.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Import from './pages/Import.jsx';
 import Settings from './pages/Settings.jsx';
+import Login from './pages/Login.jsx';
 
 function GlobalSearch() {
   const [q, setQ] = useState('');
@@ -72,7 +73,30 @@ function GlobalSearch() {
 
 export default function App() {
   const { toast, fetchMeta } = useStore();
-  useEffect(() => { fetchMeta(); }, []);
+  const [auth, setAuth] = useState(null); // null = checking, true = ok, false = need login
+  const [authRequired, setAuthRequired] = useState(false);
+
+  const checkAuth = () =>
+    api.get('/auth/status')
+      .then((s) => { setAuthRequired(s.auth_required); setAuth(!s.auth_required || s.authenticated); })
+      .catch(() => setAuth(true)); // if status can't be read, don't hard-block
+
+  useEffect(() => {
+    checkAuth();
+    const onUnauth = () => setAuth(false);
+    window.addEventListener('crm-unauthorized', onUnauth);
+    return () => window.removeEventListener('crm-unauthorized', onUnauth);
+  }, []);
+
+  useEffect(() => { if (auth) fetchMeta(); }, [auth]);
+
+  const logout = async () => {
+    await api.post('/auth/logout').catch(() => {});
+    setAuth(false);
+  };
+
+  if (auth === null) return <div className="login-screen"><div className="muted">Loading…</div></div>;
+  if (auth === false) return <Login onSuccess={() => { setAuth(true); fetchMeta(); }} />;
 
   return (
     <div className="app">
@@ -89,6 +113,7 @@ export default function App() {
           <NavLink to="/import">📥 Import</NavLink>
           <NavLink to="/settings">⚙️ Settings</NavLink>
         </nav>
+        {authRequired && <button className="sidebar-logout" onClick={logout}>↩ Sign out</button>}
       </aside>
       <div className="main">
         <header className="topbar">
