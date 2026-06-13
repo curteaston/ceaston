@@ -687,6 +687,8 @@ pre {
 .key-info-row:last-child { border-bottom: none; }
 .key-info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
 .key-info-value { font-size: 14px; font-weight: 500; }
+.expand-arrow { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 10px; padding: 0 2px; line-height: 1; vertical-align: middle; }
+.expand-arrow:hover { color: var(--primary); }
 
 /* Key info inline editable fields */
 .key-info-input, .key-info-select {

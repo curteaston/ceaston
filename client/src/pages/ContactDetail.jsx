@@ -56,7 +56,8 @@ export default function ContactDetail() {
   const [modal, setModal] = useState(null);
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
-
+  const [emailExpanded, setEmailExpanded] = useState(false);
+  const [phoneExpanded, setPhoneExpanded] = useState(false);
   const loadContact = async () => {
     const c = await api.get(`/contacts/${id}`);
     setContact(c);
@@ -179,56 +180,74 @@ export default function ContactDetail() {
                   <span className="key-info-value">{contact.title}</span>
                 </div>
               )}
-              <div className="key-info-row">
-                <span className="key-info-label">Email</span>
-                <span className="key-info-value">
-                  {contact.email
-                    ? <button className="link-btn" style={{ fontSize: 'inherit' }} onClick={() => setModal('email')}>✉️ {contact.email}</button>
-                    : <span className="muted">--</span>}
-                </span>
-              </div>
-              {contact.email_2 && (
-                <div className="key-info-row">
-                  <span className="key-info-label">Email 2</span>
-                  <span className="key-info-value">
-                    <a href={`mailto:${contact.email_2}`} style={{ fontSize: 'inherit' }}>✉️ {contact.email_2}</a>
-                  </span>
-                </div>
-              )}
-              {contact.phone_direct && (
-                <div className="key-info-row">
-                  <span className="key-info-label">Direct</span>
-                  <span className="key-info-value">
-                    <PhoneLink phone={fmtPhone(contact.phone_direct) || contact.phone_direct} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
-                  </span>
-                </div>
-              )}
-              {contact.phone_cell && (
-                <div className="key-info-row">
-                  <span className="key-info-label">Cell</span>
-                  <span className="key-info-value">
-                    <PhoneLink phone={fmtPhone(contact.phone_cell) || contact.phone_cell} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
-                  </span>
-                </div>
-              )}
-              {contact.phone_other && (
-                <div className="key-info-row">
-                  <span className="key-info-label">Other</span>
-                  <span className="key-info-value">
-                    <PhoneLink phone={fmtPhone(contact.phone_other) || contact.phone_other} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
-                  </span>
-                </div>
-              )}
-              {!contact.phone_direct && !contact.phone_cell && !contact.phone_other && (
-                <div className="key-info-row">
-                  <span className="key-info-label">Phone</span>
-                  <span className="key-info-value">
-                    {contact.phone
-                      ? <PhoneLink phone={fmtPhone(contact.phone) || contact.phone} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
-                      : <span className="muted">--</span>}
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const emails = [
+                  contact.email && { label: 'Primary', value: contact.email, primary: true },
+                  contact.email_2 && { label: 'Secondary', value: contact.email_2 },
+                ].filter(Boolean);
+                const first = emails[0];
+                const rest = emails.slice(1);
+                return (
+                  <div className="key-info-row">
+                    <span className="key-info-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      Email
+                      {rest.length > 0 && (
+                        <button className="expand-arrow" onClick={() => setEmailExpanded(v => !v)} title={emailExpanded ? 'Collapse' : 'Show all emails'}>
+                          {emailExpanded ? '▴' : '▾'}
+                        </button>
+                      )}
+                    </span>
+                    <span className="key-info-value">
+                      {!first ? <span className="muted">--</span> : (
+                        <>
+                          <button className="link-btn" style={{ fontSize: 'inherit' }} onClick={() => setModal('email')}>✉️ {first.value}</button>
+                          {emailExpanded && rest.map((e) => (
+                            <div key={e.label} style={{ marginTop: 4 }}>
+                              <span className="muted small">{e.label}: </span>
+                              <a href={`mailto:${e.value}`} style={{ fontSize: 'inherit' }}>✉️ {e.value}</a>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
+              {(() => {
+                const phones = [
+                  contact.phone_direct && { label: 'Direct', value: contact.phone_direct },
+                  contact.phone_cell && { label: 'Cell', value: contact.phone_cell },
+                  contact.phone_other && { label: 'Other', value: contact.phone_other },
+                  !contact.phone_direct && !contact.phone_cell && !contact.phone_other && contact.phone && { label: 'Phone', value: contact.phone },
+                ].filter(Boolean);
+                const first = phones[0];
+                const rest = phones.slice(1);
+                return (
+                  <div className="key-info-row">
+                    <span className="key-info-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {first?.label || 'Phone'}
+                      {rest.length > 0 && (
+                        <button className="expand-arrow" onClick={() => setPhoneExpanded(v => !v)} title={phoneExpanded ? 'Collapse' : 'Show all phones'}>
+                          {phoneExpanded ? '▴' : '▾'}
+                        </button>
+                      )}
+                    </span>
+                    <span className="key-info-value">
+                      {!first ? <span className="muted">--</span> : (
+                        <>
+                          <PhoneLink phone={fmtPhone(first.value) || first.value} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
+                          {phoneExpanded && rest.map((p) => (
+                            <div key={p.label} style={{ marginTop: 4 }}>
+                              <span className="muted small">{p.label}: </span>
+                              <PhoneLink phone={fmtPhone(p.value) || p.value} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} />
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="key-info-row">
                 <span className="key-info-label">Lead Status</span>
                 <span className="key-info-value">{contact.lead_status || <span className="muted">--</span>}</span>
