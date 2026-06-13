@@ -260,9 +260,9 @@ function TaskForm({ company, onSubmit }) {
   );
 }
 
-function EmailForm({ company, onClose, onSaved }) {
+function EmailForm({ company, onClose, onSaved, initialContactId }) {
   const { run } = useStore();
-  const [contactId, setContactId] = useState(company.contacts[0]?.id || '');
+  const [contactId, setContactId] = useState(initialContactId || company.contacts[0]?.id || '');
   const [subject, setSubject] = useState(`Re: ${company.name}`);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -763,7 +763,7 @@ export default function CompanyDetail() {
                 <div className="contact-name">{c.name}</div>
                 <div className="muted small">{c.title || '—'}</div>
                 {c.phone && <div className="small"><PhoneLink phone={fmtPhone(c.phone) || c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
-                {c.email && <div className="small"><a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} style={{ color: 'var(--primary)' }}>✉️ {c.email}</a></div>}
+                {c.email && <div className="small"><button className="link-btn" style={{ fontSize: 'inherit' }} onClick={(e) => { e.stopPropagation(); setModal({ type: 'email', to: c.email, contactId: c.id }); }}>✉️ {c.email}</button></div>}
                 <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
               </button>
             ))}
@@ -889,9 +889,10 @@ export default function CompanyDetail() {
           />
         </Modal>
       )}
-      {modal === 'email' && (
+      {(modal === 'email' || modal?.type === 'email') && (
         <Modal title="Send email" onClose={close} wide>
-          <EmailForm company={company} onClose={close} onSaved={() => mutateCompany(() => Promise.resolve(), 'Email sent')} />
+          <EmailForm company={company} onClose={close} initialContactId={modal?.contactId}
+            onSaved={() => mutateCompany(() => Promise.resolve(), 'Email sent')} />
         </Modal>
       )}
       {modal === 'call' && (
