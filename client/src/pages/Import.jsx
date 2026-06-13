@@ -5,7 +5,7 @@ import { useStore, LIFECYCLE_LABELS } from '../store.js';
 
 // CRM target fields the importer can fill. `group` drives the section headings.
 const TARGET_FIELDS = [
-  { key: 'name', label: 'Company name', group: 'Company', required: true, aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
+  { key: 'name', label: 'Company name', group: 'Company', aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
   { key: 'website', label: 'Website', group: 'Company', aliases: ['website', 'web', 'site', 'homepage', 'url'] },
   { key: 'industry', label: 'Industry', group: 'Company', aliases: ['industry', 'vertical', 'sector', 'category'] },
   { key: 'employee_count', label: 'Employee count', group: 'Company', type: 'number', aliases: ['employees', 'employee count', 'headcount', 'size', 'staff', 'num employees'] },
@@ -274,7 +274,6 @@ export default function Import() {
                 </div>
               </div>
             ))}
-            {!nameMapped && <p className="error-text">Map a column to <b>Company name</b> to continue.</p>}
           </div>
 
           {preview && (
@@ -285,31 +284,47 @@ export default function Import() {
                   {preview.companies.reduce((s, c) => s + c.contacts.length, 0)} contacts
                   {preview.skipped > 0 && <span className="muted small"> · {preview.skipped} rows skipped (no company name)</span>}
                 </h3>
-                <button className="btn primary" onClick={doImport} disabled={!nameMapped || preview.companies.length === 0}>
-                  Import {preview.companies.length} companies
+                <button className="btn primary" onClick={doImport} disabled={preview.companies.length === 0}>
+                  Import {preview.companies.length} {preview.companies.length === 1 ? 'company' : 'companies'}{preview.companies.reduce((s, c) => s + c.contacts.length, 0) > 0 ? ` & ${preview.companies.reduce((s, c) => s + c.contacts.length, 0)} contacts` : ''}
                 </button>
               </div>
-              <div className="table-card" style={{ border: 'none' }}>
-                <table>
+              <div style={{ overflowX: 'auto', borderRadius: 6 }}>
+                <table style={{ minWidth: 1100 }}>
                   <thead>
                     <tr>
                       <th>Company</th><th>Website</th><th>Industry</th><th>Employees</th>
-                      <th>Ad spend</th><th>Lifecycle</th><th>Phone</th><th>Contacts</th>
+                      <th>Ad spend</th><th>Lifecycle</th><th>Co. Phone</th>
+                      <th>Contact name</th><th>Title</th><th>Primary email</th><th>Secondary email</th>
+                      <th>Direct phone</th><th>Cell phone</th><th>Other phone</th><th>Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.companies.slice(0, 50).map((c, i) => (
-                      <tr key={i}>
-                        <td><b>{c.name}</b></td>
-                        <td>{c.website || '—'}</td>
-                        <td>{c.industry || '—'}</td>
-                        <td>{c.employee_count ?? '—'}</td>
-                        <td>{c.ad_spend_range || '—'}</td>
-                        <td>{c.lifecycle_stage ? LIFECYCLE_LABELS[c.lifecycle_stage] : '—'}</td>
-                        <td>{c.phone || '—'}</td>
-                        <td className="small">{c.contacts.map((ct) => ct.name).join(', ') || '—'}</td>
-                      </tr>
-                    ))}
+                    {preview.companies.slice(0, 50).flatMap((c, i) => {
+                      const contactRows = c.contacts.length > 0 ? c.contacts : [null];
+                      return contactRows.map((ct, j) => (
+                        <tr key={`${i}-${j}`}>
+                          {j === 0 ? (
+                            <>
+                              <td rowSpan={contactRows.length}><b>{c.name || '—'}</b></td>
+                              <td rowSpan={contactRows.length} className="small">{c.website || '—'}</td>
+                              <td rowSpan={contactRows.length}>{c.industry || '—'}</td>
+                              <td rowSpan={contactRows.length}>{c.employee_count ?? '—'}</td>
+                              <td rowSpan={contactRows.length}>{c.ad_spend_range || '—'}</td>
+                              <td rowSpan={contactRows.length}>{c.lifecycle_stage ? LIFECYCLE_LABELS[c.lifecycle_stage] : '—'}</td>
+                              <td rowSpan={contactRows.length}>{c.phone || '—'}</td>
+                            </>
+                          ) : null}
+                          <td>{ct?.name || '—'}</td>
+                          <td>{ct?.title || '—'}</td>
+                          <td className="small">{ct?.email || '—'}</td>
+                          <td className="small">{ct?.email_2 || '—'}</td>
+                          <td>{ct?.phone_direct || '—'}</td>
+                          <td>{ct?.phone_cell || '—'}</td>
+                          <td>{ct?.phone_other || '—'}</td>
+                          <td>{ct?.source || '—'}</td>
+                        </tr>
+                      ));
+                    })}
                   </tbody>
                 </table>
               </div>
