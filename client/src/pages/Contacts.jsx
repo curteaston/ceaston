@@ -166,7 +166,10 @@ function AddContactModal({ onClose, onSaved }) {
   const { run, meta } = useStore();
   const [companyId, setCompanyId] = useState('');
   const [form, setForm] = useState({
-    firstName: '', lastName: '', title: '', email: '', phone: '', source: '', owner: '', lead_status: 'new',
+    firstName: '', lastName: '', title: '',
+    email: '', email_2: '',
+    phone_direct: '', phone_cell: '', phone_other: '',
+    source: '', owner: '', lead_status: 'new',
   });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -176,9 +179,14 @@ function AddContactModal({ onClose, onSaved }) {
     run(async () => {
       await api.post('/contacts', {
         name: name || undefined,
+        first_name: form.firstName || undefined,
+        last_name: form.lastName || undefined,
         title: form.title || undefined,
         email: form.email || undefined,
-        phone: form.phone || undefined,
+        email_2: form.email_2 || undefined,
+        phone_direct: form.phone_direct || undefined,
+        phone_cell: form.phone_cell || undefined,
+        phone_other: form.phone_other || undefined,
         source: form.source || undefined,
         owner: form.owner || undefined,
         lead_status: form.lead_status || undefined,
@@ -196,8 +204,11 @@ function AddContactModal({ onClose, onSaved }) {
         <Field label="Last name"><input value={form.lastName} onChange={upd('lastName')} /></Field>
         <Field label="Company"><CompanyTypeahead value={companyId} onChange={setCompanyId} /></Field>
         <Field label="Title"><input value={form.title} onChange={upd('title')} /></Field>
-        <Field label="Email"><input type="email" value={form.email} onChange={upd('email')} /></Field>
-        <Field label="Phone"><input value={form.phone} onChange={upd('phone')} /></Field>
+        <Field label="Primary email"><input type="email" value={form.email} onChange={upd('email')} /></Field>
+        <Field label="Secondary email"><input type="email" value={form.email_2} onChange={upd('email_2')} /></Field>
+        <Field label="Direct phone"><input value={form.phone_direct} onChange={upd('phone_direct')} /></Field>
+        <Field label="Cell phone"><input value={form.phone_cell} onChange={upd('phone_cell')} /></Field>
+        <Field label="Other phone"><input value={form.phone_other} onChange={upd('phone_other')} /></Field>
         <Field label="Source"><input value={form.source} onChange={upd('source')} /></Field>
         <Field label="Owner"><input value={form.owner} onChange={upd('owner')} placeholder="me" /></Field>
         <Field label="Lead status">
