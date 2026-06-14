@@ -209,3 +209,13 @@ CREATE TABLE IF NOT EXISTS contact_tags (
   tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   PRIMARY KEY (contact_id, tag_id)
 );
+
+CREATE TABLE IF NOT EXISTS email_templates (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL,
+  category   TEXT NOT NULL DEFAULT 'General',
+  subject    TEXT NOT NULL DEFAULT '',
+  body       TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

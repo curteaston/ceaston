@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { absUrl } from '../format.js';
@@ -159,6 +159,9 @@ export function EmailComposer({ company, onClose, onSent }) {
   const [ms, setMs] = useState(null); // { configured, connected, account }
   const [form, setForm] = useState({ to: '', contact_id: '', subject: '', body: '', log: true });
   const [sending, setSending] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const templatePickerRef = useRef(null);
 
   useEffect(() => {
     api.get(`/contacts?company_id=${company.id}&limit=100`).then((d) => {
@@ -167,7 +170,30 @@ export function EmailComposer({ company, onClose, onSent }) {
       if (first) setForm((f) => ({ ...f, to: first.email, contact_id: String(first.id) }));
     }).catch(() => {});
     api.get('/integrations/microsoft/status').then(setMs).catch(() => setMs({ configured: false, connected: false }));
+    api.get('/email-templates').then(setTemplates).catch(() => {});
   }, [company.id]);
+
+  useEffect(() => {
+    if (!showTemplatePicker) return;
+    const handler = (e) => {
+      if (templatePickerRef.current && !templatePickerRef.current.contains(e.target)) {
+        setShowTemplatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTemplatePicker]);
+
+  const applyTemplate = (template) => {
+    const contactName = contacts.find((c) => String(c.id) === form.contact_id)?.name || '';
+    const senderName = localStorage.getItem('crm_display_name') || '';
+    const fill = (s) => (s || '')
+      .replace(/\{\{contact_name\}\}/g, contactName)
+      .replace(/\{\{company_name\}\}/g, company.name || '')
+      .replace(/\{\{sender_name\}\}/g, senderName);
+    setForm((f) => ({ ...f, subject: f.subject || fill(template.subject), body: fill(template.body) }));
+    setShowTemplatePicker(false);
+  };
 
   const pickContact = (id) => {
     const ct = contacts.find((c) => String(c.id) === id);
@@ -246,6 +272,49 @@ export function EmailComposer({ company, onClose, onSent }) {
                 </span>}
           </div>
         </label>
+        <div className="compose-field" style={{ position: 'relative' }} ref={templatePickerRef}>
+          <span />
+          <div>
+            <button
+              className="btn small"
+              type="button"
+              onClick={() => setShowTemplatePicker((v) => !v)}
+            >
+              Templates ▾
+            </button>
+            {showTemplatePicker && (
+              <div className="template-picker-dropdown">
+                {templates.length === 0 ? (
+                  <div className="template-picker-empty">
+                    No templates yet — create them in Settings
+                  </div>
+                ) : (
+                  (() => {
+                    const grouped = templates.reduce((acc, t) => {
+                      (acc[t.category] = acc[t.category] || []).push(t);
+                      return acc;
+                    }, {});
+                    return Object.entries(grouped).map(([cat, items]) => (
+                      <div key={cat}>
+                        <div className="template-picker-category">{cat}</div>
+                        {items.map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className="template-picker-item"
+                            onClick={() => applyTemplate(t)}
+                          >
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    ));
+                  })()
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         <label className="compose-field">
           <span>Subject</span>
           <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />

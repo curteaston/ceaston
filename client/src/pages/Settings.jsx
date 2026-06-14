@@ -1,7 +1,144 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useStore } from '../store.js';
 import { Field } from '../components/widgets.jsx';
+
+const TEMPLATE_CATEGORIES = ['General', 'Intro', 'Follow-up', 'Proposal', 'Re-engagement', 'Other'];
+
+function TemplateForm({ initial, onSave, onCancel }) {
+  const [form, setForm] = useState({
+    name: initial?.name || '',
+    category: initial?.category || 'General',
+    subject: initial?.subject || '',
+    body: initial?.body || '',
+  });
+  const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <div className="outline-card" style={{ marginTop: 8 }}>
+      <div className="form-grid">
+        <Field label="Name *">
+          <input value={form.name} onChange={upd('name')} placeholder="e.g. Initial outreach" />
+        </Field>
+        <Field label="Category">
+          <input
+            value={form.category}
+            onChange={upd('category')}
+            placeholder="General"
+            list="template-categories"
+          />
+          <datalist id="template-categories">
+            {TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c} />)}
+          </datalist>
+        </Field>
+        <Field label="Subject" style={{ gridColumn: '1 / -1' }}>
+          <input value={form.subject} onChange={upd('subject')} placeholder="Email subject line" style={{ width: '100%' }} />
+        </Field>
+        <Field label="Body" style={{ gridColumn: '1 / -1' }}>
+          <textarea
+            value={form.body}
+            onChange={upd('body')}
+            rows={8}
+            placeholder="Write your template…"
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+          <div className="muted small" style={{ marginTop: 4 }}>
+            Use <code>{'{{contact_name}}'}</code>, <code>{'{{company_name}}'}</code>, <code>{'{{sender_name}}'}</code> for personalization
+          </div>
+        </Field>
+      </div>
+      <div className="row gap pad-top">
+        <button className="btn primary" onClick={() => onSave(form)} disabled={!form.name.trim()}>Save</button>
+        <button className="btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function EmailTemplates() {
+  const { run } = useStore();
+  const [templates, setTemplates] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null); // template id
+
+  const load = () => api.get('/email-templates').then(setTemplates).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const create = (form) =>
+    run(async () => {
+      await api.post('/email-templates', form);
+      setAdding(false);
+      load();
+    }, 'Template created');
+
+  const update = (id, form) =>
+    run(async () => {
+      await api.patch(`/email-templates/${id}`, form);
+      setEditing(null);
+      load();
+    }, 'Template updated');
+
+  const del = (t) => {
+    if (!window.confirm(`Delete template "${t.name}"?`)) return;
+    run(async () => { await api.del(`/email-templates/${t.id}`); load(); }, 'Template deleted');
+  };
+
+  // Group by category
+  const grouped = templates.reduce((acc, t) => {
+    (acc[t.category] = acc[t.category] || []).push(t);
+    return acc;
+  }, {});
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Email templates</h3>
+        <button className="btn small" onClick={() => { setAdding(!adding); setEditing(null); }}>
+          {adding ? 'Cancel' : '+ New template'}
+        </button>
+      </div>
+      <p className="small">
+        Reusable email templates for faster outreach. Use variables like <code>{'{{contact_name}}'}</code> that are
+        substituted when you insert a template in the email composer.
+      </p>
+
+      {adding && <TemplateForm onSave={create} onCancel={() => setAdding(false)} />}
+
+      {templates.length === 0 && !adding && <p className="muted small">No templates yet — click "+ New template" to get started.</p>}
+
+      {Object.entries(grouped).map(([category, items]) => (
+        <div key={category} style={{ marginTop: 16 }}>
+          <div className="muted small" style={{ fontWeight: 600, marginBottom: 4 }}>{category}</div>
+          {items.map((t) => (
+            <div key={t.id}>
+              {editing === t.id ? (
+                <TemplateForm
+                  initial={t}
+                  onSave={(form) => update(t.id, form)}
+                  onCancel={() => setEditing(null)}
+                />
+              ) : (
+                <div className="webhook-row">
+                  <div className="grow">
+                    <div className="row gap">
+                      <b>{t.name}</b>
+                      <span className="chip">{t.category}</span>
+                    </div>
+                    {t.subject && <div className="muted small">Subject: {t.subject}</div>}
+                  </div>
+                  <div className="row gap">
+                    <button className="btn small" onClick={() => { setEditing(t.id); setAdding(false); }}>Edit</button>
+                    <button className="btn small danger" onClick={() => del(t)}>Delete</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function SyncEmailsButton() {
   const { notify } = useStore();
@@ -253,6 +390,8 @@ export default function Settings() {
       </div>
 
       <SequenceSending />
+
+      <EmailTemplates />
 
       <Webhooks />
 
