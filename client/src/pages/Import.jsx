@@ -157,13 +157,12 @@ export default function Import() {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      if (/\.(xlsx|xls)$/i.test(file.name)) {
-        const XLSX = await import('xlsx');
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type: 'array' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' });
-        startMapping(gridToTable(grid.filter((r) => r.some((c) => String(c).trim() !== ''))), file.name);
+      if (/\.xlsx$/i.test(file.name)) {
+        const { default: readXlsxFile } = await import('read-excel-file/browser');
+        const grid = await readXlsxFile(file);
+        startMapping(gridToTable(grid.filter((r) => r.some((c) => String(c ?? '').trim() !== ''))), file.name);
+      } else if (/\.xls$/i.test(file.name)) {
+        setError('Legacy .xls files are not supported. Save the sheet as .xlsx or CSV and upload again.');
       } else {
         startMapping(parseCsv(await file.text()), file.name);
       }
@@ -211,7 +210,7 @@ export default function Import() {
       {step === 'upload' && (
         <div className="card">
           <p>
-            Upload a <b>CSV or Excel file</b> (or paste rows below) to seed your prospect list — use whatever
+            Upload a <b>CSV or XLSX file</b> (or paste rows below) to seed your prospect list — use whatever
             column names your spreadsheet already has. On the next step you'll map your columns to CRM fields.
           </p>
           <p className="muted small">
@@ -220,11 +219,17 @@ export default function Import() {
           </p>
           <div className="row gap pad-top">
             <label className="btn primary" style={{ cursor: 'pointer' }}>
-              Choose CSV / Excel file
-              <input type="file" accept=".csv,.xlsx,.xls,text/csv" onChange={onFile} style={{ display: 'none' }} />
+              Choose CSV / XLSX file
+              <input
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={onFile}
+                style={{ display: 'none' }}
+              />
             </label>
             <span className="muted small">or paste rows below</span>
           </div>
+          <p className="muted small">Legacy .xls files are not supported; save them as .xlsx or CSV first.</p>
           <textarea
             className="pad-top"
             rows={6}
