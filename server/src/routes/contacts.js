@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES, CONTACT_ROLES, normalizeDomain } from '../util.js';
+import {
+  h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES, CONTACT_ROLES,
+  normalizeDomain, assertEnum, rejectBlank,
+} from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
@@ -12,15 +15,11 @@ const CONTACT_FIELDS = [
 ];
 
 function validateLeadStatus(status) {
-  if (status && !LEAD_STATUSES.includes(status)) {
-    throw badRequest(`lead_status must be one of: ${LEAD_STATUSES.join(', ')}`);
-  }
+  assertEnum('lead_status', status, LEAD_STATUSES);
 }
 
 function validateContactRole(role) {
-  if (role && !CONTACT_ROLES.includes(role)) {
-    throw badRequest(`contact_role must be one of: ${CONTACT_ROLES.join(', ')}`);
-  }
+  assertEnum('contact_role', role, CONTACT_ROLES);
 }
 
 async function resolveCompanyId({ company_id, company_domain, company_name }) {
@@ -174,13 +173,17 @@ router.post('/bulk', h(async (req, res) => {
     return res.json({ deleted: rowCount });
   }
   if (action === 'update') {
-    validateLeadStatus(patch?.lead_status);
-    validateContactRole(patch?.contact_role);
+    const cleanPatch = { ...(patch || {}) };
+    if (Object.prototype.hasOwnProperty.call(cleanPatch, 'lead_status')) {
+      cleanPatch.lead_status = rejectBlank('lead_status', cleanPatch.lead_status);
+    }
+    validateLeadStatus(cleanPatch.lead_status);
+    validateContactRole(cleanPatch.contact_role);
     const sets = [];
     const values = [];
     for (const col of ['owner', 'lead_status', 'contact_role', 'do_not_contact', 'replied', 'not_interested', 'bad_fit']) {
-      if (patch && Object.prototype.hasOwnProperty.call(patch, col)) {
-        values.push(patch[col] === '' ? null : patch[col]);
+      if (Object.prototype.hasOwnProperty.call(cleanPatch, col)) {
+        values.push(cleanPatch[col] === '' ? null : cleanPatch[col]);
         sets.push(`${col} = $${values.length}`);
       }
     }
@@ -221,10 +224,13 @@ router.get('/:id/history', h(async (req, res) => {
 }));
 
 router.post('/', h(async (req, res) => {
-  const b = req.body;
+  const b = { ...req.body };
   const companyId = await resolveCompanyId(b);
   if (!companyId) throw badRequest('company_id, company_domain, or company_name is required');
   await requireActiveCompany(companyId);
+  if (Object.prototype.hasOwnProperty.call(b, 'name')) b.name = String(b.name || '').trim();
+  if (Object.prototype.hasOwnProperty.call(b, 'first_name')) b.first_name = String(b.first_name || '').trim();
+  if (Object.prototype.hasOwnProperty.call(b, 'last_name')) b.last_name = String(b.last_name || '').trim();
   if (!b.name && !b.first_name && !b.last_name) b.name = '(unnamed)';
   if (!b.name) b.name = [b.first_name, b.last_name].filter(Boolean).join(' ') || '(unnamed)';
   validateLeadStatus(b.lead_status);
@@ -253,7 +259,9 @@ router.post('/', h(async (req, res) => {
 
 // POST /api/contacts/upsert — match by email (within company if resolvable), else by company+name
 router.post('/upsert', h(async (req, res) => {
-  const b = req.body;
+  const b = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(b, 'name')) b.name = rejectBlank('name', b.name);
+  if (Object.prototype.hasOwnProperty.call(b, 'lead_status')) b.lead_status = rejectBlank('lead_status', b.lead_status);
   validateLeadStatus(b.lead_status);
   validateContactRole(b.contact_role);
   const companyId = await resolveCompanyId(b);
@@ -311,9 +319,12 @@ router.post('/upsert', h(async (req, res) => {
 }));
 
 router.patch('/:id', h(async (req, res) => {
-  validateLeadStatus(req.body.lead_status);
-  validateContactRole(req.body.contact_role);
-  const upd = buildUpdate('contacts', req.params.id, req.body, CONTACT_FIELDS);
+  const body = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(body, 'name')) body.name = rejectBlank('name', body.name);
+  if (Object.prototype.hasOwnProperty.call(body, 'lead_status')) body.lead_status = rejectBlank('lead_status', body.lead_status);
+  validateLeadStatus(body.lead_status);
+  validateContactRole(body.contact_role);
+  const upd = buildUpdate('contacts', req.params.id, body, CONTACT_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
   const { rows } = await query(upd.text, upd.values);
   if (!rows[0]) throw notFound('Contact not found');

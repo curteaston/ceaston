@@ -16,6 +16,16 @@ export const BUYING_COMMITTEE_STATUSES = ['unknown', 'missing_roles', 'partial',
 
 export const CONTACT_ROLES = ['owner', 'gm', 'marketing', 'ops', 'office_manager', 'dispatcher', 'other'];
 
+export const PRIORITIES = ['low', 'medium', 'high'];
+
+export const ACTIVITY_TYPES = ['call', 'email', 'sms', 'meeting', 'linkedin', 'stage_change', 'other'];
+
+export const NOTE_SOURCES = ['typed', 'voice'];
+
+export const SEQUENCE_STEP_KINDS = ['task', 'auto_email'];
+
+export const SEQUENCE_TASK_TYPES = ['call', 'email', 'linkedin', 'general'];
+
 export const SCHEMA_VERSION = 'prospecting-v1';
 
 // Wrap async route handlers so rejections hit the error middleware.
@@ -30,6 +40,26 @@ export class HttpError extends Error {
 
 export const badRequest = (msg) => new HttpError(400, msg);
 export const notFound = (msg = 'Not found') => new HttpError(404, msg);
+
+export function assertEnum(field, value, allowed) {
+  if (value === undefined || value === null || value === '') return;
+  if (!allowed.includes(value)) {
+    throw badRequest(`${field} must be one of: ${allowed.join(', ')}`);
+  }
+}
+
+export function requireNonBlank(field, value) {
+  const text = String(value ?? '').trim();
+  if (!text) throw badRequest(`${field} is required`);
+  return text;
+}
+
+export function rejectBlank(field, value) {
+  if (value === undefined || value === null) return value;
+  const text = String(value).trim();
+  if (!text) throw badRequest(`${field} cannot be empty`);
+  return text;
+}
 
 // Build a parameterized UPDATE from the request body, restricted to allowed columns.
 export function buildUpdate(table, id, body, allowed, extraSets = []) {

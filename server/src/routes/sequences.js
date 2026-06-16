@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import nodemailer from 'nodemailer';
 import { query, pool, touchCompany } from '../db.js';
-import { h, badRequest, notFound } from '../util.js';
+import {
+  h, badRequest, notFound, PRIORITIES, SEQUENCE_STEP_KINDS, SEQUENCE_TASK_TYPES,
+  assertEnum, requireNonBlank, rejectBlank,
+} from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
@@ -126,7 +129,7 @@ router.get('/:id', h(async (req, res) => {
 
 router.post('/', h(async (req, res) => {
   const b = req.body;
-  if (!b.name) throw badRequest('name is required');
+  b.name = requireNonBlank('name', b.name);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -147,12 +150,20 @@ router.post('/', h(async (req, res) => {
 }));
 
 async function insertSteps(client, sequenceId, steps) {
-  for (const [i, s] of steps.entries()) {
+  if (!Array.isArray(steps)) throw badRequest('steps must be an array');
+  for (const [i, rawStep] of steps.entries()) {
+    const s = rawStep || {};
+    const kind = s.kind || 'task';
+    const priority = s.priority === '' ? null : s.priority;
+    const taskType = s.task_type === '' ? null : s.task_type;
+    assertEnum('step.kind', kind, SEQUENCE_STEP_KINDS);
+    assertEnum('step.priority', priority, PRIORITIES);
+    assertEnum('step.task_type', taskType, SEQUENCE_TASK_TYPES);
     await client.query(
       `INSERT INTO sequence_steps (sequence_id, step_order, day_offset, kind, task_type, description, priority, subject, body)
        VALUES ($1, $2, $3, $4, $5, $6, coalesce($7, 'medium'), $8, $9)`,
-      [sequenceId, i, Number(s.day_offset) || 0, s.kind === 'auto_email' ? 'auto_email' : 'task',
-       s.task_type || null, s.description || null, s.priority || null, s.subject || null, s.body || null]
+      [sequenceId, i, Number(s.day_offset) || 0, kind,
+       taskType, s.description || null, priority, s.subject || null, s.body || null]
     );
   }
 }
@@ -160,6 +171,7 @@ async function insertSteps(client, sequenceId, steps) {
 // PUT replaces the whole step list (simplest editing model).
 router.put('/:id', h(async (req, res) => {
   const b = req.body;
+  if (Object.prototype.hasOwnProperty.call(b, 'name')) b.name = rejectBlank('name', b.name);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
