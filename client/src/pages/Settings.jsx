@@ -302,6 +302,47 @@ function Webhooks() {
   );
 }
 
+function DataSafety() {
+  const { notify } = useStore();
+  const [exporting, setExporting] = useState(false);
+
+  const downloadBackup = async () => {
+    setExporting(true);
+    try {
+      const snapshot = await api.get('/export/snapshot');
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `runwise-crm-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      notify(`Backup exported: ${snapshot.counts.companies} companies, ${snapshot.counts.contacts} contacts`);
+    } catch (e) {
+      notify('Backup failed: ' + (e.message || 'unknown error'), 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Data safety</h3>
+        <button className="btn small" onClick={downloadBackup} disabled={exporting}>
+          {exporting ? 'Exporting...' : 'Download backup'}
+        </button>
+      </div>
+      <p className="small">
+        Exports companies, contacts, deals, tasks, notes, activities, sequences, tags, saved views, and templates.
+        Integration credentials and webhook secrets are excluded.
+      </p>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { run, notify } = useStore();
   const [ms, setMs] = useState(null);
@@ -341,6 +382,8 @@ export default function Settings() {
         </div>
         <p className="muted small">Used in the Home greeting and to match the "My companies" / "My contacts" tabs against record owners.</p>
       </div>
+
+      <DataSafety />
 
       <div className="card">
         <div className="card-head">

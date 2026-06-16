@@ -135,6 +135,42 @@ async function smokeSequenceStatusConstraint() {
   }
 }
 
+async function smokeBackupSnapshot() {
+  const snapshot = (await get('/export/snapshot')).data;
+  assert(snapshot?.schema_version === 'prospecting-v1', 'Backup snapshot schema_version should be prospecting-v1');
+  assert(snapshot?.kind === 'prospecting-data-snapshot', `Backup snapshot kind is ${snapshot?.kind || 'missing'}`);
+  assert(Date.parse(snapshot?.exported_at), 'Backup snapshot exported_at should be an ISO timestamp');
+  assert(Number.isInteger(snapshot?.counts?.companies), 'Backup snapshot missing companies count');
+  assert(Number.isInteger(snapshot?.counts?.contacts), 'Backup snapshot missing contacts count');
+  assert(Array.isArray(snapshot?.data?.companies), 'Backup snapshot missing companies data');
+  assert(Array.isArray(snapshot?.data?.contacts), 'Backup snapshot missing contacts data');
+  assert(Array.isArray(snapshot?.data?.activities), 'Backup snapshot missing activities data');
+  assert(Array.isArray(snapshot?.data?.sequence_enrollments), 'Backup snapshot missing sequence enrollment data');
+  assert(!Object.prototype.hasOwnProperty.call(snapshot?.data || {}, 'app_settings'), 'Backup snapshot should not expose app_settings');
+  assert(
+    (snapshot?.data?.webhooks || []).every((hook) => !Object.prototype.hasOwnProperty.call(hook, 'secret')),
+    'Backup snapshot should not expose webhook secrets',
+  );
+}
+
+async function smokeContactRequiresCompany() {
+  const before = await dbQuery("SELECT count(*)::int AS n FROM companies WHERE name = '(no company)'");
+  const attempted = await post('/contacts', {
+    name: `Orphan Contact Smoke ${Date.now()}`,
+    email: `orphan-${Date.now()}@example.com`,
+  }, { expectOk: false });
+  assert(attempted.res.status === 400, `Orphan contact creation should return 400, got ${attempted.res.status}`);
+  assert(
+    typeof attempted.data?.error === 'string' && attempted.data.error.includes('company_id'),
+    'Orphan contact creation should return a clear company-required error',
+  );
+  const after = await dbQuery("SELECT count(*)::int AS n FROM companies WHERE name = '(no company)'");
+  assert(
+    after.rows[0].n === before.rows[0].n,
+    'Orphan contact creation should not create a placeholder "(no company)" account',
+  );
+}
+
 async function smoke() {
   const health = (await get('/health')).data;
   assert(health?.ok === true, 'API health did not return ok=true');
@@ -179,6 +215,8 @@ async function smoke() {
 
   await smokeImportDomainIdentity();
   await smokeSequenceStatusConstraint();
+  await smokeBackupSnapshot();
+  await smokeContactRequiresCompany();
 
   const arctic = await get('/companies/lookup?domain=arcticairsolutions.com', { expectOk: false });
   if (arctic.res.ok) {

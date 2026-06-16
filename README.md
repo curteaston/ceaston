@@ -28,6 +28,8 @@ running concurrent outbound cadences.
   manage deals and tasks, search by name/domain.
 - **Bulk import** — paste or upload a CSV to seed prospect lists; companies are
   matched by domain and updated, never duplicated, so re-importing is safe.
+- **Prospecting data backup** — export a JSON snapshot of CRM records from Settings
+  or `GET /api/export/snapshot` without exposing integration secrets.
 - **Reports** — a date-range analytics page: activity over time, activity by type,
   pipeline snapshot, deal win rate, task completion, and per-sequence performance
   (enrollments / emails sent / replies), with CSV export.
@@ -314,6 +316,7 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | `GET`    | `/api/webhooks/events`        | List of emittable event types                                                   |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/webhooks[/:id]` | `{ url, events: [...], secret, active }`                                  |
 | `POST`   | `/api/webhooks/:id/test`      | Send a sample payload to verify the endpoint                                     |
+| `GET`    | `/api/export/snapshot`        | JSON snapshot of prospecting data; excludes `app_settings` and webhook secrets   |
 
 Webhook events: `company.created`, `contact.created`, `deal.created`,
 `deal.stage_changed`, `deal.won`, `deal.lost`, `activity.logged`, `task.completed`,
