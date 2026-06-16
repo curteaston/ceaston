@@ -69,6 +69,9 @@ jobs:
       - name: Browser smoke
         run: npm run test:local:browser
 
+      - name: Sequence workflow smoke
+        run: npm run test:local:workflow
+
       - name: Show server log on failure
         if: failure()
         run: cat server.log || true
