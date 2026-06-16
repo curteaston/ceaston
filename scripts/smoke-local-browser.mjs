@@ -25,20 +25,23 @@ function findBrowser() {
   const explicit = process.env.CRM_BROWSER_BIN;
   if (explicit && existsSync(explicit)) return explicit;
 
-  const candidates = [
+  const windowsCandidates = [
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  const unixCandidates = [
     '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/usr/bin/microsoft-edge',
-    '/usr/bin/microsoft-edge-stable',
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
+    '/usr/bin/microsoft-edge',
+    '/usr/bin/microsoft-edge-stable',
   ];
+  const candidates = process.platform === 'win32' ? windowsCandidates : unixCandidates;
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
   }
