@@ -9,32 +9,43 @@ const FUNNEL = STAGES.filter((s) => s !== 'lost'); // lead → ... → won
 router.get('/', h(async (req, res) => {
   const [totals, activity7, activity30, byType30, notes7, tasks, stages, dueSoon, recent] = await Promise.all([
     query(`SELECT
-      (SELECT count(*) FROM companies)::int AS companies,
-      (SELECT count(*) FROM contacts)::int AS contacts,
-      (SELECT count(*) FROM deals)::int AS deals,
-      (SELECT count(*) FROM deals WHERE stage NOT IN ('won','lost'))::int AS open_deals,
-      (SELECT coalesce(sum(value),0) FROM deals WHERE stage NOT IN ('won','lost')) AS pipeline_value,
-      (SELECT coalesce(sum(value),0) FROM deals WHERE stage = 'won') AS won_value`),
-    query(`SELECT count(*)::int AS n FROM activities WHERE occurred_at > now() - interval '7 days' AND type <> 'stage_change'`),
-    query(`SELECT count(*)::int AS n FROM activities WHERE occurred_at > now() - interval '30 days' AND type <> 'stage_change'`),
-    query(`SELECT type, count(*)::int AS n FROM activities
-           WHERE occurred_at > now() - interval '30 days' AND type <> 'stage_change'
-           GROUP BY type ORDER BY n DESC`),
-    query(`SELECT count(*)::int AS n FROM notes WHERE created_at > now() - interval '7 days'`),
+      (SELECT count(*) FROM companies WHERE archived_at IS NULL)::int AS companies,
+      (SELECT count(*) FROM contacts ct JOIN companies co ON co.id = ct.company_id WHERE co.archived_at IS NULL)::int AS contacts,
+      (SELECT count(*) FROM deals d JOIN companies co ON co.id = d.company_id WHERE co.archived_at IS NULL)::int AS deals,
+      (SELECT count(*) FROM deals d JOIN companies co ON co.id = d.company_id WHERE co.archived_at IS NULL AND d.stage NOT IN ('won','lost'))::int AS open_deals,
+      (SELECT coalesce(sum(d.value),0) FROM deals d JOIN companies co ON co.id = d.company_id WHERE co.archived_at IS NULL AND d.stage NOT IN ('won','lost')) AS pipeline_value,
+      (SELECT coalesce(sum(d.value),0) FROM deals d JOIN companies co ON co.id = d.company_id WHERE co.archived_at IS NULL AND d.stage = 'won') AS won_value`),
+    query(`SELECT count(*)::int AS n FROM activities a JOIN companies co ON co.id = a.company_id WHERE co.archived_at IS NULL AND a.occurred_at > now() - interval '7 days' AND a.type <> 'stage_change'`),
+    query(`SELECT count(*)::int AS n FROM activities a JOIN companies co ON co.id = a.company_id WHERE co.archived_at IS NULL AND a.occurred_at > now() - interval '30 days' AND a.type <> 'stage_change'`),
+    query(`SELECT a.type, count(*)::int AS n FROM activities a
+           JOIN companies co ON co.id = a.company_id
+           WHERE co.archived_at IS NULL AND a.occurred_at > now() - interval '30 days' AND a.type <> 'stage_change'
+           GROUP BY a.type ORDER BY n DESC`),
+    query(`SELECT count(*)::int AS n FROM notes n JOIN companies co ON co.id = n.company_id WHERE co.archived_at IS NULL AND n.created_at > now() - interval '7 days'`),
     query(`SELECT count(*)::int AS total,
                   count(*) FILTER (WHERE completed)::int AS completed,
                   count(*) FILTER (WHERE NOT completed AND due_date < CURRENT_DATE)::int AS overdue,
                   count(*) FILTER (WHERE NOT completed AND due_date = CURRENT_DATE)::int AS due_today
-           FROM tasks`),
-    query(`SELECT stage, count(*)::int AS count, coalesce(sum(value),0) AS value FROM deals GROUP BY stage`),
+           FROM tasks t
+           LEFT JOIN companies co ON co.id = t.company_id
+           LEFT JOIN contacts ct ON ct.id = t.contact_id
+           LEFT JOIN companies co2 ON co2.id = ct.company_id
+           WHERE coalesce(co.archived_at, co2.archived_at) IS NULL`),
+    query(`SELECT d.stage, count(*)::int AS count, coalesce(sum(d.value),0) AS value
+           FROM deals d JOIN companies co ON co.id = d.company_id
+           WHERE co.archived_at IS NULL
+           GROUP BY d.stage`),
     query(`SELECT t.*, co.name AS company_name, ct.name AS contact_name FROM tasks t
            LEFT JOIN companies co ON co.id = t.company_id
            LEFT JOIN contacts ct ON ct.id = t.contact_id
-           WHERE NOT t.completed AND (t.due_date <= CURRENT_DATE + 7 OR t.due_date IS NULL)
+           LEFT JOIN companies co2 ON co2.id = ct.company_id
+           WHERE coalesce(co.archived_at, co2.archived_at) IS NULL
+             AND NOT t.completed AND (t.due_date <= CURRENT_DATE + 7 OR t.due_date IS NULL)
            ORDER BY t.due_date NULLS LAST LIMIT 10`),
     query(`SELECT a.*, co.name AS company_name, ct.name AS contact_name FROM activities a
            JOIN companies co ON co.id = a.company_id
            LEFT JOIN contacts ct ON ct.id = a.contact_id
+           WHERE co.archived_at IS NULL
            ORDER BY a.occurred_at DESC LIMIT 10`),
   ]);
 

@@ -201,12 +201,15 @@ router.post('/:id/enroll', h(async (req, res) => {
   if (!steps.length) throw badRequest('This sequence has no steps yet');
 
   const { rows: companyRows } = await query(
-    `SELECT name, do_not_contact, not_interested, bad_fit, suppression_reason
+    `SELECT name, do_not_contact, not_interested, bad_fit, suppression_reason, archived_at
        FROM companies WHERE id = $1`,
     [b.company_id]
   );
   const company = companyRows[0];
   if (!company) throw notFound('Company not found');
+  if (company.archived_at) {
+    throw badRequest(`Cannot enroll archived account: ${company.name}`);
+  }
   if (company.do_not_contact || company.not_interested || company.bad_fit) {
     throw badRequest(`Cannot enroll suppressed account: ${company.suppression_reason || company.name}`);
   }
@@ -285,6 +288,7 @@ router.get('/enrollments/list', h(async (req, res) => {
   const where = [];
   const values = [];
   if (company_id) { values.push(company_id); where.push(`e.company_id = $${values.length}`); }
+  else where.push('co.archived_at IS NULL');
   const { rows: enrollments } = await query(
     `SELECT e.*, s.name AS sequence_name, ct.name AS contact_name, co.name AS company_name
      FROM sequence_enrollments e
@@ -330,6 +334,22 @@ async function stopEnrollmentForSuppression(enrollmentId) {
      WHERE id = $1 AND status = 'active'`,
     [enrollmentId]
   );
+}
+
+export async function stopActiveCompanyEnrollments(companyId) {
+  const { rows } = await query(
+    `SELECT id FROM sequence_enrollments WHERE company_id = $1 AND status = 'active'`,
+    [companyId]
+  );
+  for (const enrollment of rows) await cancelPendingSteps(enrollment.id);
+  if (rows.length) {
+    await query(
+      `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now()
+       WHERE company_id = $1 AND status = 'active'`,
+      [companyId]
+    );
+  }
+  return rows.length;
 }
 
 // When a contact replies, pull them out of every active sequence (cadence hygiene).
@@ -421,6 +441,7 @@ async function finishEnrollments() {
 async function sendAutoEmail(run, cfg) {
   const { rows } = await query(
     `SELECT e.company_id, e.contact_id, co.name AS company_name, co.domain,
+            co.archived_at AS company_archived_at,
             co.do_not_contact AS company_dnc, co.not_interested AS company_not_interested,
             co.bad_fit AS company_bad_fit,
             ct.name AS contact_name, ct.title, ct.email,
@@ -438,6 +459,7 @@ async function sendAutoEmail(run, cfg) {
   };
 
   if (
+    ctx?.company_archived_at ||
     ctx?.company_dnc || ctx?.company_not_interested || ctx?.company_bad_fit ||
     ctx?.contact_dnc || ctx?.contact_not_interested || ctx?.contact_bad_fit
   ) {
@@ -481,6 +503,7 @@ export async function processDueSteps() {
     `SELECT r.id, r.enrollment_id, st.subject, st.body
      FROM sequence_step_runs r
      JOIN sequence_enrollments e ON e.id = r.enrollment_id AND e.status = 'active'
+     JOIN companies co ON co.id = e.company_id AND co.archived_at IS NULL
      JOIN sequence_steps st ON st.id = r.step_id
      WHERE r.kind = 'auto_email' AND r.status = 'pending' AND r.due_date <= CURRENT_DATE
      ORDER BY r.due_date, r.id LIMIT 100`

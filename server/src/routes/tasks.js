@@ -29,6 +29,7 @@ router.get('/', h(async (req, res) => {
   if (q.completed === 'false') where.push('NOT t.completed');
   if (q.overdue === 'true') where.push('NOT t.completed AND t.due_date < CURRENT_DATE');
   if (q.due_before) add('t.due_date <=', q.due_before);
+  if (!q.company_id && !q.contact_id) where.push('coalesce(co.archived_at, co2.archived_at) IS NULL');
 
   const { rows } = await query(
     `SELECT t.*, coalesce(t.company_id, ct.company_id) AS company_id,
@@ -50,6 +51,10 @@ router.post('/', h(async (req, res) => {
   const b = req.body;
   if (!b.description) throw badRequest('description is required');
   if (!b.company_id && !b.contact_id) throw badRequest('company_id or contact_id is required');
+  const companyId = await taskCompanyId(b);
+  const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [companyId]);
+  if (!companyRows[0]) throw notFound('Company not found');
+  if (companyRows[0].archived_at) throw badRequest(`Cannot add task to archived account: ${companyRows[0].name}`);
   const { rows } = await query(
     `INSERT INTO tasks (company_id, contact_id, description, due_date, priority, owner)
      VALUES ($1, $2, $3, $4, coalesce($5, 'medium'), $6) RETURNING *`,

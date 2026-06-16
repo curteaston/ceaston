@@ -624,6 +624,26 @@ export default function CompanyDetail() {
   const editNote = (noteId, body) => mutateCompany(() => api.patch(`/notes/${noteId}`, { body }), 'Note updated');
   const deleteNote = (noteId) => mutateCompany(() => api.del(`/notes/${noteId}`), 'Note deleted');
   const pinNote = (noteId, pinned) => mutateCompany(() => api.patch(`/notes/${noteId}`, { pinned }), pinned ? 'Note pinned' : 'Note unpinned');
+  const archived = Boolean(company.archived_at);
+
+  const archiveCompany = () => {
+    const reason = prompt(
+      `Archive ${company.name}?\n\nArchived companies leave active prospecting lists and sequence activity stops. You can restore this company later.`,
+      'Archived from active prospecting'
+    );
+    if (reason === null) return;
+    run(async () => {
+      await api.post(`/companies/${company.id}/archive`, { reason: reason.trim() || null });
+      await fetchCompany(id);
+    }, 'Company archived');
+  };
+
+  const restoreCompany = () => {
+    run(async () => {
+      await api.post(`/companies/${company.id}/restore`);
+      await fetchCompany(id);
+    }, 'Company restored');
+  };
 
   const deleteCompany = () => {
     const phrase = companyDeleteConfirmation(company.name);
@@ -656,6 +676,19 @@ export default function CompanyDetail() {
         </div>
       </div>
 
+      {archived && (
+        <div className="archive-banner">
+          <div>
+            <b>Archived company</b>
+            <span>
+              Removed from active prospecting{company.archived_at ? ` on ${fmtDate(company.archived_at)}` : ''}.
+              Restore it before logging new outreach, tasks, deals, contacts, or sequence activity.
+            </span>
+          </div>
+          <button className="btn small primary" onClick={restoreCompany}>Restore</button>
+        </div>
+      )}
+
       <div className="detail-grid">
         {/* LEFT COLUMN */}
         <div className="stack left-panel">
@@ -680,14 +713,18 @@ export default function CompanyDetail() {
                 )}
               </div>
             </div>
-            <div className="company-action-buttons">
-              <button className="action-btn" title="Note" onClick={() => setModal('note')}><span>📝</span><span>Note</span></button>
-              <button className="action-btn" title="Email" onClick={() => setModal('email')}><span>✉️</span><span>Email</span></button>
-              <button className="action-btn" title="Call" onClick={() => setModal('call')}><span>📞</span><span>Call</span></button>
-              <button className="action-btn" title="Task" onClick={() => setModal('task')}><span>☑️</span><span>Task</span></button>
-              <button className="action-btn" title="Meeting" onClick={() => setModal('meeting')}><span>📅</span><span>Meeting</span></button>
-              <button className="action-btn" onClick={() => setModal('edit')}><span>⋯</span><span>More</span></button>
-            </div>
+            {archived ? (
+              <div className="muted small">Restore this company to log new outreach or enroll it in a sequence.</div>
+            ) : (
+              <div className="company-action-buttons">
+                <button className="action-btn" title="Note" onClick={() => setModal('note')}><span>📝</span><span>Note</span></button>
+                <button className="action-btn" title="Email" onClick={() => setModal('email')}><span>✉️</span><span>Email</span></button>
+                <button className="action-btn" title="Call" onClick={() => setModal('call')}><span>📞</span><span>Call</span></button>
+                <button className="action-btn" title="Task" onClick={() => setModal('task')}><span>☑️</span><span>Task</span></button>
+                <button className="action-btn" title="Meeting" onClick={() => setModal('meeting')}><span>📅</span><span>Meeting</span></button>
+                <button className="action-btn" onClick={() => setModal('edit')}><span>⋯</span><span>More</span></button>
+              </div>
+            )}
           </div>
 
           {/* Key information card */}
@@ -823,7 +860,16 @@ export default function CompanyDetail() {
                 />
               </div>
             </div>
-            <button className="btn small danger" style={{ marginTop: 16 }} onClick={deleteCompany}>Delete company</button>
+            <div className="form-actions pad-top" style={{ justifyContent: 'flex-start' }}>
+              {archived ? (
+                <>
+                  <button className="btn small primary" onClick={restoreCompany}>Restore company</button>
+                  <button className="btn small danger" onClick={deleteCompany}>Delete permanently</button>
+                </>
+              ) : (
+                <button className="btn small danger" onClick={archiveCompany}>Archive company</button>
+              )}
+            </div>
           </div>
 
         </div>
@@ -863,7 +909,7 @@ export default function CompanyDetail() {
           <div className="card">
             <div className="card-head">
               <h3>Contacts ({company.contacts.length})</h3>
-              <button className="btn small" onClick={() => setModal('contact')}>+ Add</button>
+              <button className="btn small" disabled={archived} onClick={() => setModal('contact')}>+ Add</button>
             </div>
             {company.contacts.length === 0 && <p className="muted">No contacts yet.</p>}
             {company.contacts.map((c) => (
@@ -894,7 +940,7 @@ export default function CompanyDetail() {
           <div className="card">
             <div className="card-head">
               <h3>Deals</h3>
-              <button className="btn small" onClick={() => setModal('deal')}>+ Add</button>
+              <button className="btn small" disabled={archived} onClick={() => setModal('deal')}>+ Add</button>
             </div>
             {company.deals.length === 0 && <p className="muted">No deals yet.</p>}
             {company.deals.map((d) => (
@@ -925,7 +971,7 @@ export default function CompanyDetail() {
           <div className="card">
             <div className="card-head">
               <h3>Tasks ({openTasks.length} open)</h3>
-              <button className="btn small" onClick={() => setModal('task')}>+ Add</button>
+              <button className="btn small" disabled={archived} onClick={() => setModal('task')}>+ Add</button>
             </div>
             {company.tasks.length === 0 && <p className="muted">No tasks yet.</p>}
             {company.tasks.map((t) => (
@@ -939,7 +985,14 @@ export default function CompanyDetail() {
             ))}
           </div>
 
-          <CompanySequences company={company} />
+          {archived ? (
+            <div className="card">
+              <h3>Sequences</h3>
+              <p className="muted">Restore this company before enrolling it in outbound sequences.</p>
+            </div>
+          ) : (
+            <CompanySequences company={company} />
+          )}
         </div>
       </div>
 

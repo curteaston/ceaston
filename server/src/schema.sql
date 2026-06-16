@@ -208,8 +208,12 @@ ALTER TABLE companies ADD COLUMN IF NOT EXISTS replied BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS not_interested BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS bad_fit BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS suppression_reason TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS archived_reason TEXT;
 CREATE INDEX IF NOT EXISTS companies_target_tier_idx ON companies (target_tier);
 CREATE INDEX IF NOT EXISTS companies_next_action_idx ON companies (do_not_contact, not_interested, bad_fit, last_activity_at);
+CREATE INDEX IF NOT EXISTS companies_archived_at_idx ON companies (archived_at);
+CREATE INDEX IF NOT EXISTS companies_active_last_activity_idx ON companies (last_activity_at) WHERE archived_at IS NULL;
 
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS first_name TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_name TEXT;

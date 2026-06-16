@@ -31,6 +31,14 @@ router.post('/', h(async (req, res) => {
         ({ rows: [company] } = await client.query(
           'SELECT * FROM companies WHERE lower(name) = lower($1)', [c.name]));
       }
+      if (company?.archived_at) {
+        summary.skipped.push({
+          index: i,
+          name: c.name,
+          reason: 'archived company exists; restore it before importing updates',
+        });
+        continue;
+      }
       if (company) {
         ({ rows: [company] } = await client.query(
           `UPDATE companies SET

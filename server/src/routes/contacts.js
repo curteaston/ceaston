@@ -27,14 +27,20 @@ async function resolveCompanyId({ company_id, company_domain, company_name }) {
   if (company_id) return company_id;
   const domain = normalizeDomain(company_domain);
   if (domain) {
-    const { rows } = await query('SELECT id FROM companies WHERE lower(domain) = lower($1)', [domain]);
+    const { rows } = await query('SELECT id FROM companies WHERE archived_at IS NULL AND lower(domain) = lower($1)', [domain]);
     if (rows[0]) return rows[0].id;
   }
   if (company_name) {
-    const { rows } = await query('SELECT id FROM companies WHERE lower(name) = lower($1)', [company_name]);
+    const { rows } = await query('SELECT id FROM companies WHERE archived_at IS NULL AND lower(name) = lower($1)', [company_name]);
     if (rows[0]) return rows[0].id;
   }
   return null;
+}
+
+async function requireActiveCompany(companyId) {
+  const { rows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [companyId]);
+  if (!rows[0]) throw notFound('Company not found');
+  if (rows[0].archived_at) throw badRequest(`Cannot add contact to archived account: ${rows[0].name}`);
 }
 
 // GET /api/contacts — list with filtering, sorting and pagination
@@ -47,6 +53,9 @@ router.get('/', h(async (req, res) => {
     where.push(clause.replaceAll('?', `$${values.length}`));
   };
 
+  const archiveMode = String(q.archived || '').toLowerCase();
+  if (archiveMode === 'true' || archiveMode === 'archived') where.push('co.archived_at IS NOT NULL');
+  else if (!['all', 'include', 'include_archived'].includes(archiveMode) && !q.company_id) where.push('co.archived_at IS NULL');
   if (q.q) add('(ct.name ILIKE ? OR ct.email ILIKE ? OR ct.phone ILIKE ?)', `%${q.q}%`);
   if (q.company_id) add('ct.company_id = ?', q.company_id);
   if (q.owner) add('lower(ct.owner) = lower(?)', q.owner);
@@ -138,12 +147,18 @@ router.get('/facets', h(async (req, res) => {
   const [counts, owners] = await Promise.all([
     query(
       `SELECT count(*)::int AS all,
-              count(*) FILTER (WHERE owner IS NULL OR owner = '')::int AS unassigned,
-              count(*) FILTER (WHERE lower(owner) = lower($1))::int AS mine
-       FROM contacts`,
+              count(*) FILTER (WHERE ct.owner IS NULL OR ct.owner = '')::int AS unassigned,
+              count(*) FILTER (WHERE lower(ct.owner) = lower($1))::int AS mine
+       FROM contacts ct JOIN companies co ON co.id = ct.company_id
+       WHERE co.archived_at IS NULL`,
       [me]
     ),
-    query(`SELECT DISTINCT owner FROM contacts WHERE owner IS NOT NULL AND owner <> '' ORDER BY owner`),
+    query(
+      `SELECT DISTINCT ct.owner
+         FROM contacts ct JOIN companies co ON co.id = ct.company_id
+        WHERE co.archived_at IS NULL AND ct.owner IS NOT NULL AND ct.owner <> ''
+        ORDER BY ct.owner`
+    ),
   ]);
   res.json({ ...counts.rows[0], owners: owners.rows.map((r) => r.owner) });
 }));
@@ -209,6 +224,7 @@ router.post('/', h(async (req, res) => {
   const b = req.body;
   const companyId = await resolveCompanyId(b);
   if (!companyId) throw badRequest('company_id, company_domain, or company_name is required');
+  await requireActiveCompany(companyId);
   if (!b.name && !b.first_name && !b.last_name) b.name = '(unnamed)';
   if (!b.name) b.name = [b.first_name, b.last_name].filter(Boolean).join(' ') || '(unnamed)';
   validateLeadStatus(b.lead_status);
@@ -241,12 +257,18 @@ router.post('/upsert', h(async (req, res) => {
   validateLeadStatus(b.lead_status);
   validateContactRole(b.contact_role);
   const companyId = await resolveCompanyId(b);
+  if (companyId) await requireActiveCompany(companyId);
   let existing = null;
 
   if (b.email) {
     const { rows } = companyId
       ? await query('SELECT * FROM contacts WHERE lower(email) = lower($1) AND company_id = $2', [b.email, companyId])
-      : await query('SELECT * FROM contacts WHERE lower(email) = lower($1)', [b.email]);
+      : await query(
+        `SELECT ct.* FROM contacts ct
+         JOIN companies co ON co.id = ct.company_id
+         WHERE co.archived_at IS NULL AND lower(ct.email) = lower($1)`,
+        [b.email]
+      );
     existing = rows[0] || null;
   }
   if (!existing && companyId && b.name) {

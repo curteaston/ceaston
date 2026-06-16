@@ -203,7 +203,7 @@ export default function Companies() {
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(25);
   const [data, setData] = useState({ companies: [], total: 0 });
-  const [facets, setFacets] = useState({ all: 0, mine: 0, unassigned: 0, owners: [] });
+  const [facets, setFacets] = useState({ all: 0, mine: 0, unassigned: 0, archived: 0, owners: [] });
   const [visibleCols, setVisibleCols] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('crm_company_cols'));
@@ -225,6 +225,7 @@ export default function Companies() {
   const colPanelRef = useRef(null);
 
   const setF = (patch) => { setPage(0); setFilters((f) => ({ ...f, ...patch })); };
+  const archivedTab = tab === 'archived';
 
   const activeFilterCount = useMemo(() => [
     filters.owner, filters.unassigned, filters.lifecycle_stage,
@@ -245,7 +246,7 @@ export default function Companies() {
 
   const params = useMemo(() => {
     const p = { sort: sort.by, order: sort.order };
-    if (view === 'board') {
+    if (view === 'board' && !archivedTab) {
       p.limit = 500;
       p.offset = 0;
     } else {
@@ -253,6 +254,7 @@ export default function Companies() {
       p.offset = page * perPage;
     }
     if (search.trim()) p.q = search.trim();
+    if (archivedTab) p.archived = 'true';
     if (tab === 'mine') p.owner = me;
     if (tab === 'all' && filters.owner) p.owner = filters.owner;
     if (filters.unassigned) p.unassigned = 'true';
@@ -293,7 +295,7 @@ export default function Companies() {
     if (filters.task_min) p.task_min = filters.task_min;
     if (filters.task_max) p.task_max = filters.task_max;
     return p;
-  }, [view, tab, search, filters, sort, page, perPage, me]);
+  }, [view, archivedTab, tab, search, filters, sort, page, perPage, me]);
 
   const load = () => {
     api.get(`/companies${qs(params)}`).then((d) => { setData(d); setSelected(new Set()); }).catch((e) => notify(e.message, true));
@@ -413,7 +415,7 @@ export default function Companies() {
     run(async () => {
       await api.post('/companies/bulk', { ids: [...selected], action, patch, ...extra });
       refreshAll();
-    }, action === 'delete' ? 'Companies deleted' : 'Companies updated');
+    }, action === 'delete' ? 'Companies deleted' : action === 'archive' ? 'Companies archived' : action === 'restore' ? 'Companies restored' : 'Companies updated');
 
   const bulkAssign = () => {
     const owner = prompt(`Assign owner for ${selected.size} compan${selected.size === 1 ? 'y' : 'ies'}:`, me);
@@ -435,6 +437,14 @@ export default function Companies() {
       refreshAll();
     }, 'Companies deleted');
   };
+  const bulkArchive = () => {
+    const count = selected.size;
+    run(async () => {
+      await api.post('/companies/bulk', { ids: [...selected], action: 'archive', reason: 'Archived from company list' });
+      refreshAll();
+    }, `${count} compan${count === 1 ? 'y' : 'ies'} archived`);
+  };
+  const bulkRestore = () => bulk('restore');
   const doBulkEnroll = (sequenceId) =>
     run(async () => {
       const results = await Promise.allSettled(
@@ -453,6 +463,7 @@ export default function Companies() {
           <>
             <Link to={`/companies/${c.id}`} onClick={(e) => e.stopPropagation()} className="company-link">{c.name}</Link>
             {c.domain && <div className="muted small">{c.domain}</div>}
+            {c.archived_at && <div className="chip muted-chip">Archived</div>}
             {isSuppressed(c) && <div className="chip danger-chip">Suppressed</div>}
           </>
         );
@@ -506,7 +517,7 @@ export default function Companies() {
     <div>
       <div className="page-head">
         <div className="contact-tabs">
-          {[['all', 'All companies', facets.all], ['mine', 'My companies', facets.mine]].map(([key, label, count]) => (
+          {[['all', 'All companies', facets.all], ['mine', 'My companies', facets.mine], ['archived', 'Archived', facets.archived]].map(([key, label, count]) => (
             <button key={key} className={`tab ${tab === key ? 'on' : ''}`} onClick={() => { setPage(0); setTab(key); }}>
               {label} <span className="tab-count">{count}</span>
             </button>
@@ -539,14 +550,14 @@ export default function Companies() {
           onChange={(e) => onSearch(e.target.value)}
         />
         <span className="toggle-group">
-          <button className={view === 'table' ? 'on' : ''} onClick={() => switchView('table')}>☷ Table view</button>
-          <button className={view === 'board' ? 'on' : ''} onClick={() => switchView('board')}>▦ Board view</button>
+          <button className={archivedTab || view === 'table' ? 'on' : ''} onClick={() => switchView('table')}>☷ Table view</button>
+          <button disabled={archivedTab} className={!archivedTab && view === 'board' ? 'on' : ''} onClick={() => switchView('board')}>▦ Board view</button>
         </span>
         <button className="btn small" onClick={() => setShowFilters(true)}>
           ⚙ Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </button>
         <span className="grow" />
-        {view === 'table' && (
+        {(archivedTab || view === 'table') && (
           <div className="col-panel-wrap" ref={colPanelRef}>
             <button className="btn small" onClick={() => setShowColumns(!showColumns)}>Edit columns</button>
             {showColumns && (
@@ -568,7 +579,7 @@ export default function Companies() {
         <button className="btn small" onClick={exportCsv}>Export</button>
       </div>
 
-      {view === 'table' && selected.size > 0 && (
+      {(archivedTab || view === 'table') && selected.size > 0 && (
         <div className="bulk-bar">
           <b>{selected.size} selected</b>
           <button className="btn small" onClick={bulkAssign}>Assign owner</button>
@@ -579,13 +590,15 @@ export default function Companies() {
           {bulkLifecycle && (
             <button className="btn small primary" onClick={() => { bulk('update', { lifecycle_stage: bulkLifecycle }); setBulkLifecycle(''); }}>Apply</button>
           )}
-          <button className="btn small" onClick={() => setBulkEnroll(true)}>Enroll in sequence</button>
-          <button className="btn small danger" onClick={bulkDelete}>Delete</button>
+          {!archivedTab && <button className="btn small" onClick={() => setBulkEnroll(true)}>Enroll in sequence</button>}
+          {!archivedTab && <button className="btn small danger" onClick={bulkArchive}>Archive</button>}
+          {archivedTab && <button className="btn small primary" onClick={bulkRestore}>Restore</button>}
+          {archivedTab && <button className="btn small danger" onClick={bulkDelete}>Delete</button>}
           <button className="link-btn" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
 
-      {view === 'board' ? (
+      {!archivedTab && view === 'board' ? (
         <CompanyBoard companies={data.companies} onMove={moveLifecycle} onAction={onCardAction} />
       ) : (
         <>
@@ -613,9 +626,13 @@ export default function Companies() {
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="row-actions">
                         <button title="Preview" onClick={() => setPanel({ type: 'preview', company: c })}>👁</button>
-                        <button title="AI summary" onClick={() => setPanel({ type: 'summary', company: c })}>✨</button>
-                        <button title="Send email" onClick={() => setComposer({ type: 'email', company: c })}>✉️</button>
-                        <button title="Create note" onClick={() => setComposer({ type: 'note', company: c })}>📝</button>
+                        {!c.archived_at && (
+                          <>
+                            <button title="AI summary" onClick={() => setPanel({ type: 'summary', company: c })}>✨</button>
+                            <button title="Send email" onClick={() => setComposer({ type: 'email', company: c })}>✉️</button>
+                            <button title="Create note" onClick={() => setComposer({ type: 'note', company: c })}>📝</button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

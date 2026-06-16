@@ -15,9 +15,11 @@ router.get('/', h(async (req, res) => {
   if (company_id) add('company_id', company_id);
   if (contact_id) add('contact_id', contact_id);
   if (deal_id) add('deal_id', deal_id);
+  if (!company_id && !contact_id && !deal_id) where.push('co.archived_at IS NULL');
   const { rows } = await query(
     `SELECT n.*, ct.name AS contact_name FROM notes n
      LEFT JOIN contacts ct ON ct.id = n.contact_id
+     JOIN companies co ON co.id = n.company_id
      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
      ORDER BY n.created_at DESC LIMIT 500`,
     values
@@ -39,6 +41,9 @@ router.post('/', h(async (req, res) => {
     companyId = rows[0]?.company_id;
   }
   if (!companyId) throw badRequest('company_id, contact_id, or deal_id is required');
+  const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [companyId]);
+  if (!companyRows[0]) throw notFound('Company not found');
+  if (companyRows[0].archived_at) throw badRequest(`Cannot add note to archived account: ${companyRows[0].name}`);
 
   const { rows } = await query(
     `INSERT INTO notes (company_id, contact_id, deal_id, body, source)
