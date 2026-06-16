@@ -85,8 +85,23 @@ npm run test:local
 
 Open http://localhost:5173.
 
+`npm run dev:local` is a foreground process that owns the API and Vite child
+processes. Keep the terminal open while developing; press `Ctrl+C` to stop both
+children and any workspace Postgres process started by that run. If `3001` or
+`5173` is already occupied, startup fails instead of silently attaching to an
+unknown process. Run `npm run dev:local:stop` first, or choose alternate ports:
+
+```cmd
+set LOCAL_CRM_API_PORT=3002
+set LOCAL_CRM_UI_PORT=5174
+npm run dev:local
+```
+
+The old detached-window launcher is still available as `npm run dev:local:legacy`
+if you need it while troubleshooting, but it is no longer the recommended path.
+
 `npm run doctor` checks Node/npm, PostgreSQL tooling, database reachability, and
-whether ports `3001` / `5173` are already occupied by the expected CRM services.
+whether the configured API/client ports are already occupied by the expected CRM services.
 It also detects when the built client is being served from the single-port API
 process. The goal is to distinguish missing services from blocking problems so
 startup failures are less mysterious.

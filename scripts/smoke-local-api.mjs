@@ -1,4 +1,4 @@
-const apiBase = process.env.CRM_API_URL || 'http://localhost:3001';
+const apiBase = process.env.CRM_API_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`;
 
 const headers = {
   'Content-Type': 'application/json',

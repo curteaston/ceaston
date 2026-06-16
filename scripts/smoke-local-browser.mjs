@@ -6,7 +6,7 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
-const uiBase = process.env.CRM_UI_URL || 'http://localhost:5173';
+const uiBase = process.env.CRM_UI_URL || `http://localhost:${process.env.LOCAL_CRM_UI_PORT || 5173}`;
 const targetUrl = process.env.CRM_BROWSER_SMOKE_URL || `${uiBase}/companies/1`;
 const timeoutMs = Number(process.env.CRM_BROWSER_SMOKE_TIMEOUT_MS || 30000);
 
