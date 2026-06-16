@@ -1,0 +1,91 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api.js';
+import { useStore } from '../store.js';
+import Modal from './Modal.jsx';
+import { Field } from './widgets.jsx';
+import { isSuppressed } from '../prospecting.js';
+
+const CONTACT_PRIORITY = ['owner', 'gm', 'ops', 'marketing'];
+
+function preferredEnrollmentContact(contacts) {
+  const eligible = contacts.filter((c) => !isSuppressed(c));
+  return CONTACT_PRIORITY
+    .map((role) => eligible.find((c) => c.contact_role === role && c.email))
+    .find(Boolean) || eligible.find((c) => c.email) || eligible[0];
+}
+
+// Enroll a company (and optional contact) into an outbound sequence.
+export default function EnrollModal({ company, onClose, onEnrolled }) {
+  const { run, notify } = useStore();
+  const me = localStorage.getItem('crm_display_name') || 'Curt';
+  const [sequences, setSequences] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [sequenceId, setSequenceId] = useState('');
+  const [contactId, setContactId] = useState('');
+  const [owner, setOwner] = useState(company.owner || me);
+
+  useEffect(() => {
+    api.get('/sequences').then((rows) => setSequences(rows.filter((s) => s.active && s.step_count > 0))).catch(() => {});
+    api.get(`/contacts?company_id=${company.id}&limit=200`).then((d) => {
+      setContacts(d.contacts);
+      const first = preferredEnrollmentContact(d.contacts);
+      if (first) setContactId(String(first.id));
+    }).catch(() => {});
+  }, [company.id]);
+
+  const selected = sequences.find((s) => String(s.id) === sequenceId);
+  const contact = contacts.find((c) => String(c.id) === contactId);
+  const needsEmail = selected; // any sequence may contain an auto-email step
+  const contactSuppressed = contact && isSuppressed(contact);
+
+  const submit = () => {
+    if (!sequenceId) return notify('Pick a sequence', true);
+    run(async () => {
+      await api.post(`/sequences/${sequenceId}/enroll`, {
+        company_id: company.id,
+        contact_id: contactId ? Number(contactId) : null,
+        owner: owner || null,
+      });
+      onEnrolled?.();
+      onClose();
+    }, `Enrolled ${company.name}`);
+  };
+
+  return (
+    <Modal title={`Enroll ${company.name} in a sequence`} onClose={onClose}>
+      <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+        <Field label="Sequence *">
+          <select value={sequenceId} onChange={(e) => setSequenceId(e.target.value)}>
+            <option value="">Choose a sequence…</option>
+            {sequences.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.step_count} steps)</option>)}
+          </select>
+        </Field>
+        <Field label="Primary contact (receives auto-emails)">
+          <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+            <option value="">No specific contact</option>
+            {contacts.map((c) => (
+              <option key={c.id} value={c.id} disabled={isSuppressed(c)}>
+                {c.name}{c.email ? ` · ${c.email}` : ' · (no email)'}{isSuppressed(c) ? ' · suppressed' : ''}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Assign tasks to"><input value={owner} onChange={(e) => setOwner(e.target.value)} /></Field>
+      </div>
+
+      {sequences.length === 0 && (
+        <p className="muted small">No active sequences with steps. Build one on the Sequences page first.</p>
+      )}
+      {needsEmail && contact && !contact.email && (
+        <p className="muted small">⚠ {contact.name} has no email — auto-email steps for this enrollment will be skipped until you add one.</p>
+      )}
+      {contactSuppressed && (
+        <p className="error-text small">This contact is suppressed. Pick another contact or clear suppression first.</p>
+      )}
+
+      <div className="form-actions pad-top">
+        <button className="btn primary" onClick={submit} disabled={!sequenceId || contactSuppressed}>Enroll</button>
+      </div>
+    </Modal>
+  );
+}

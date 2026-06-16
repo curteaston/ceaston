@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: hvac_crm
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hvac_crm"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hvac_crm
+      CRM_API_URL: http://localhost:3001
+      CRM_URL: http://localhost:3001
+      CRM_UI_URL: http://localhost:5173
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Syntax check
+        run: npm run check:syntax
+
+      - name: Build client
+        run: npm run build
+
+      - name: Start API
+        run: npm --prefix server start > server.log 2>&1 &
+
+      - name: Seed empty CI database
+        run: node scripts/seed-local-if-empty.mjs
+
+      - name: API smoke
+        run: npm run test:local:api
+
+      - name: Start client
+        run: npm --prefix client run dev -- --host 127.0.0.1 > client.log 2>&1 &
+
+      - name: Wait for client
+        run: node scripts/wait-for-url.mjs http://localhost:5173/companies/1 30000
+
+      - name: Browser smoke
+        run: npm run test:local:browser
+
+      - name: Sequence workflow smoke
+        run: npm run test:local:workflow
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat server.log || true
+
+      - name: Show client log on failure
+        if: failure()
+        run: cat client.log || true
