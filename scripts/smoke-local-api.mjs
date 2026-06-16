@@ -113,6 +113,94 @@ async function smokeImportDomainIdentity() {
   }
 }
 
+async function smokeImportSanitizesRows() {
+  const stamp = Date.now();
+  const name = `Import Sanitize ${stamp}`;
+  const domain = `import-sanitize-${stamp}.example`;
+  let companyId = null;
+  try {
+    const result = await post('/import', {
+      companies: [
+        {
+          name: '   ',
+          domain: `blank-import-${stamp}.example`,
+          contacts: [{ name: `Blank Contact ${stamp}`, email: `blank-${stamp}@example.com` }],
+        },
+        {
+          name: `  ${name}  `,
+          website: ` https://www.${domain}/about `,
+          employee_count: '12 employees',
+          lifecycle_stage: 'definitely_not_valid',
+          target_tier: 'bad_tier',
+          buying_committee_status: 'bad_status',
+          contacts: [
+            {
+              first_name: ' Sam ',
+              last_name: ' Owner ',
+              email: ` OWNER-${stamp}@EXAMPLE.COM `,
+              contact_role: 'not_a_role',
+            },
+            {
+              name: '   ',
+              email: `skip-${stamp}@example.com`,
+            },
+          ],
+        },
+      ],
+    });
+    assert(result.data.companies_created === 1, `Sanitized import should create 1 company, got ${result.text}`);
+    assert(result.data.contacts_created === 1, `Sanitized import should create 1 contact, got ${result.text}`);
+    assert(result.data.skipped?.length === 1, `Sanitized import should skip 1 blank company row, got ${result.text}`);
+    assert(result.data.skipped?.[0]?.reason === 'missing company name', `Blank company skip reason was wrong: ${result.text}`);
+
+    const lookup = await get(`/companies/lookup?domain=${encodeURIComponent(domain)}`);
+    companyId = lookup.data.id;
+    assert(lookup.data.name === name, `Imported company name should be trimmed, got ${lookup.data.name}`);
+    assert(lookup.data.employee_count === 12, `Imported employee_count should be coerced to 12, got ${lookup.data.employee_count}`);
+    assert(lookup.data.lifecycle_stage === 'lead', `Invalid lifecycle import should fall back to lead, got ${lookup.data.lifecycle_stage}`);
+    assert(lookup.data.target_tier == null, `Invalid target_tier import should stay null, got ${lookup.data.target_tier}`);
+    assert(
+      lookup.data.buying_committee_status === 'unknown',
+      `Invalid buying_committee_status should fall back to unknown, got ${lookup.data.buying_committee_status}`,
+    );
+
+    const full = await get(`/companies/${companyId}/full`);
+    assert(full.data.contacts.length === 1, `Blank contact rows should be skipped, got ${full.data.contacts.length} contacts`);
+    const contact = full.data.contacts[0];
+    assert(contact.name === 'Sam Owner', `Contact name should be built from trimmed first/last name, got ${contact.name}`);
+    assert(contact.email === `owner-${stamp}@example.com`, `Contact email should be trimmed/lowercased, got ${contact.email}`);
+    assert(contact.contact_role == null, `Invalid contact_role should stay null, got ${contact.contact_role}`);
+
+    const normalizedUpdate = await post('/import', {
+      companies: [{
+        name,
+        domain,
+        lifecycle_stage: 'Customer',
+        target_tier: 'Tier 1',
+        buying_committee_status: 'Missing Roles',
+        contacts: [{
+          name: 'Sam Owner',
+          email: `owner-${stamp}@example.com`,
+          contact_role: 'Office Manager',
+        }],
+      }],
+    });
+    assert(normalizedUpdate.data.companies_updated === 1, `Friendly enum re-import should update company, got ${normalizedUpdate.text}`);
+    assert(normalizedUpdate.data.contacts_updated === 1, `Friendly enum re-import should update contact, got ${normalizedUpdate.text}`);
+    const updatedLookup = await get(`/companies/lookup?domain=${encodeURIComponent(domain)}`);
+    assert(updatedLookup.data.lifecycle_stage === 'customer', `Friendly lifecycle should normalize to customer, got ${updatedLookup.data.lifecycle_stage}`);
+    assert(updatedLookup.data.target_tier === 'tier_1', `Friendly target_tier should normalize to tier_1, got ${updatedLookup.data.target_tier}`);
+    assert(
+      updatedLookup.data.buying_committee_status === 'missing_roles',
+      `Friendly buying_committee_status should normalize to missing_roles, got ${updatedLookup.data.buying_committee_status}`,
+    );
+    const updatedFull = await get(`/companies/${companyId}/full`);
+    assert(updatedFull.data.contacts[0].contact_role === 'office_manager', `Friendly contact_role should normalize to office_manager, got ${updatedFull.data.contacts[0].contact_role}`);
+  } finally {
+    if (companyId) await deleteCompany(companyId, name, { expectOk: false });
+  }
+}
+
 async function smokeSequenceStatusConstraint() {
   const stamp = Date.now();
   let companyId = null;
@@ -342,6 +430,7 @@ async function smoke() {
   }
 
   await smokeImportDomainIdentity();
+  await smokeImportSanitizesRows();
   await smokeSequenceStatusConstraint();
   await smokeBackupSnapshot();
   await smokeContactRequiresCompany();

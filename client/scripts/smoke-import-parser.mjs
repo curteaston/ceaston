@@ -18,6 +18,19 @@ assertEqual(csv.headers[0], 'Business', 'CSV first header');
 assertEqual(csv.rows[0].Business, 'Smoke, HVAC', 'CSV quoted company name');
 assertEqual(csv.rows[0].Email, 'sam@smoke.example', 'CSV email');
 
+const tsv = parseCsv('\uFEFFBusiness\tEmail\tEmail\nTab HVAC\towner@tab.example\tops@tab.example\n');
+assertEqual(tsv.headers[0], 'Business', 'TSV parser should strip UTF-8 BOM from first header');
+assertEqual(tsv.headers[1], 'Email', 'TSV first duplicate header');
+assertEqual(tsv.headers[2], 'Email 2', 'TSV duplicate header should be made unique');
+assertEqual(tsv.rows[0].Business, 'Tab HVAC', 'TSV company name');
+assertEqual(tsv.rows[0]['Email 2'], 'ops@tab.example', 'TSV duplicate email column should not overwrite first email');
+
+const duplicateHeaders = gridToTable([['Name', 'Name', ''], ['A', 'B', 'C']]);
+assertEqual(duplicateHeaders.headers[0], 'Name', 'Duplicate grid first header');
+assertEqual(duplicateHeaders.headers[1], 'Name 2', 'Duplicate grid second header');
+assertEqual(duplicateHeaders.headers[2], 'Column 3', 'Blank grid header fallback');
+assertEqual(duplicateHeaders.rows[0]['Name 2'], 'B', 'Duplicate grid header value should survive');
+
 const tmpDir = join(tmpdir(), 'hvac-crm-import-parser');
 mkdirSync(tmpDir, { recursive: true });
 const workbookPath = join(tmpDir, `smoke-${Date.now()}.xlsx`);

@@ -5,7 +5,7 @@ import { useStore, LIFECYCLE_LABELS } from '../store.js';
 
 // CRM target fields the importer can fill. `group` drives the section headings.
 const TARGET_FIELDS = [
-  { key: 'name', label: 'Company name', group: 'Company', aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
+  { key: 'name', label: 'Company name', group: 'Company', required: true, aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
   { key: 'domain', label: 'Domain', group: 'Company', aliases: ['domain', 'company domain', 'account domain', 'website domain', 'url domain'] },
   { key: 'website', label: 'Website', group: 'Company', aliases: ['website', 'web', 'site', 'homepage', 'url'] },
   { key: 'industry', label: 'Industry', group: 'Company', aliases: ['industry', 'vertical', 'sector', 'category'] },
@@ -148,8 +148,10 @@ export default function Import() {
         startMapping(gridToTable(nonEmptyRows(grid)), file.name);
       } else if (/\.xls$/i.test(file.name)) {
         setError('Legacy .xls files are not supported. Save the sheet as .xlsx or CSV and upload again.');
-      } else {
+      } else if (/\.(csv|tsv|txt)$/i.test(file.name)) {
         startMapping(parseCsv(await file.text()), file.name);
+      } else {
+        setError('Unsupported file type. Upload CSV, TSV, or XLSX.');
       }
     } catch (err) {
       setError(`Could not read file: ${err.message}`);
@@ -195,7 +197,7 @@ export default function Import() {
       {step === 'upload' && (
         <div className="card">
           <p>
-            Upload a <b>CSV or XLSX file</b> (or paste rows below) to seed your prospect list — use whatever
+            Upload a <b>CSV, TSV, or XLSX file</b> (or paste rows below) to seed your prospect list — use whatever
             column names your spreadsheet already has. On the next step you'll map your columns to CRM fields.
           </p>
           <p className="muted small">
@@ -204,17 +206,17 @@ export default function Import() {
           </p>
           <div className="row gap pad-top">
             <label className="btn primary" style={{ cursor: 'pointer' }}>
-              Choose CSV / XLSX file
+              Choose CSV / TSV / XLSX file
               <input
                 type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={onFile}
                 style={{ display: 'none' }}
               />
             </label>
             <span className="muted small">or paste rows below</span>
           </div>
-          <p className="muted small">Legacy .xls files are not supported; save them as .xlsx or CSV first.</p>
+          <p className="muted small">Legacy .xls files are not supported; open them in Excel or Sheets and save as .xlsx or CSV first.</p>
           <textarea
             className="pad-top"
             rows={6}
@@ -241,6 +243,7 @@ export default function Import() {
               We guessed the matches below from your headers — adjust any that are wrong. Only <b>Company name</b> is
               required; leave the rest as “— ignore —” if you don't have them.
             </p>
+            {!nameMapped && <p className="error-text">Map Company name before importing.</p>}
 
             {['Company', 'Contact'].map((group) => (
               <div key={group} className="map-group">
@@ -274,7 +277,7 @@ export default function Import() {
                   {preview.companies.reduce((s, c) => s + c.contacts.length, 0)} contacts
                   {preview.skipped > 0 && <span className="muted small"> · {preview.skipped} rows skipped (no company name)</span>}
                 </h3>
-                <button className="btn primary" onClick={doImport} disabled={preview.companies.length === 0}>
+                <button className="btn primary" onClick={doImport} disabled={!nameMapped || preview.companies.length === 0}>
                   Import {preview.companies.length} {preview.companies.length === 1 ? 'company' : 'companies'}{preview.companies.reduce((s, c) => s + c.contacts.length, 0) > 0 ? ` & ${preview.companies.reduce((s, c) => s + c.contacts.length, 0)} contacts` : ''}
                 </button>
               </div>
