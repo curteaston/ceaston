@@ -5,6 +5,15 @@ import Modal from './Modal.jsx';
 import { Field } from './widgets.jsx';
 import { isSuppressed } from '../prospecting.js';
 
+const CONTACT_PRIORITY = ['owner', 'gm', 'ops', 'marketing'];
+
+function preferredEnrollmentContact(contacts) {
+  const eligible = contacts.filter((c) => !isSuppressed(c));
+  return CONTACT_PRIORITY
+    .map((role) => eligible.find((c) => c.contact_role === role && c.email))
+    .find(Boolean) || eligible.find((c) => c.email) || eligible[0];
+}
+
 // Enroll a company (and optional contact) into an outbound sequence.
 export default function EnrollModal({ company, onClose, onEnrolled }) {
   const { run, notify } = useStore();
@@ -19,8 +28,7 @@ export default function EnrollModal({ company, onClose, onEnrolled }) {
     api.get('/sequences').then((rows) => setSequences(rows.filter((s) => s.active && s.step_count > 0))).catch(() => {});
     api.get(`/contacts?company_id=${company.id}&limit=200`).then((d) => {
       setContacts(d.contacts);
-      const eligible = d.contacts.filter((c) => !isSuppressed(c));
-      const first = eligible.find((c) => c.email) || eligible[0];
+      const first = preferredEnrollmentContact(d.contacts);
       if (first) setContactId(String(first.id));
     }).catch(() => {});
   }, [company.id]);

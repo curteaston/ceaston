@@ -337,6 +337,22 @@ async function stopEnrollmentForSuppression(enrollmentId) {
 // and from the manual "mark replied" button. Returns how many enrollments were stopped.
 export async function handleContactReply(contactId) {
   if (!contactId) return 0;
+  const { rows: contactRows } = await query(
+    'SELECT company_id FROM contacts WHERE id = $1',
+    [contactId]
+  );
+  const companyId = contactRows[0]?.company_id;
+  await query('UPDATE contacts SET replied = true WHERE id = $1', [contactId]);
+  if (companyId) {
+    await query(
+      `UPDATE companies
+          SET replied = true,
+              next_step = 'Review reply before next touch'
+        WHERE id = $1`,
+      [companyId]
+    );
+    await touchCompany(companyId);
+  }
   const { rows } = await query(
     `SELECT id FROM sequence_enrollments WHERE contact_id = $1 AND status = 'active'`,
     [contactId]
@@ -350,9 +366,22 @@ export async function handleContactReply(contactId) {
 
 router.post('/enrollments/:id/replied', h(async (req, res) => {
   const { rows } = await query('SELECT * FROM sequence_enrollments WHERE id = $1', [req.params.id]);
-  if (!rows[0]) throw notFound('Enrollment not found');
-  await cancelPendingSteps(req.params.id);
-  await query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [req.params.id]);
+  const enrollment = rows[0];
+  if (!enrollment) throw notFound('Enrollment not found');
+  if (enrollment.contact_id) {
+    await handleContactReply(enrollment.contact_id);
+  } else {
+    await cancelPendingSteps(req.params.id);
+    await query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [req.params.id]);
+    await query(
+      `UPDATE companies
+          SET replied = true,
+              next_step = 'Review reply before next touch'
+        WHERE id = $1`,
+      [enrollment.company_id]
+    );
+    await touchCompany(enrollment.company_id);
+  }
   res.json({ ok: true });
 }));
 

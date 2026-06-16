@@ -11,17 +11,23 @@ const STATUS_LABEL = {
 };
 
 export default function CompanySequences({ company }) {
-  const { run } = useStore();
+  const { run, refreshCompany } = useStore();
   const [enrollments, setEnrollments] = useState([]);
   const [enrolling, setEnrolling] = useState(false);
 
   const load = () =>
-    api.get(`/sequences/enrollments/list?company_id=${company.id}`).then(setEnrollments).catch(() => {});
+    api.get(`/sequences/enrollments/list?company_id=${company.id}`)
+      .then((rows) => {
+        setEnrollments(rows);
+        return refreshCompany();
+      })
+      .catch(() => {});
   useEffect(() => { load(); }, [company.id]);
+  const reloadRelatedPanels = load;
 
   const unenroll = (e) => {
     if (!confirm(`Unenroll from "${e.sequence_name}"? Remaining open tasks will be removed.`)) return;
-    run(async () => { await api.post(`/sequences/enrollments/${e.id}/unenroll`); load(); }, 'Unenrolled');
+    run(async () => { await api.post(`/sequences/enrollments/${e.id}/unenroll`); await reloadRelatedPanels(); }, 'Unenrolled');
   };
   const markReplied = (e) =>
     run(async () => { await api.post(`/sequences/enrollments/${e.id}/replied`); load(); }, 'Marked replied — sequence stopped');

@@ -68,7 +68,7 @@ async function applyProspectingOutcome(activity) {
               suppression_reason = coalesce($6, suppression_reason),
               next_step = CASE
                 WHEN $3 OR $5 THEN null
-                WHEN $2 AND (next_step IS NULL OR next_step = '') THEN 'Review reply before next touch'
+                WHEN $2 THEN 'Review reply before next touch'
                 ELSE next_step
               END
         WHERE id = $1`,

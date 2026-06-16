@@ -22,7 +22,7 @@ export const CONTACT_ROLE_LABELS = {
   other: 'Other',
 };
 
-export const ROLE_COVERAGE = ['owner', 'marketing', 'ops', 'office_manager'];
+export const ROLE_COVERAGE = ['owner', 'marketing', 'ops'];
 
 export const LAST_TOUCH_CHANNELS = ['call', 'email', 'sms', 'meeting', 'linkedin', 'other'];
 

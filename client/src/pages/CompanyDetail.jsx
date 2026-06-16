@@ -720,6 +720,7 @@ export default function CompanyDetail() {
               <div className="key-info-row">
                 <span className="key-info-label">Next step</span>
                 <textarea
+                  key={`${company.id}:${company.next_step || ''}`}
                   className="key-info-input key-info-textarea"
                   defaultValue={company.next_step || ''}
                   placeholder="Add the next concrete action"
