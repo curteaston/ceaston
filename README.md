@@ -51,14 +51,33 @@ running concurrent outbound cadences.
   enrollments. Auto-emails send through a **separate sending domain** configured in
   Settings — never your primary Office 365 mailbox.
 
-## Quick start (local dev, recommended on Windows)
+## Quick start (local viewing, recommended first)
 
-Requires Node 20+ and PostgreSQL 18 installed locally. This path does **not** use
-Docker. It creates a workspace-owned Postgres data directory at `.local/pgdata`,
-runs Postgres on port `55432`, the API on `3001`, and the Vite client on `5173`.
+Requires Node 20.19+ (or Node 22.12+) and PostgreSQL 18 installed locally. This path
+does **not** use Docker. The simplest way to inspect or use the CRM locally is the
+single-port build:
 
 ```bash
 npm run install:all
+npm run doctor
+npm run start:local
+```
+
+Open http://localhost:3001/companies/1. `npm run start:local` builds the React app
+and serves it from the API process on port `3001`. If a healthy API is already
+running, it reuses that process and prints the URL; otherwise press `Ctrl+C` in
+that terminal to stop the foreground server.
+
+## Quick start (local development)
+
+Use this when you are actively editing the React client and want Vite hot reload. It
+first reuses an existing Postgres database on port `55432` when one is reachable;
+otherwise it creates a workspace-owned Postgres data directory at `.local/pgdata`.
+The API runs on `3001`, and the Vite client runs on `5173`.
+
+```bash
+npm run install:all
+npm run doctor
 npm run dev:local
 npm run dev:local:check
 npm run test:local
@@ -66,11 +85,17 @@ npm run test:local
 
 Open http://localhost:5173.
 
-`npm run dev:local` seeds demo prospecting data only when the local database is
-empty. Set `LOCAL_CRM_SEED=0` before startup if you want a completely blank local
-database. `npm run seed` remains available for manual seeding, but do not use it
-as a repeated startup step unless you are intentionally adding another set of
-demo deals, tasks, notes, and activities.
+`npm run doctor` checks Node/npm, PostgreSQL tooling, database reachability, and
+whether ports `3001` / `5173` are already occupied by the expected CRM services.
+It also detects when the built client is being served from the single-port API
+process. The goal is to distinguish missing services from blocking problems so
+startup failures are less mysterious.
+
+`npm run dev:local` seeds demo prospecting data only when the local database is empty.
+Set `LOCAL_CRM_SEED=0` before startup if you want a completely blank local database.
+`npm run seed` remains available for manual seeding, but do not use it as a repeated
+startup step unless you are intentionally adding another set of demo deals, tasks,
+notes, and activities.
 
 Stop the local dev stack with:
 
@@ -80,6 +105,10 @@ npm run dev:local:stop
 
 If PostgreSQL is installed somewhere other than `C:\Program Files\PostgreSQL\18\bin`,
 set `PG_BIN` before running `npm run dev:local`.
+
+If you already have a Postgres database you want to use, set `DATABASE_URL` before
+startup. When `DATABASE_URL` is set, `npm run dev:local` skips local Postgres
+initialization and uses that database for the API process.
 
 `npm run test:local` runs API contract checks plus a headless Edge/Chrome smoke
 render of `/companies/1`. The browser smoke expects the demo prospecting data
@@ -97,7 +126,9 @@ then runs both API and browser smoke checks.
 Run the local equivalent before pushing:
 
 ```bash
+npm run audit
 npm run check:syntax
+npm run test:import
 npm run build
 npm run dev:local:check
 npm run test:local
@@ -121,7 +152,8 @@ npm run seed
 ```
 
 For production without Docker: `npm run build` then `npm start` — the API server
-serves the built React app on a single port.
+serves the built React app on a single port. For local viewing, `npm run start:local`
+wraps that pattern with the default local database URL.
 
 ## Quick start (Docker)
 
