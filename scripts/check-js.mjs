@@ -3,6 +3,8 @@ import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 const roots = [
+  'client/src',
+  'client/scripts',
   'server/src',
   'server/scripts',
   'scripts',
