@@ -1,61 +1,16 @@
 import { execFile } from 'child_process';
-import { existsSync, mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
-import { delimiter, join } from 'path';
+import { join } from 'path';
 import { promisify } from 'util';
+import { findChromiumBrowser, normalizeHttpBase, resolveUiBase } from './local-smoke-env.mjs';
 
 const execFileAsync = promisify(execFile);
 
-const uiBase = process.env.CRM_UI_URL || `http://localhost:${process.env.LOCAL_CRM_UI_PORT || 5173}`;
+const apiBase = normalizeHttpBase(process.env.CRM_API_URL || process.env.CRM_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`);
+const uiBase = await resolveUiBase({ apiBase });
 const targetUrl = process.env.CRM_BROWSER_SMOKE_URL || `${uiBase}/companies/1`;
 const timeoutMs = Number(process.env.CRM_BROWSER_SMOKE_TIMEOUT_MS || 30000);
-
-function findOnPath(names) {
-  const pathDirs = (process.env.PATH || '').split(delimiter).filter(Boolean);
-  for (const dir of pathDirs) {
-    for (const name of names) {
-      const candidate = join(dir, name);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
-}
-
-function findBrowser() {
-  const explicit = process.env.CRM_BROWSER_BIN;
-  if (explicit && existsSync(explicit)) return explicit;
-
-  const windowsCandidates = [
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  ];
-  const unixCandidates = [
-    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/microsoft-edge',
-    '/usr/bin/microsoft-edge-stable',
-  ];
-  const candidates = process.platform === 'win32' ? windowsCandidates : unixCandidates;
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return findOnPath([
-    'msedge.exe',
-    'chrome.exe',
-    'microsoft-edge',
-    'microsoft-edge-stable',
-    'google-chrome',
-    'google-chrome-stable',
-    'chromium',
-    'chromium-browser',
-  ]);
-}
 
 async function dumpDom(browserBin, args) {
   const userDataDir = mkdtempSync(join(tmpdir(), 'hvac-crm-browser-smoke-'));
@@ -80,7 +35,7 @@ function assertText(dom, text, failures) {
   if (!dom.includes(text)) failures.push(`Rendered DOM missing "${text}"`);
 }
 
-const browserBin = findBrowser();
+const browserBin = findChromiumBrowser();
 if (!browserBin) {
   console.error('Local browser smoke failed: could not find Edge, Chrome, or Chromium.');
   console.error('Set CRM_BROWSER_BIN to a Chromium-family browser executable and rerun.');

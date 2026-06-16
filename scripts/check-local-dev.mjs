@@ -1,5 +1,7 @@
-const apiBase = process.env.CRM_API_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`;
-const uiBase = process.env.CRM_UI_URL || `http://localhost:${process.env.LOCAL_CRM_UI_PORT || 5173}`;
+import { normalizeHttpBase, resolveUiBase } from './local-smoke-env.mjs';
+
+const apiBase = normalizeHttpBase(process.env.CRM_API_URL || process.env.CRM_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`);
+const uiBase = await resolveUiBase({ apiBase });
 
 async function getJson(url) {
   const res = await fetch(url);
@@ -43,9 +45,9 @@ try {
 }
 
 try {
-  const html = await getText(uiBase);
+  const html = await getText(`${uiBase}/companies/1`);
   if (!html.includes('<div id="root"></div>')) {
-    failures.push('Client did not return the Vite app shell');
+    failures.push('Client did not return the React app shell');
   }
 } catch (err) {
   failures.push(`Client failed: ${err.message}`);
@@ -59,4 +61,4 @@ if (failures.length) {
 
 console.log('Local dev check passed.');
 console.log(`API: ${apiBase}`);
-console.log(`UI:  ${uiBase}`);
+console.log(`UI:  ${uiBase}${uiBase === apiBase ? ' (single-port API)' : ''}`);
