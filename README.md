@@ -127,12 +127,14 @@ If you already have a Postgres database you want to use, set `DATABASE_URL` befo
 startup. When `DATABASE_URL` is set, `npm run dev:local` skips local Postgres
 initialization and uses that database for the API process.
 
-`npm run test:local` runs API contract checks plus a headless Edge/Chrome smoke
-render of `/companies/1`, sequence workflow checks, and a backup/restore
-recovery drill. The browser and recovery smokes expect the demo prospecting
-data that `npm run dev:local` creates when the local database is empty. If Edge
-or Chrome is installed somewhere unusual, set `CRM_BROWSER_BIN` to the browser
-executable path.
+`npm run test:local` builds the client, reuses the running API on `3001` when
+one is healthy, seeds demo prospecting data only when the database is empty,
+then runs API, browser, sequence workflow, and backup/restore recovery smokes.
+It uses the Vite client on `5173` when available and otherwise falls back to the
+single-port API UI on `3001`. Set `LOCAL_CRM_TEST_BUILD=0` to skip the pre-smoke
+client build when you know `client/dist` is already fresh. If Edge or Chrome is
+installed somewhere unusual, set `CRM_BROWSER_BIN` to the browser executable
+path.
 
 ## Backup, restore, and recovery drill
 
