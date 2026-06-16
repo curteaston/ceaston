@@ -94,8 +94,8 @@ const legacyWindowsAttempt = [
   '--no-sandbox',
 ];
 const modernAttempts = [
-  ['--headless=new', '--disable-gpu', '--disable-extensions', '--disable-dev-shm-usage'],
-  ['--headless', '--disable-gpu', '--disable-extensions', '--disable-dev-shm-usage'],
+  ['--headless=new', '--disable-gpu', '--disable-extensions', '--disable-dev-shm-usage', '--no-sandbox'],
+  ['--headless', '--disable-gpu', '--disable-extensions', '--disable-dev-shm-usage', '--no-sandbox'],
 ];
 const attempts = process.platform === 'win32'
   ? [legacyWindowsAttempt, ...modernAttempts]
