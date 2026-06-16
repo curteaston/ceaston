@@ -54,3 +54,20 @@ export function toInt(v) {
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? n : null;
 }
+
+export function normalizeDomain(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return null;
+  try {
+    const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const url = new URL(withProtocol);
+    return url.hostname.replace(/^www\./, '') || null;
+  } catch {
+    return raw
+      .replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+      .split('/')[0]
+      .split('?')[0]
+      .split('#')[0]
+      .replace(/^www\./, '') || null;
+  }
+}

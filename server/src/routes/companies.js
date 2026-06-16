@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import {
   h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES,
-  TARGET_TIERS, BUYING_COMMITTEE_STATUSES,
+  TARGET_TIERS, BUYING_COMMITTEE_STATUSES, normalizeDomain,
 } from '../util.js';
 import { emit } from '../events.js';
 
@@ -249,8 +249,9 @@ router.get('/facets', h(async (req, res) => {
 router.get('/lookup', h(async (req, res) => {
   const { domain, name } = req.query;
   if (!domain && !name) throw badRequest('Provide ?domain= or ?name=');
+  const normalizedDomain = normalizeDomain(domain);
   const { rows } = domain
-    ? await query('SELECT id FROM companies WHERE lower(domain) = lower($1)', [domain])
+    ? await query('SELECT id FROM companies WHERE lower(domain) = lower($1)', [normalizedDomain])
     : await query('SELECT id FROM companies WHERE lower(name) = lower($1)', [name]);
   if (!rows[0]) throw notFound('Company not found');
   res.json(await fullCompanyPayload(rows[0].id));
@@ -278,6 +279,7 @@ router.post('/', h(async (req, res) => {
   if (!b.name) throw badRequest('name is required');
   validateLifecycle(b.lifecycle_stage);
   validateProspectingFields(b);
+  const domain = normalizeDomain(b.domain || b.website);
   const { rows } = await query(
     `INSERT INTO companies (
        name, domain, industry, employee_count, ad_spend_range, website, phone, owner, lifecycle_stage,
@@ -291,7 +293,7 @@ router.post('/', h(async (req, res) => {
        $18, $19, $20, $21, $22, coalesce($23, 'unknown'),
        coalesce($24, false), coalesce($25, false), coalesce($26, false), coalesce($27, false), $28
      ) RETURNING *`,
-    [b.name, b.domain || null, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
+    [b.name, domain, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
      b.website || null, b.phone || null, b.owner || null, b.lifecycle_stage || null,
      b.city || null, b.state || null, b.lead_status || null, b.type || null, b.postal_code || null,
      b.annual_revenue ?? null, b.timezone || null, b.description || null,
@@ -306,7 +308,11 @@ router.post('/', h(async (req, res) => {
 router.patch('/:id', h(async (req, res) => {
   validateLifecycle(req.body.lifecycle_stage);
   validateProspectingFields(req.body);
-  const upd = buildUpdate('companies', req.params.id, req.body, COMPANY_FIELDS);
+  const body = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(body, 'domain') || Object.prototype.hasOwnProperty.call(body, 'website')) {
+    body.domain = normalizeDomain(body.domain || body.website);
+  }
+  const upd = buildUpdate('companies', req.params.id, body, COMPANY_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
   const { rows } = await query(upd.text, upd.values);
   if (!rows[0]) throw notFound('Company not found');

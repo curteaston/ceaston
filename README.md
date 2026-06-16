@@ -348,11 +348,11 @@ map each of your columns to a CRM field; the importer auto-guesses the obvious m
 
 Legacy `.xls` files are not supported; save them as `.xlsx` or CSV before importing.
 
-Mappable fields — company: name (required), website, industry, employee_count,
+Mappable fields — company: name (required), domain, website, industry, employee_count,
 ad_spend_range, lifecycle_stage, company_phone · contact: first_name, last_name,
 title, primary_email, secondary_email, direct_phone, cell_phone, other_phone,
 source. Repeat a company across rows to attach multiple contacts. Companies are matched
-by name and updated rather than duplicated, so re-importing an enriched list is safe.
+by normalized domain when available, then by name, so re-importing an enriched list is safer.
 
 The underlying `POST /api/import` endpoint takes a pre-shaped JSON payload (see the API
 table above) and is what n8n should call directly; the mapping step is a convenience in
