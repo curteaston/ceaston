@@ -226,7 +226,7 @@ All endpoints accept/return JSON. If `API_KEY` is set, send it as `X-Api-Key`
 | `GET`    | `/api/companies/lookup?domain=`   | Same full payload, looked up by domain (or `?name=`)                                                                                                |
 | `GET`    | `/api/companies/:id/timeline`     | Chronological notes + activities across all contacts                                                                                                |
 | `PATCH`  | `/api/companies/:id`              | Partial update                                                                                                                                      |
-| `DELETE` | `/api/companies/:id`              | Cascades to contacts/deals/tasks/notes                                                                                                              |
+| `DELETE` | `/api/companies/:id`              | Cascades to contacts/deals/tasks/notes; requires `{ confirm: "DELETE <company name>" }`                                                            |
 
 ### Contacts
 
@@ -311,7 +311,7 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | -------- | ----------------------------- | ------------------------------------------------------------------------------- |
 | `GET`    | `/api/views?entity=company`   | List saved views (`company` or `contact`)                                       |
 | `POST`/`PUT`/`DELETE` | `/api/views[/:id]`   | `{ entity, name, state }` — `state` is the page's filter/sort preset            |
-| `POST`   | `/api/companies/bulk`         | `{ ids, action: 'update'\|'delete', patch: { owner?, lifecycle_stage? } }`      |
+| `POST`   | `/api/companies/bulk`         | `{ ids, action: 'update'\|'delete', patch: { owner?, lifecycle_stage? } }`; delete requires `{ confirm: "DELETE <count> COMPANY/COMPANIES" }` |
 | `POST`   | `/api/contacts/bulk`          | `{ ids, action: 'update'\|'delete', patch: { owner?, lead_status? } }`          |
 | `GET`    | `/api/webhooks/events`        | List of emittable event types                                                   |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/webhooks[/:id]` | `{ url, events: [...], secret, active }`                                  |

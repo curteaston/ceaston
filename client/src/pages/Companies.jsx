@@ -17,6 +17,7 @@ import {
   isSuppressed,
   suppressionText,
 } from '../prospecting.js';
+import { bulkCompanyDeleteConfirmation, downloadBackupSnapshot } from '../dataSafety.js';
 
 const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
 const TIMEZONES = [
@@ -408,9 +409,9 @@ export default function Companies() {
     return next;
   });
 
-  const bulk = (action, patch) =>
+  const bulk = (action, patch, extra = {}) =>
     run(async () => {
-      await api.post('/companies/bulk', { ids: [...selected], action, patch });
+      await api.post('/companies/bulk', { ids: [...selected], action, patch, ...extra });
       refreshAll();
     }, action === 'delete' ? 'Companies deleted' : 'Companies updated');
 
@@ -419,7 +420,20 @@ export default function Companies() {
     if (owner !== null) bulk('update', { owner: owner.trim() });
   };
   const bulkDelete = () => {
-    if (confirm(`Delete ${selected.size} compan${selected.size === 1 ? 'y' : 'ies'} and all their data?`)) bulk('delete');
+    const phrase = bulkCompanyDeleteConfirmation(selected.size);
+    const entered = prompt(
+      `This permanently deletes ${selected.size} compan${selected.size === 1 ? 'y' : 'ies'} and all related records.\n\nA backup will download first.\n\nType ${phrase} to continue:`
+    );
+    if (entered === null) return;
+    if (entered.trim() !== phrase) {
+      notify('Delete canceled: confirmation did not match', true);
+      return;
+    }
+    run(async () => {
+      await downloadBackupSnapshot();
+      await api.post('/companies/bulk', { ids: [...selected], action: 'delete', confirm: phrase });
+      refreshAll();
+    }, 'Companies deleted');
   };
   const doBulkEnroll = (sequenceId) =>
     run(async () => {

@@ -19,6 +19,7 @@ import {
   isSuppressed,
   suppressionText,
 } from '../prospecting.js';
+import { companyDeleteConfirmation, downloadBackupSnapshot } from '../dataSafety.js';
 
 // Returns a date N business days from today, formatted as YYYY-MM-DD
 function addBusinessDays(n) {
@@ -600,7 +601,7 @@ function TimelineWithFilters({ items, onEditNote, onDeleteNote, onPinNote }) {
 export default function CompanyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { company, loadingCompany, fetchCompany, mutateCompany, toggleTask, meta, run } = useStore();
+  const { company, loadingCompany, fetchCompany, mutateCompany, toggleTask, meta, run, notify } = useStore();
   const [openContact, setOpenContact] = useState(null);
   const [modal, setModal] = useState(null);
 
@@ -625,9 +626,18 @@ export default function CompanyDetail() {
   const pinNote = (noteId, pinned) => mutateCompany(() => api.patch(`/notes/${noteId}`, { pinned }), pinned ? 'Note pinned' : 'Note unpinned');
 
   const deleteCompany = () => {
-    if (!confirm(`Delete ${company.name} and ALL its contacts, deals, tasks and notes?`)) return;
+    const phrase = companyDeleteConfirmation(company.name);
+    const entered = prompt(
+      `This permanently deletes ${company.name} and ALL related contacts, deals, tasks, notes, and activities.\n\nA backup will download first.\n\nType ${phrase} to continue:`
+    );
+    if (entered === null) return;
+    if (entered.trim() !== phrase) {
+      notify('Delete canceled: confirmation did not match', true);
+      return;
+    }
     run(async () => {
-      await api.del(`/companies/${company.id}`);
+      await downloadBackupSnapshot();
+      await api.del(`/companies/${company.id}`, { confirm: phrase });
       navigate('/companies');
     }, 'Company deleted');
   };

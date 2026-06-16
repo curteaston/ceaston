@@ -45,12 +45,25 @@ async function patch(path, body, options) {
   return request('PATCH', path, body, options);
 }
 
-async function del(path, options) {
-  return request('DELETE', path, undefined, options);
+async function del(path, bodyOrOptions, maybeOptions) {
+  const hasBody = bodyOrOptions && !Object.prototype.hasOwnProperty.call(bodyOrOptions, 'expectOk');
+  return request('DELETE', path, hasBody ? bodyOrOptions : undefined, hasBody ? maybeOptions : bodyOrOptions);
 }
 
 function hasValues(data, key, values) {
   return Array.isArray(data[key]) && values.every((value) => data[key].includes(value));
+}
+
+function companyDeleteConfirmation(name) {
+  return `DELETE ${name}`;
+}
+
+function bulkCompanyDeleteConfirmation(count) {
+  return `DELETE ${count} ${count === 1 ? 'COMPANY' : 'COMPANIES'}`;
+}
+
+async function deleteCompany(companyId, companyName, options = {}) {
+  return del(`/companies/${companyId}`, { confirm: companyDeleteConfirmation(companyName) }, options);
 }
 
 let dbModule;
@@ -96,7 +109,7 @@ async function smokeImportDomainIdentity() {
     const listed = await get(`/companies?domain=${encodeURIComponent(domain)}`);
     assert(listed.data.total === 1, `Domain search should find exactly 1 smoke company, got ${listed.data.total}`);
   } finally {
-    if (companyId) await del(`/companies/${companyId}`, { expectOk: false });
+    if (companyId) await deleteCompany(companyId, `Import Smoke Beta ${stamp}`, { expectOk: false });
   }
 }
 
@@ -131,7 +144,57 @@ async function smokeSequenceStatusConstraint() {
     }
   } finally {
     if (sequenceId) await del(`/sequences/${sequenceId}`, { expectOk: false });
-    if (companyId) await del(`/companies/${companyId}`, { expectOk: false });
+    if (companyId) await deleteCompany(companyId, `Status Constraint Smoke ${stamp}`, { expectOk: false });
+  }
+}
+
+async function smokeCompanyDeleteConfirmation() {
+  const stamp = Date.now();
+  const firstName = `Delete Confirmation Smoke ${stamp}`;
+  const first = await post('/companies', {
+    name: firstName,
+    domain: `delete-confirmation-${stamp}.example`,
+  });
+  const companyId = first.data.id;
+
+  const missing = await del(`/companies/${companyId}`, { expectOk: false });
+  assert(missing.res.status === 400, `Company delete without confirmation should return 400, got ${missing.res.status}`);
+  const wrong = await del(`/companies/${companyId}`, { confirm: 'DELETE WRONG COMPANY' }, { expectOk: false });
+  assert(wrong.res.status === 400, `Company delete with wrong confirmation should return 400, got ${wrong.res.status}`);
+  const stillThere = await get(`/companies/${companyId}`);
+  assert(stillThere.data.id === companyId, 'Company should remain after missing/wrong delete confirmation');
+  const deleted = await deleteCompany(companyId, firstName, { expectOk: false });
+  assert(deleted.res.status === 204, `Company delete with exact confirmation should return 204, got ${deleted.res.status}`);
+
+  const bulkNames = [
+    `Bulk Delete Confirmation A ${stamp}`,
+    `Bulk Delete Confirmation B ${stamp}`,
+  ];
+  const bulkCompanies = [];
+  try {
+    for (const [index, name] of bulkNames.entries()) {
+      bulkCompanies.push((await post('/companies', {
+        name,
+        domain: `bulk-delete-confirmation-${stamp}-${index}.example`,
+      })).data);
+    }
+    const ids = bulkCompanies.map((company) => company.id);
+    const bulkMissing = await post('/companies/bulk', { ids, action: 'delete' }, { expectOk: false });
+    assert(bulkMissing.res.status === 400, `Bulk delete without confirmation should return 400, got ${bulkMissing.res.status}`);
+    const bulkWrong = await post('/companies/bulk', { ids, action: 'delete', confirm: 'DELETE WRONG COUNT' }, { expectOk: false });
+    assert(bulkWrong.res.status === 400, `Bulk delete with wrong confirmation should return 400, got ${bulkWrong.res.status}`);
+    const remaining = await dbQuery('SELECT count(*)::int AS n FROM companies WHERE id = ANY($1::int[])', [ids]);
+    assert(remaining.rows[0].n === ids.length, 'Bulk delete should not remove companies without exact confirmation');
+    const bulkDeleted = await post('/companies/bulk', {
+      ids,
+      action: 'delete',
+      confirm: bulkCompanyDeleteConfirmation(ids.length),
+    });
+    assert(bulkDeleted.data.deleted === ids.length, `Bulk delete with exact confirmation should delete ${ids.length}, got ${bulkDeleted.text}`);
+  } finally {
+    for (const company of bulkCompanies) {
+      await deleteCompany(company.id, company.name, { expectOk: false });
+    }
   }
 }
 
@@ -217,6 +280,7 @@ async function smoke() {
   await smokeSequenceStatusConstraint();
   await smokeBackupSnapshot();
   await smokeContactRequiresCompany();
+  await smokeCompanyDeleteConfirmation();
 
   const arctic = await get('/companies/lookup?domain=arcticairsolutions.com', { expectOk: false });
   if (arctic.res.ok) {
