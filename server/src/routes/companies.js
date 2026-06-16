@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
 import {
   h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES,
-  TARGET_TIERS, BUYING_COMMITTEE_STATUSES, normalizeDomain,
+  TARGET_TIERS, BUYING_COMMITTEE_STATUSES, LEAD_STATUSES, normalizeDomain,
+  assertEnum, requireNonBlank, rejectBlank,
 } from '../util.js';
 import { emit } from '../events.js';
 import { stopActiveCompanyEnrollments } from './sequences.js';
@@ -18,18 +19,13 @@ const COMPANY_FIELDS = [
 ];
 
 function validateLifecycle(stage) {
-  if (stage && !LIFECYCLE_STAGES.includes(stage)) {
-    throw badRequest(`lifecycle_stage must be one of: ${LIFECYCLE_STAGES.join(', ')}`);
-  }
+  assertEnum('lifecycle_stage', stage, LIFECYCLE_STAGES);
 }
 
 function validateProspectingFields(b) {
-  if (b.target_tier && !TARGET_TIERS.includes(b.target_tier)) {
-    throw badRequest(`target_tier must be one of: ${TARGET_TIERS.join(', ')}`);
-  }
-  if (b.buying_committee_status && !BUYING_COMMITTEE_STATUSES.includes(b.buying_committee_status)) {
-    throw badRequest(`buying_committee_status must be one of: ${BUYING_COMMITTEE_STATUSES.join(', ')}`);
-  }
+  assertEnum('lead_status', b.lead_status, LEAD_STATUSES);
+  assertEnum('target_tier', b.target_tier, TARGET_TIERS);
+  assertEnum('buying_committee_status', b.buying_committee_status, BUYING_COMMITTEE_STATUSES);
 }
 
 function companyDeleteConfirmation(name) {
@@ -264,10 +260,15 @@ router.post('/bulk', h(async (req, res) => {
     return res.json({ restored: rowCount });
   }
   if (action === 'update') {
-    if (patch?.lifecycle_stage && !LIFECYCLE_STAGES.includes(patch.lifecycle_stage)) {
-      throw badRequest('Invalid lifecycle_stage');
+    const cleanPatch = { ...(patch || {}) };
+    if (Object.prototype.hasOwnProperty.call(cleanPatch, 'lifecycle_stage')) {
+      cleanPatch.lifecycle_stage = rejectBlank('lifecycle_stage', cleanPatch.lifecycle_stage);
     }
-    validateProspectingFields(patch || {});
+    if (Object.prototype.hasOwnProperty.call(cleanPatch, 'buying_committee_status')) {
+      cleanPatch.buying_committee_status = rejectBlank('buying_committee_status', cleanPatch.buying_committee_status);
+    }
+    validateLifecycle(cleanPatch.lifecycle_stage);
+    validateProspectingFields(cleanPatch);
     const sets = [];
     const values = [];
     for (const col of [
@@ -275,8 +276,8 @@ router.post('/bulk', h(async (req, res) => {
       'next_step', 'buying_committee_status', 'do_not_contact', 'replied', 'not_interested',
       'bad_fit', 'suppression_reason',
     ]) {
-      if (patch && Object.prototype.hasOwnProperty.call(patch, col)) {
-        values.push(patch[col] === '' ? null : patch[col]);
+      if (Object.prototype.hasOwnProperty.call(cleanPatch, col)) {
+        values.push(cleanPatch[col] === '' ? null : cleanPatch[col]);
         sets.push(`${col} = $${values.length}`);
       }
     }
@@ -370,7 +371,7 @@ router.get('/:id/timeline', h(async (req, res) => {
 
 router.post('/', h(async (req, res) => {
   const b = req.body;
-  if (!b.name) throw badRequest('name is required');
+  b.name = requireNonBlank('name', b.name);
   validateLifecycle(b.lifecycle_stage);
   validateProspectingFields(b);
   const domain = normalizeDomain(b.domain || b.website);
@@ -400,9 +401,14 @@ router.post('/', h(async (req, res) => {
 }));
 
 router.patch('/:id', h(async (req, res) => {
-  validateLifecycle(req.body.lifecycle_stage);
-  validateProspectingFields(req.body);
   const body = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(body, 'name')) body.name = rejectBlank('name', body.name);
+  if (Object.prototype.hasOwnProperty.call(body, 'lifecycle_stage')) body.lifecycle_stage = rejectBlank('lifecycle_stage', body.lifecycle_stage);
+  if (Object.prototype.hasOwnProperty.call(body, 'buying_committee_status')) {
+    body.buying_committee_status = rejectBlank('buying_committee_status', body.buying_committee_status);
+  }
+  validateLifecycle(body.lifecycle_stage);
+  validateProspectingFields(body);
   if (Object.prototype.hasOwnProperty.call(body, 'domain') || Object.prototype.hasOwnProperty.call(body, 'website')) {
     body.domain = normalizeDomain(body.domain || body.website);
   }

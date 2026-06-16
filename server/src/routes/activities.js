@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound } from '../util.js';
+import { h, badRequest, notFound, ACTIVITY_TYPES, assertEnum } from '../util.js';
 import { emit } from '../events.js';
 import { handleContactReply } from './sequences.js';
 
@@ -110,6 +110,8 @@ router.get('/', h(async (req, res) => {
 // POST /api/activities — log a call/email/meeting outcome (n8n: log call outcomes)
 router.post('/', h(async (req, res) => {
   const b = req.body;
+  const type = b.type === '' ? null : b.type;
+  assertEnum('type', type, ACTIVITY_TYPES);
   let companyId = b.company_id || null;
   if (!companyId && b.contact_id) {
     const { rows } = await query('SELECT company_id FROM contacts WHERE id = $1', [b.contact_id]);
@@ -123,7 +125,7 @@ router.post('/', h(async (req, res) => {
   const { rows } = await query(
     `INSERT INTO activities (company_id, contact_id, type, outcome, body, occurred_at)
      VALUES ($1, $2, coalesce($3, 'call'), $4, $5, coalesce($6, now())) RETURNING *`,
-    [companyId, b.contact_id || null, b.type || null, b.outcome || null, b.body || null, b.occurred_at || null]
+    [companyId, b.contact_id || null, type, b.outcome || null, b.body || null, b.occurred_at || null]
   );
   const activity = rows[0];
   emit('activity.logged', { activity });

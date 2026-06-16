@@ -236,6 +236,172 @@ async function smokeSequenceStatusConstraint() {
   }
 }
 
+async function expectBadRequest(label, promise, expectedText) {
+  const result = await promise;
+  assert(result.res.status === 400, `${label} should return 400, got ${result.res.status}: ${result.text}`);
+  if (expectedText) {
+    assert(
+      typeof result.data?.error === 'string' && result.data.error.includes(expectedText),
+      `${label} should mention "${expectedText}", got ${result.text}`,
+    );
+  }
+  return result;
+}
+
+async function expectDbCheck(label, sql, params, constraintName) {
+  try {
+    await dbQuery(sql, params);
+    failures.push(`${label}: database allowed invalid data`);
+  } catch (err) {
+    assert(err.code === '23514', `${label}: expected check constraint error 23514, got ${err.code || err.message}`);
+    assert(
+      String(err.constraint || err.message).includes(constraintName),
+      `${label}: expected constraint ${constraintName}, got ${err.constraint || err.message}`,
+    );
+  }
+}
+
+async function smokeValidationGuardrails() {
+  const stamp = Date.now();
+  const companyName = `Validation Guardrail ${stamp}`;
+  let companyId = null;
+  let contactId = null;
+  let dealId = null;
+  let taskId = null;
+  let sequenceId = null;
+  try {
+    await expectBadRequest(
+      'Blank company name',
+      post('/companies', { name: '   ', domain: `blank-${stamp}.example` }, { expectOk: false }),
+      'name is required',
+    );
+
+    const company = await post('/companies', {
+      name: companyName,
+      domain: `validation-guardrail-${stamp}.example`,
+    });
+    companyId = company.data.id;
+
+    const contact = await post('/contacts', {
+      company_id: companyId,
+      name: `Validation Contact ${stamp}`,
+      email: `validation-${stamp}@example.com`,
+    });
+    contactId = contact.data.id;
+    const deal = await post('/deals', { company_id: companyId, name: `Validation Deal ${stamp}` });
+    dealId = deal.data.id;
+    const task = await post('/tasks', { company_id: companyId, description: `Validation Task ${stamp}` });
+    taskId = task.data.id;
+    const sequence = await post('/sequences', {
+      name: `Validation Sequence ${stamp}`,
+      steps: [{ kind: 'task', description: 'Valid step', priority: 'medium', task_type: 'call' }],
+    });
+    sequenceId = sequence.data.id;
+
+    await expectBadRequest(
+      'Invalid company lead_status',
+      patch(`/companies/${companyId}`, { lead_status: 'bogus' }, { expectOk: false }),
+      'lead_status must be one of',
+    );
+    await expectBadRequest(
+      'Blank company lifecycle_stage',
+      patch(`/companies/${companyId}`, { lifecycle_stage: '' }, { expectOk: false }),
+      'lifecycle_stage cannot be empty',
+    );
+    await expectBadRequest(
+      'Invalid contact role',
+      patch(`/contacts/${contactId}`, { contact_role: 'ceo' }, { expectOk: false }),
+      'contact_role must be one of',
+    );
+    await expectBadRequest(
+      'Blank contact lead_status',
+      patch(`/contacts/${contactId}`, { lead_status: '' }, { expectOk: false }),
+      'lead_status cannot be empty',
+    );
+    await expectBadRequest(
+      'Invalid deal probability',
+      patch(`/deals/${dealId}`, { probability: 101 }, { expectOk: false }),
+      'probability must be a number between 0 and 100',
+    );
+    await expectBadRequest(
+      'Invalid deal stage',
+      patch(`/deals/${dealId}`, { stage: 'signed' }, { expectOk: false }),
+      'stage must be one of',
+    );
+    await expectBadRequest(
+      'Invalid task priority',
+      patch(`/tasks/${taskId}`, { priority: 'urgent' }, { expectOk: false }),
+      'priority must be one of',
+    );
+    await expectBadRequest(
+      'Invalid note source',
+      post('/notes', { company_id: companyId, body: 'Bad source', source: 'dictated' }, { expectOk: false }),
+      'source must be one of',
+    );
+    await expectBadRequest(
+      'Invalid activity type',
+      post('/activities', { company_id: companyId, type: 'invalid_type' }, { expectOk: false }),
+      'type must be one of',
+    );
+    await expectBadRequest(
+      'Invalid sequence steps shape',
+      post('/sequences', { name: `Bad Sequence Shape ${stamp}`, steps: {} }, { expectOk: false }),
+      'steps must be an array',
+    );
+    await expectBadRequest(
+      'Invalid sequence step priority',
+      post('/sequences', {
+        name: `Bad Sequence Priority ${stamp}`,
+        steps: [{ kind: 'task', description: 'Bad priority', priority: 'urgent' }],
+      }, { expectOk: false }),
+      'step.priority must be one of',
+    );
+    await expectBadRequest(
+      'Invalid sequence task_type',
+      post('/sequences', {
+        name: `Bad Sequence Task Type ${stamp}`,
+        steps: [{ kind: 'task', description: 'Bad task type', task_type: 'fax' }],
+      }, { expectOk: false }),
+      'step.task_type must be one of',
+    );
+
+    await expectDbCheck(
+      'Company target tier DB guardrail',
+      `INSERT INTO companies (name, target_tier) VALUES ($1, 'bogus')`,
+      [`DB Bad Company ${stamp}`],
+      'companies_target_tier_check',
+    );
+    await expectDbCheck(
+      'Contact role DB guardrail',
+      `INSERT INTO contacts (company_id, name, contact_role) VALUES ($1, $2, 'ceo')`,
+      [companyId, `DB Bad Contact ${stamp}`],
+      'contacts_contact_role_check',
+    );
+    await expectDbCheck(
+      'Deal stage DB guardrail',
+      `INSERT INTO deals (company_id, name, stage) VALUES ($1, $2, 'signed')`,
+      [companyId, `DB Bad Deal ${stamp}`],
+      'deals_stage_check',
+    );
+    await expectDbCheck(
+      'Task priority DB guardrail',
+      `INSERT INTO tasks (company_id, description, priority) VALUES ($1, $2, 'urgent')`,
+      [companyId, `DB Bad Task ${stamp}`],
+      'tasks_priority_check',
+    );
+    await expectDbCheck(
+      'Sequence step priority DB guardrail',
+      `INSERT INTO sequence_steps (sequence_id, step_order, day_offset, kind, priority)
+       VALUES ($1, 99, 0, 'task', 'urgent')`,
+      [sequenceId],
+      'sequence_steps_priority_check',
+    );
+  } finally {
+    if (sequenceId) await del(`/sequences/${sequenceId}`, { expectOk: false });
+    if (companyId) await deleteCompany(companyId, companyName, { expectOk: false });
+  }
+}
+
 async function smokeCompanyDeleteConfirmation() {
   const stamp = Date.now();
   const firstName = `Delete Confirmation Smoke ${stamp}`;
@@ -432,6 +598,7 @@ async function smoke() {
   await smokeImportDomainIdentity();
   await smokeImportSanitizesRows();
   await smokeSequenceStatusConstraint();
+  await smokeValidationGuardrails();
   await smokeBackupSnapshot();
   await smokeContactRequiresCompany();
   await smokeCompanyDeleteConfirmation();

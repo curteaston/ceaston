@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate } from '../util.js';
+import { h, badRequest, notFound, buildUpdate, PRIORITIES, assertEnum, requireNonBlank, rejectBlank } from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
@@ -49,7 +49,8 @@ router.get('/', h(async (req, res) => {
 
 router.post('/', h(async (req, res) => {
   const b = req.body;
-  if (!b.description) throw badRequest('description is required');
+  b.description = requireNonBlank('description', b.description);
+  assertEnum('priority', b.priority, PRIORITIES);
   if (!b.company_id && !b.contact_id) throw badRequest('company_id or contact_id is required');
   const companyId = await taskCompanyId(b);
   const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [companyId]);
@@ -64,10 +65,14 @@ router.post('/', h(async (req, res) => {
 }));
 
 router.patch('/:id', h(async (req, res) => {
+  const body = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(body, 'description')) body.description = rejectBlank('description', body.description);
+  if (Object.prototype.hasOwnProperty.call(body, 'priority')) body.priority = rejectBlank('priority', body.priority);
+  assertEnum('priority', body.priority, PRIORITIES);
   const extraSets = [];
-  if (req.body.completed === true) extraSets.push('completed = true', 'completed_at = now()');
-  if (req.body.completed === false) extraSets.push('completed = false', 'completed_at = NULL');
-  const upd = buildUpdate('tasks', req.params.id, req.body, TASK_FIELDS, extraSets);
+  if (body.completed === true) extraSets.push('completed = true', 'completed_at = now()');
+  if (body.completed === false) extraSets.push('completed = false', 'completed_at = NULL');
+  const upd = buildUpdate('tasks', req.params.id, body, TASK_FIELDS, extraSets);
   if (!upd && extraSets.length === 0) throw badRequest('No updatable fields provided');
 
   let row;
@@ -81,7 +86,7 @@ router.patch('/:id', h(async (req, res) => {
   }
   if (!row) throw notFound('Task not found');
 
-  if (req.body.completed === true) {
+  if (body.completed === true) {
     const companyId = await taskCompanyId(row);
     if (companyId) await touchCompany(companyId);
     emit('task.completed', { task: row });

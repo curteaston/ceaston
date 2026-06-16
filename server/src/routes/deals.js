@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate, STAGES, DEFAULT_PROBABILITY } from '../util.js';
+import {
+  h, badRequest, notFound, buildUpdate, STAGES, DEFAULT_PROBABILITY,
+  assertEnum, requireNonBlank, rejectBlank,
+} from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
@@ -8,9 +11,16 @@ const router = Router();
 const DEAL_FIELDS = ['name', 'value', 'stage', 'probability', 'expected_close_date'];
 
 function validateStage(stage) {
-  if (stage && !STAGES.includes(stage)) {
-    throw badRequest(`stage must be one of: ${STAGES.join(', ')}`);
+  assertEnum('stage', stage, STAGES);
+}
+
+function normalizeProbability(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 100) {
+    throw badRequest('probability must be a number between 0 and 100');
   }
+  return n;
 }
 
 router.get('/', h(async (req, res) => {
@@ -39,13 +49,13 @@ router.get('/', h(async (req, res) => {
 router.post('/', h(async (req, res) => {
   const b = req.body;
   if (!b.company_id) throw badRequest('company_id is required');
-  if (!b.name) throw badRequest('name is required');
+  b.name = requireNonBlank('name', b.name);
   const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [b.company_id]);
   if (!companyRows[0]) throw notFound('Company not found');
   if (companyRows[0].archived_at) throw badRequest(`Cannot add deal to archived account: ${companyRows[0].name}`);
   validateStage(b.stage);
   const stage = b.stage || 'lead';
-  const probability = b.probability ?? DEFAULT_PROBABILITY[stage];
+  const probability = normalizeProbability(b.probability) ?? DEFAULT_PROBABILITY[stage];
   const { rows } = await query(
     `INSERT INTO deals (company_id, name, value, stage, probability, expected_close_date)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -57,13 +67,16 @@ router.post('/', h(async (req, res) => {
 }));
 
 router.patch('/:id', h(async (req, res) => {
-  validateStage(req.body.stage);
   const { rows: prevRows } = await query('SELECT * FROM deals WHERE id = $1', [req.params.id]);
   const prev = prevRows[0];
   if (!prev) throw notFound('Deal not found');
 
   // Stage moves get a default probability unless the caller overrides it.
   const body = { ...req.body };
+  if (Object.prototype.hasOwnProperty.call(body, 'name')) body.name = rejectBlank('name', body.name);
+  if (Object.prototype.hasOwnProperty.call(body, 'stage')) body.stage = rejectBlank('stage', body.stage);
+  validateStage(body.stage);
+  if (Object.prototype.hasOwnProperty.call(body, 'probability')) body.probability = normalizeProbability(body.probability);
   if (body.stage && body.stage !== prev.stage && body.probability === undefined) {
     body.probability = DEFAULT_PROBABILITY[body.stage];
   }

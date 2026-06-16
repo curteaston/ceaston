@@ -228,6 +228,53 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS not_interested BOOLEAN NOT NULL DE
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bad_fit BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS contacts_role_idx ON contacts (contact_role);
 
+-- Additive data-integrity guardrails. NOT VALID avoids blocking startup on old
+-- rows while still enforcing these checks for new inserts and updates.
+ALTER TABLE companies DROP CONSTRAINT IF EXISTS companies_lifecycle_stage_check;
+ALTER TABLE companies ADD CONSTRAINT companies_lifecycle_stage_check
+  CHECK (lifecycle_stage IN ('subscriber','lead','mql','sql','opportunity','customer','evangelist')) NOT VALID;
+ALTER TABLE companies DROP CONSTRAINT IF EXISTS companies_lead_status_check;
+ALTER TABLE companies ADD CONSTRAINT companies_lead_status_check
+  CHECK (lead_status IS NULL OR lead_status IN ('new','attempted','connected','qualified','unqualified','customer')) NOT VALID;
+ALTER TABLE companies DROP CONSTRAINT IF EXISTS companies_target_tier_check;
+ALTER TABLE companies ADD CONSTRAINT companies_target_tier_check
+  CHECK (target_tier IS NULL OR target_tier IN ('tier_1','tier_2','tier_3')) NOT VALID;
+ALTER TABLE companies DROP CONSTRAINT IF EXISTS companies_buying_committee_status_check;
+ALTER TABLE companies ADD CONSTRAINT companies_buying_committee_status_check
+  CHECK (buying_committee_status IN ('unknown','missing_roles','partial','mapped','engaged')) NOT VALID;
+
+ALTER TABLE contacts DROP CONSTRAINT IF EXISTS contacts_lead_status_check;
+ALTER TABLE contacts ADD CONSTRAINT contacts_lead_status_check
+  CHECK (lead_status IN ('new','attempted','connected','qualified','unqualified','customer')) NOT VALID;
+ALTER TABLE contacts DROP CONSTRAINT IF EXISTS contacts_contact_role_check;
+ALTER TABLE contacts ADD CONSTRAINT contacts_contact_role_check
+  CHECK (contact_role IS NULL OR contact_role IN ('owner','gm','marketing','ops','office_manager','dispatcher','other')) NOT VALID;
+
+ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_stage_check;
+ALTER TABLE deals ADD CONSTRAINT deals_stage_check
+  CHECK (stage IN ('lead','contacted','qualified','proposal','negotiation','won','lost')) NOT VALID;
+ALTER TABLE deals DROP CONSTRAINT IF EXISTS deals_probability_check;
+ALTER TABLE deals ADD CONSTRAINT deals_probability_check
+  CHECK (probability IS NULL OR (probability >= 0 AND probability <= 100)) NOT VALID;
+
+ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_priority_check;
+ALTER TABLE tasks ADD CONSTRAINT tasks_priority_check
+  CHECK (priority IN ('low','medium','high')) NOT VALID;
+
+ALTER TABLE sequence_steps DROP CONSTRAINT IF EXISTS sequence_steps_kind_check;
+ALTER TABLE sequence_steps ADD CONSTRAINT sequence_steps_kind_check
+  CHECK (kind IN ('task','auto_email')) NOT VALID;
+ALTER TABLE sequence_steps DROP CONSTRAINT IF EXISTS sequence_steps_priority_check;
+ALTER TABLE sequence_steps ADD CONSTRAINT sequence_steps_priority_check
+  CHECK (priority IS NULL OR priority IN ('low','medium','high')) NOT VALID;
+ALTER TABLE sequence_steps DROP CONSTRAINT IF EXISTS sequence_steps_task_type_check;
+ALTER TABLE sequence_steps ADD CONSTRAINT sequence_steps_task_type_check
+  CHECK (task_type IS NULL OR task_type IN ('call','email','linkedin','general')) NOT VALID;
+
+ALTER TABLE sequence_step_runs DROP CONSTRAINT IF EXISTS sequence_step_runs_kind_check;
+ALTER TABLE sequence_step_runs ADD CONSTRAINT sequence_step_runs_kind_check
+  CHECK (kind IN ('task','auto_email')) NOT VALID;
+
 CREATE TABLE IF NOT EXISTS tags (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,

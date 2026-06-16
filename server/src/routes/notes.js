@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound } from '../util.js';
+import { h, badRequest, notFound, NOTE_SOURCES, assertEnum } from '../util.js';
 
 const router = Router();
 
@@ -30,6 +30,8 @@ router.get('/', h(async (req, res) => {
 router.post('/', h(async (req, res) => {
   const b = req.body;
   if (!b.body || !b.body.trim()) throw badRequest('body is required');
+  const source = b.source === '' ? null : b.source;
+  assertEnum('source', source, NOTE_SOURCES);
 
   let companyId = b.company_id || null;
   if (!companyId && b.contact_id) {
@@ -48,7 +50,7 @@ router.post('/', h(async (req, res) => {
   const { rows } = await query(
     `INSERT INTO notes (company_id, contact_id, deal_id, body, source)
      VALUES ($1, $2, $3, $4, coalesce($5, 'typed')) RETURNING *`,
-    [companyId, b.contact_id || null, b.deal_id || null, b.body.trim(), b.source || null]
+    [companyId, b.contact_id || null, b.deal_id || null, b.body.trim(), source]
   );
   await touchCompany(companyId);
   res.status(201).json(rows[0]);
