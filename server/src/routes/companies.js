@@ -5,6 +5,7 @@ import {
   TARGET_TIERS, BUYING_COMMITTEE_STATUSES, normalizeDomain,
 } from '../util.js';
 import { emit } from '../events.js';
+import { stopActiveCompanyEnrollments } from './sequences.js';
 
 const router = Router();
 
@@ -47,6 +48,23 @@ function requireDeleteConfirmation(req, expected) {
   if (deleteConfirmation(req) !== expected) {
     throw badRequest(`Deletion confirmation required. Re-submit with confirmation: ${expected}`);
   }
+}
+
+function archiveMode(q) {
+  const value = String(q.archived || '').toLowerCase();
+  if (['true', 'only', 'archived'].includes(value)) return 'archived';
+  if (['all', 'include', 'include_archived'].includes(value)) return 'all';
+  return 'active';
+}
+
+function includeArchived(q) {
+  return ['true', 'all', 'include', 'include_archived'].includes(String(q.include_archived || q.archived || '').toLowerCase());
+}
+
+function applyArchiveFilter(where, q, alias = 'co') {
+  const mode = archiveMode(q);
+  if (mode === 'archived') where.push(`${alias}.archived_at IS NOT NULL`);
+  if (mode === 'active') where.push(`${alias}.archived_at IS NULL`);
 }
 
 // Shared timeline query: notes + activities for a company, pinned notes first then newest first.
@@ -99,6 +117,7 @@ router.get('/', h(async (req, res) => {
     where.push(clause.replace('?', `$${values.length}`));
   };
 
+  applyArchiveFilter(where, q, 'co');
   if (q.q) {
     values.push(`%${q.q}%`);
     where.push(`(co.name ILIKE $${values.length} OR co.domain ILIKE $${values.length})`);
@@ -186,6 +205,7 @@ router.get('/', h(async (req, res) => {
     lifecycle_stage: 'co.lifecycle_stage',
     target_tier: 'co.target_tier',
     buying_committee_status: 'co.buying_committee_status',
+    archived_at: 'co.archived_at',
   };
   const sort = sortable[q.sort] || 'co.last_activity_at';
   const order = q.order === 'asc' ? 'ASC' : 'DESC';
@@ -220,6 +240,29 @@ router.post('/bulk', h(async (req, res) => {
     const { rowCount } = await query('DELETE FROM companies WHERE id = ANY($1::int[])', [ids]);
     return res.json({ deleted: rowCount });
   }
+  if (action === 'archive') {
+    const reason = String(req.body.reason || patch?.archived_reason || '').trim() || null;
+    const { rows } = await query(
+      `UPDATE companies
+          SET archived_at = coalesce(archived_at, now()),
+              archived_reason = coalesce($2, archived_reason)
+        WHERE id = ANY($1::int[]) AND archived_at IS NULL
+        RETURNING id`,
+      [ids, reason]
+    );
+    for (const row of rows) await stopActiveCompanyEnrollments(row.id);
+    return res.json({ archived: rows.length });
+  }
+  if (action === 'restore') {
+    const { rowCount } = await query(
+      `UPDATE companies
+          SET archived_at = NULL,
+              archived_reason = NULL
+        WHERE id = ANY($1::int[]) AND archived_at IS NOT NULL`,
+      [ids]
+    );
+    return res.json({ restored: rowCount });
+  }
   if (action === 'update') {
     if (patch?.lifecycle_stage && !LIFECYCLE_STAGES.includes(patch.lifecycle_stage)) {
       throw badRequest('Invalid lifecycle_stage');
@@ -245,7 +288,7 @@ router.post('/bulk', h(async (req, res) => {
     );
     return res.json({ updated: rowCount });
   }
-  throw badRequest(`action must be 'update' or 'delete'`);
+  throw badRequest(`action must be 'update', 'delete', 'archive', or 'restore'`);
 }));
 
 // GET /api/companies/facets?me=Curt — tab counts and distinct owners
@@ -253,13 +296,14 @@ router.get('/facets', h(async (req, res) => {
   const me = req.query.me || '';
   const [counts, owners] = await Promise.all([
     query(
-      `SELECT count(*)::int AS all,
-              count(*) FILTER (WHERE owner IS NULL OR owner = '')::int AS unassigned,
-              count(*) FILTER (WHERE lower(owner) = lower($1))::int AS mine
+      `SELECT count(*) FILTER (WHERE archived_at IS NULL)::int AS all,
+              count(*) FILTER (WHERE archived_at IS NOT NULL)::int AS archived,
+              count(*) FILTER (WHERE archived_at IS NULL AND (owner IS NULL OR owner = ''))::int AS unassigned,
+              count(*) FILTER (WHERE archived_at IS NULL AND lower(owner) = lower($1))::int AS mine
        FROM companies`,
       [me]
     ),
-    query(`SELECT DISTINCT owner FROM companies WHERE owner IS NOT NULL AND owner <> '' ORDER BY owner`),
+    query(`SELECT DISTINCT owner FROM companies WHERE archived_at IS NULL AND owner IS NOT NULL AND owner <> '' ORDER BY owner`),
   ]);
   res.json({ ...counts.rows[0], owners: owners.rows.map((r) => r.owner) });
 }));
@@ -269,11 +313,42 @@ router.get('/lookup', h(async (req, res) => {
   const { domain, name } = req.query;
   if (!domain && !name) throw badRequest('Provide ?domain= or ?name=');
   const normalizedDomain = normalizeDomain(domain);
+  const archiveClause = includeArchived(req.query) ? '' : ' AND archived_at IS NULL';
   const { rows } = domain
-    ? await query('SELECT id FROM companies WHERE lower(domain) = lower($1)', [normalizedDomain])
-    : await query('SELECT id FROM companies WHERE lower(name) = lower($1)', [name]);
+    ? await query(`SELECT id FROM companies WHERE lower(domain) = lower($1)${archiveClause}`, [normalizedDomain])
+    : await query(`SELECT id FROM companies WHERE lower(name) = lower($1)${archiveClause}`, [name]);
   if (!rows[0]) throw notFound('Company not found');
   res.json(await fullCompanyPayload(rows[0].id));
+}));
+
+router.post('/:id/archive', h(async (req, res) => {
+  const reason = String(req.body?.reason || '').trim() || null;
+  const { rows } = await query(
+    `UPDATE companies
+        SET archived_at = coalesce(archived_at, now()),
+            archived_reason = coalesce($2, archived_reason)
+      WHERE id = $1
+      RETURNING *`,
+    [req.params.id, reason]
+  );
+  if (!rows[0]) throw notFound('Company not found');
+  const stoppedEnrollments = await stopActiveCompanyEnrollments(req.params.id);
+  emit('company.archived', { company: rows[0], stopped_enrollments: stoppedEnrollments });
+  res.json({ ...rows[0], stopped_enrollments: stoppedEnrollments });
+}));
+
+router.post('/:id/restore', h(async (req, res) => {
+  const { rows } = await query(
+    `UPDATE companies
+        SET archived_at = NULL,
+            archived_reason = NULL
+      WHERE id = $1
+      RETURNING *`,
+    [req.params.id]
+  );
+  if (!rows[0]) throw notFound('Company not found');
+  emit('company.restored', { company: rows[0] });
+  res.json(rows[0]);
 }));
 
 router.get('/:id', h(async (req, res) => {

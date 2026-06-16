@@ -219,20 +219,22 @@ All endpoints accept/return JSON. If `API_KEY` is set, send it as `X-Api-Key`
 
 | Method   | Path                              | Notes                                                                                                                                              |
 | -------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/companies`                  | Filters: `q` (name/domain), `industry`, `ad_spend_range`, `employee_min/max`, `inactive_days`, `last_contact_before/after`, `deal_stage`, `no_deals=true`, `sort`, `order`, `limit`, `offset` |
+| `GET`    | `/api/companies`                  | Active companies by default. Add `archived=true` for archived only or `archived=all` to include both. Filters: `q` (name/domain), `industry`, `ad_spend_range`, `employee_min/max`, `inactive_days`, `last_contact_before/after`, `deal_stage`, `no_deals=true`, `sort`, `order`, `limit`, `offset` |
 | `POST`   | `/api/companies`                  | `{ name*, domain, industry, employee_count, ad_spend_range, website }`                                                                              |
 | `GET`    | `/api/companies/:id`              | Company record only                                                                                                                                 |
 | `GET`    | `/api/companies/:id/full`         | **Single payload:** company + contacts + deals + tasks + full timeline                                                                              |
-| `GET`    | `/api/companies/lookup?domain=`   | Same full payload, looked up by domain (or `?name=`)                                                                                                |
+| `GET`    | `/api/companies/lookup?domain=`   | Same full payload, looked up by domain (or `?name=`). Archived companies require `include_archived=true`.                                           |
 | `GET`    | `/api/companies/:id/timeline`     | Chronological notes + activities across all contacts                                                                                                |
 | `PATCH`  | `/api/companies/:id`              | Partial update                                                                                                                                      |
+| `POST`   | `/api/companies/:id/archive`      | Archives the company, removes it from active prospecting views, and stops active sequence enrollments. Optional `{ reason }`                         |
+| `POST`   | `/api/companies/:id/restore`      | Restores an archived company to active prospecting views                                                                                             |
 | `DELETE` | `/api/companies/:id`              | Cascades to contacts/deals/tasks/notes; requires `{ confirm: "DELETE <company name>" }`                                                            |
 
 ### Contacts
 
 | Method   | Path                         | Notes                                                                                       |
 | -------- | ---------------------------- | ------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/contacts`              | Paginated list. Filters: `q` (name/email/phone), `company_id`, `owner`, `unassigned=true`, `lead_status`, `source`, `title`, `has_email/has_phone=true`, `created_after/before`, `last_contact_after/before`, `never_contacted=true`, `inactive_days`, `sort`, `order`, `limit`, `offset` |
+| `GET`    | `/api/contacts`              | Active-company contacts by default. Filters: `q` (name/email/phone), `company_id`, `owner`, `unassigned=true`, `lead_status`, `source`, `title`, `has_email/has_phone=true`, `created_after/before`, `last_contact_after/before`, `never_contacted=true`, `inactive_days`, `sort`, `order`, `limit`, `offset` |
 | `GET`    | `/api/contacts/facets?me=`   | Tab counts (all / mine / unassigned) and distinct owners                                     |
 | `POST`   | `/api/contacts`              | `{ company_id* (or company_domain/company_name), name*, title, email, phone, source, owner, lead_status }` |
 | `POST`   | `/api/contacts/upsert`       | Matches by email (then company+name); creates or updates. Ideal for n8n enrichment flows.   |
@@ -283,8 +285,8 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 
 | Method | Path              | Notes                                                                                                   |
 | ------ | ----------------- | -------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/api/search?q=`  | Companies by name/domain + contacts by name/email                                                         |
-| `GET`  | `/api/companies/facets?me=` | Company tab counts (all/mine/unassigned) + distinct owners                                      |
+| `GET`  | `/api/search?q=`  | Active companies by name/domain + active-company contacts by name/email                                     |
+| `GET`  | `/api/companies/facets?me=` | Company tab counts (all/mine/unassigned/archived) + active-company owners                         |
 | `POST` | `/api/companies/:id/summary` | AI lead summary (Claude when `ANTHROPIC_API_KEY` set, rule-based otherwise)                    |
 | `POST` | `/api/email/send` | Send via connected Office 365 mailbox and log an email activity                                           |
 | `GET`  | `/api/calendar/today` | Today's Office 365 calendar events (`{connected:false}` when not connected)                          |
@@ -311,7 +313,7 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | -------- | ----------------------------- | ------------------------------------------------------------------------------- |
 | `GET`    | `/api/views?entity=company`   | List saved views (`company` or `contact`)                                       |
 | `POST`/`PUT`/`DELETE` | `/api/views[/:id]`   | `{ entity, name, state }` — `state` is the page's filter/sort preset            |
-| `POST`   | `/api/companies/bulk`         | `{ ids, action: 'update'\|'delete', patch: { owner?, lifecycle_stage? } }`; delete requires `{ confirm: "DELETE <count> COMPANY/COMPANIES" }` |
+| `POST`   | `/api/companies/bulk`         | `{ ids, action: 'update'\|'archive'\|'restore'\|'delete', patch: { owner?, lifecycle_stage? } }`; delete requires `{ confirm: "DELETE <count> COMPANY/COMPANIES" }` |
 | `POST`   | `/api/contacts/bulk`          | `{ ids, action: 'update'\|'delete', patch: { owner?, lead_status? } }`          |
 | `GET`    | `/api/webhooks/events`        | List of emittable event types                                                   |
 | `GET`/`POST`/`PUT`/`DELETE` | `/api/webhooks[/:id]` | `{ url, events: [...], secret, active }`                                  |

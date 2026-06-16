@@ -95,6 +95,7 @@ router.get('/', h(async (req, res) => {
   if (company_id) add('company_id', company_id);
   if (contact_id) add('contact_id', contact_id);
   if (type) add('type', type);
+  if (!company_id && !contact_id) where.push('co.archived_at IS NULL');
   const { rows } = await query(
     `SELECT a.*, ct.name AS contact_name, co.name AS company_name FROM activities a
      LEFT JOIN contacts ct ON ct.id = a.contact_id
@@ -115,6 +116,9 @@ router.post('/', h(async (req, res) => {
     companyId = rows[0]?.company_id;
   }
   if (!companyId) throw badRequest('company_id or contact_id is required');
+  const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [companyId]);
+  if (!companyRows[0]) throw notFound('Company not found');
+  if (companyRows[0].archived_at) throw badRequest(`Cannot add activity to archived account: ${companyRows[0].name}`);
 
   const { rows } = await query(
     `INSERT INTO activities (company_id, contact_id, type, outcome, body, occurred_at)

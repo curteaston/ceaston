@@ -198,6 +198,71 @@ async function smokeCompanyDeleteConfirmation() {
   }
 }
 
+async function smokeCompanyArchiveRestore() {
+  const stamp = Date.now();
+  const name = `Archive Restore Smoke ${stamp}`;
+  const domain = `archive-restore-${stamp}.example`;
+  let companyId = null;
+  let contactId = null;
+  let sequenceId = null;
+  try {
+    const company = await post('/companies', { name, domain });
+    companyId = company.data.id;
+    const contact = await post('/contacts', {
+      company_id: companyId,
+      name: `Archive Contact ${stamp}`,
+      email: `archive-${stamp}@example.com`,
+    });
+    contactId = contact.data.id;
+    await post('/deals', { company_id: companyId, name: `Archive Deal ${stamp}`, value: 1000 });
+    await post('/tasks', { company_id: companyId, description: `Archive Task ${stamp}` });
+    await post('/notes', { company_id: companyId, body: `Archive note ${stamp}` });
+    await post('/activities', { company_id: companyId, type: 'call', outcome: 'Connected', body: `Archive call ${stamp}` });
+
+    const sequence = await post('/sequences', {
+      name: `Archive Sequence ${stamp}`,
+      active: true,
+      steps: [{ day_offset: 0, kind: 'task', description: `Archive sequence task ${stamp}`, priority: 'low' }],
+    });
+    sequenceId = sequence.data.id;
+    await post(`/sequences/${sequenceId}/enroll`, { company_id: companyId, contact_id: contactId });
+
+    const archived = await post(`/companies/${companyId}/archive`, { reason: 'Smoke archive' });
+    assert(Boolean(archived.data.archived_at), 'Archive endpoint should set archived_at');
+    assert(archived.data.stopped_enrollments === 1, `Archive should stop 1 active enrollment, got ${archived.text}`);
+
+    const activeList = await get(`/companies?domain=${encodeURIComponent(domain)}`);
+    assert(activeList.data.total === 0, `Default companies list should hide archived company, got ${activeList.data.total}`);
+    const archivedList = await get(`/companies?archived=true&domain=${encodeURIComponent(domain)}`);
+    assert(archivedList.data.total === 1, `Archived companies list should find archived company, got ${archivedList.data.total}`);
+    const defaultLookup = await get(`/companies/lookup?domain=${encodeURIComponent(domain)}`, { expectOk: false });
+    assert(defaultLookup.res.status === 404, `Default lookup should hide archived company, got ${defaultLookup.res.status}`);
+    const archivedLookup = await get(`/companies/lookup?domain=${encodeURIComponent(domain)}&include_archived=true`);
+    assert(archivedLookup.data.id === companyId, 'Lookup with include_archived should return archived company');
+
+    const enrollArchived = await post(`/sequences/${sequenceId}/enroll`, { company_id: companyId }, { expectOk: false });
+    assert(enrollArchived.res.status === 400, `Archived account enrollment should return 400, got ${enrollArchived.res.status}`);
+    const taskArchived = await post('/tasks', { company_id: companyId, description: 'Should fail while archived' }, { expectOk: false });
+    assert(taskArchived.res.status === 400, `Archived task creation should return 400, got ${taskArchived.res.status}`);
+    const dealArchived = await post('/deals', { company_id: companyId, name: 'Should fail while archived' }, { expectOk: false });
+    assert(dealArchived.res.status === 400, `Archived deal creation should return 400, got ${dealArchived.res.status}`);
+    const noteArchived = await post('/notes', { company_id: companyId, body: 'Should fail while archived' }, { expectOk: false });
+    assert(noteArchived.res.status === 400, `Archived note creation should return 400, got ${noteArchived.res.status}`);
+    const activityArchived = await post('/activities', { company_id: companyId, type: 'call' }, { expectOk: false });
+    assert(activityArchived.res.status === 400, `Archived activity creation should return 400, got ${activityArchived.res.status}`);
+    const contactArchived = await post('/contacts', { company_id: companyId, name: 'Should fail while archived' }, { expectOk: false });
+    assert(contactArchived.res.status === 400, `Archived contact creation should return 400, got ${contactArchived.res.status}`);
+
+    const restored = await post(`/companies/${companyId}/restore`);
+    assert(restored.data.archived_at == null, 'Restore endpoint should clear archived_at');
+    const restoredList = await get(`/companies?domain=${encodeURIComponent(domain)}`);
+    assert(restoredList.data.total === 1, `Default companies list should find restored company, got ${restoredList.data.total}`);
+  } finally {
+    if (sequenceId) await del(`/sequences/${sequenceId}`, { expectOk: false });
+    if (companyId) await deleteCompany(companyId, name, { expectOk: false });
+  }
+}
+
 async function smokeBackupSnapshot() {
   const snapshot = (await get('/export/snapshot')).data;
   assert(snapshot?.schema_version === 'prospecting-v1', 'Backup snapshot schema_version should be prospecting-v1');
@@ -281,6 +346,7 @@ async function smoke() {
   await smokeBackupSnapshot();
   await smokeContactRequiresCompany();
   await smokeCompanyDeleteConfirmation();
+  await smokeCompanyArchiveRestore();
 
   const arctic = await get('/companies/lookup?domain=arcticairsolutions.com', { expectOk: false });
   if (arctic.res.ok) {

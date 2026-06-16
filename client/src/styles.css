@@ -139,6 +139,7 @@ tr:last-child td { border-bottom: none; }
 .chip.contact-chip { background: #eef2f7; color: var(--text); }
 .chip.danger-chip, .danger-chip { background: #fde2e2; color: #b91c1c; }
 .chip.ok-chip, .ok-chip { background: #e7f6ec; color: #15803d; }
+.chip.muted-chip, .muted-chip { background: #eef2f7; color: #475569; }
 .runtime-warning {
   margin-bottom: 12px;
   padding: 10px 12px;
@@ -151,6 +152,21 @@ tr:last-child td { border-bottom: none; }
 }
 .chip.tier-chip { background: #e0ecff; color: #1d4ed8; margin-left: 0; }
 .chip.role-chip { background: #edf7ed; color: #166534; margin-left: 0; }
+
+.archive-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+}
+.archive-banner div { display: flex; flex-direction: column; gap: 2px; }
+.archive-banner span { font-size: 13px; color: #64748b; }
 
 .muted { color: var(--muted); }
 .small { font-size: 12px; }

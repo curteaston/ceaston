@@ -25,6 +25,7 @@ router.get('/', h(async (req, res) => {
     values.push(stage);
     where.push(`d.stage = $${values.length}`);
   }
+  if (!company_id) where.push('co.archived_at IS NULL');
   const { rows } = await query(
     `SELECT d.*, co.name AS company_name FROM deals d
      JOIN companies co ON co.id = d.company_id
@@ -39,6 +40,9 @@ router.post('/', h(async (req, res) => {
   const b = req.body;
   if (!b.company_id) throw badRequest('company_id is required');
   if (!b.name) throw badRequest('name is required');
+  const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [b.company_id]);
+  if (!companyRows[0]) throw notFound('Company not found');
+  if (companyRows[0].archived_at) throw badRequest(`Cannot add deal to archived account: ${companyRows[0].name}`);
   validateStage(b.stage);
   const stage = b.stage || 'lead';
   const probability = b.probability ?? DEFAULT_PROBABILITY[stage];

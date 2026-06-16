@@ -20,26 +20,30 @@ router.get('/', h(async (req, res) => {
        FROM activities a
        JOIN companies co ON co.id = a.company_id
        LEFT JOIN contacts ct ON ct.id = a.contact_id
-       WHERE a.type = 'meeting' AND a.occurred_at::date = CURRENT_DATE
+       WHERE co.archived_at IS NULL AND a.type = 'meeting' AND a.occurred_at::date = CURRENT_DATE
        ORDER BY a.occurred_at`),
-    query(`${TASK_SELECT} WHERE NOT t.completed AND t.due_date = CURRENT_DATE
+    query(`${TASK_SELECT} WHERE coalesce(co.archived_at, co2.archived_at) IS NULL
+             AND NOT t.completed AND t.due_date = CURRENT_DATE
            ORDER BY CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`),
-    query(`${TASK_SELECT} WHERE t.completed AND t.completed_at::date = CURRENT_DATE
+    query(`${TASK_SELECT} WHERE coalesce(co.archived_at, co2.archived_at) IS NULL
+             AND t.completed AND t.completed_at::date = CURRENT_DATE
            ORDER BY t.completed_at DESC`),
-    query(`${TASK_SELECT} WHERE NOT t.completed AND t.due_date < CURRENT_DATE
+    query(`${TASK_SELECT} WHERE coalesce(co.archived_at, co2.archived_at) IS NULL
+             AND NOT t.completed AND t.due_date < CURRENT_DATE
            ORDER BY t.due_date, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END
            LIMIT 25`),
     query(
       `SELECT d.*, co.name AS company_name FROM deals d
        JOIN companies co ON co.id = d.company_id
-       WHERE d.stage NOT IN ('won','lost') AND d.expected_close_date < CURRENT_DATE
+       WHERE co.archived_at IS NULL AND d.stage NOT IN ('won','lost') AND d.expected_close_date < CURRENT_DATE
        ORDER BY d.expected_close_date LIMIT 25`),
     query(
       `SELECT co.id, co.name, co.domain, co.last_activity_at,
               (SELECT coalesce(sum(d.value),0) FROM deals d
                 WHERE d.company_id = co.id AND d.stage NOT IN ('won','lost')) AS open_deal_value
        FROM companies co
-       WHERE EXISTS (SELECT 1 FROM deals d WHERE d.company_id = co.id AND d.stage NOT IN ('won','lost'))
+       WHERE co.archived_at IS NULL
+         AND EXISTS (SELECT 1 FROM deals d WHERE d.company_id = co.id AND d.stage NOT IN ('won','lost'))
          AND (co.last_activity_at IS NULL OR co.last_activity_at < now() - interval '14 days')
        ORDER BY co.last_activity_at NULLS FIRST LIMIT 10`),
     query(
@@ -57,7 +61,8 @@ router.get('/', h(async (req, res) => {
                  ORDER BY t.due_date NULLS LAST, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END
                  LIMIT 1) AS next_task
        FROM companies co
-       WHERE NOT (co.do_not_contact OR co.not_interested OR co.bad_fit)
+       WHERE co.archived_at IS NULL
+         AND NOT (co.do_not_contact OR co.not_interested OR co.bad_fit)
          AND co.lifecycle_stage NOT IN ('customer', 'evangelist')
        ORDER BY
          CASE co.target_tier WHEN 'tier_1' THEN 0 WHEN 'tier_2' THEN 1 WHEN 'tier_3' THEN 2 ELSE 3 END,
@@ -81,12 +86,14 @@ router.get('/', h(async (req, res) => {
            FROM notes n
            JOIN companies co ON co.id = n.company_id
            LEFT JOIN contacts ct ON ct.id = n.contact_id
+          WHERE co.archived_at IS NULL
          UNION ALL
          SELECT 'activity', a.id, a.company_id, co.name, a.contact_id, ct.name,
                 a.body, NULL, a.type, a.outcome, a.occurred_at
            FROM activities a
            JOIN companies co ON co.id = a.company_id
            LEFT JOIN contacts ct ON ct.id = a.contact_id
+          WHERE co.archived_at IS NULL
        ) t ORDER BY occurred_at DESC LIMIT 30`),
   ]);
 

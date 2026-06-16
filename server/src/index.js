@@ -66,11 +66,11 @@ app.get('/api/search', h(async (req, res) => {
   const [cos, cts] = await Promise.all([
     query(
       `SELECT id, name, domain, industry, last_activity_at FROM companies
-       WHERE name ILIKE $1 OR domain ILIKE $1 ORDER BY name LIMIT 20`, [like]),
+       WHERE archived_at IS NULL AND (name ILIKE $1 OR domain ILIKE $1) ORDER BY name LIMIT 20`, [like]),
     query(
       `SELECT ct.id, ct.name, ct.title, ct.email, ct.company_id, co.name AS company_name
        FROM contacts ct JOIN companies co ON co.id = ct.company_id
-       WHERE ct.name ILIKE $1 OR ct.email ILIKE $1 ORDER BY ct.name LIMIT 20`, [like]),
+       WHERE co.archived_at IS NULL AND (ct.name ILIKE $1 OR ct.email ILIKE $1) ORDER BY ct.name LIMIT 20`, [like]),
   ]);
   res.json({ companies: cos.rows, contacts: cts.rows });
 }));
