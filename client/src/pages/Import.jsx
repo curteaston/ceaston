@@ -6,6 +6,7 @@ import { useStore, LIFECYCLE_LABELS } from '../store.js';
 // CRM target fields the importer can fill. `group` drives the section headings.
 const TARGET_FIELDS = [
   { key: 'name', label: 'Company name', group: 'Company', aliases: ['company', 'company name', 'account', 'business', 'organization', 'name'] },
+  { key: 'domain', label: 'Domain', group: 'Company', aliases: ['domain', 'company domain', 'account domain', 'website domain', 'url domain'] },
   { key: 'website', label: 'Website', group: 'Company', aliases: ['website', 'web', 'site', 'homepage', 'url'] },
   { key: 'industry', label: 'Industry', group: 'Company', aliases: ['industry', 'vertical', 'sector', 'category'] },
   { key: 'employee_count', label: 'Employee count', group: 'Company', type: 'number', aliases: ['employees', 'employee count', 'headcount', 'size', 'staff', 'num employees'] },
@@ -25,6 +26,23 @@ const TARGET_FIELDS = [
 
 const norm = (s) => String(s || '').trim().toLowerCase().replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ');
 
+function normalizeDomain(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return '';
+  try {
+    const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const url = new URL(withProtocol);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return raw
+      .replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+      .split('/')[0]
+      .split('?')[0]
+      .split('#')[0]
+      .replace(/^www\./, '');
+  }
+}
+
 // Best-guess mapping: exact alias match first, then substring.
 function autoMap(headers) {
   const used = new Set();
@@ -43,7 +61,7 @@ function autoMap(headers) {
   return mapping;
 }
 
-// Group consecutive rows by company name into the import payload.
+// Group rows by domain when available, otherwise by company name.
 function buildCompanies(rows, mapping) {
   const col = (row, key) => (mapping[key] ? row[mapping[key]] || '' : '').trim();
   const byKey = new Map();
@@ -51,12 +69,15 @@ function buildCompanies(rows, mapping) {
   for (const row of rows) {
     const name = col(row, 'name');
     if (!name) { skipped++; continue; }
-    const key = name.toLowerCase();
+    const website = col(row, 'website');
+    const domain = normalizeDomain(col(row, 'domain') || website);
+    const key = domain || name.toLowerCase();
     if (!byKey.has(key)) {
       const empRaw = col(row, 'employee_count').replace(/[^\d]/g, '');
       byKey.set(key, {
         name,
-        website: col(row, 'website') || undefined,
+        domain: domain || undefined,
+        website: website || undefined,
         industry: col(row, 'industry') || undefined,
         employee_count: empRaw ? Number(empRaw) : undefined,
         ad_spend_range: col(row, 'ad_spend_range') || undefined,
@@ -178,8 +199,8 @@ export default function Import() {
             column names your spreadsheet already has. On the next step you'll map your columns to CRM fields.
           </p>
           <p className="muted small">
-            Companies are matched by <b>name</b> and updated rather than duplicated, so re-importing
-            an enriched list is safe. Repeat a company across rows to attach multiple contacts.
+            Companies are matched by <b>domain</b> when available, then by name, so re-importing
+            an enriched list is safer. Repeat a company across rows to attach multiple contacts.
           </p>
           <div className="row gap pad-top">
             <label className="btn primary" style={{ cursor: 'pointer' }}>
@@ -258,10 +279,10 @@ export default function Import() {
                 </button>
               </div>
               <div style={{ overflowX: 'auto', borderRadius: 6 }}>
-                <table style={{ minWidth: 1100 }}>
+                <table style={{ minWidth: 1180 }}>
                   <thead>
                     <tr>
-                      <th>Company</th><th>Website</th><th>Industry</th><th>Employees</th>
+                      <th>Company</th><th>Domain</th><th>Website</th><th>Industry</th><th>Employees</th>
                       <th>Ad spend</th><th>Lifecycle</th><th>Co. Phone</th>
                       <th>Contact name</th><th>Title</th><th>Primary email</th><th>Secondary email</th>
                       <th>Direct phone</th><th>Cell phone</th><th>Other phone</th><th>Source</th>
@@ -275,6 +296,7 @@ export default function Import() {
                           {j === 0 ? (
                             <>
                               <td rowSpan={contactRows.length}><b>{c.name || '—'}</b></td>
+                              <td rowSpan={contactRows.length} className="small">{c.domain || '—'}</td>
                               <td rowSpan={contactRows.length} className="small">{c.website || '—'}</td>
                               <td rowSpan={contactRows.length}>{c.industry || '—'}</td>
                               <td rowSpan={contactRows.length}>{c.employee_count ?? '—'}</td>

@@ -97,6 +97,18 @@ CREATE INDEX IF NOT EXISTS seq_enroll_company_idx ON sequence_enrollments (compa
 CREATE INDEX IF NOT EXISTS seq_enroll_status_idx ON sequence_enrollments (status);
 -- Allow a 'replied' status (added after initial release): drop the original inline CHECK.
 ALTER TABLE sequence_enrollments DROP CONSTRAINT IF EXISTS sequence_enrollments_status_check;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'sequence_enrollments_status_check'
+      AND conrelid = 'sequence_enrollments'::regclass
+  ) THEN
+    ALTER TABLE sequence_enrollments
+      ADD CONSTRAINT sequence_enrollments_status_check
+      CHECK (status IN ('active','finished','unenrolled','replied')) NOT VALID;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS sequence_step_runs (
   id            SERIAL PRIMARY KEY,

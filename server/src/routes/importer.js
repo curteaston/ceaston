@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { h, badRequest } from '../util.js';
+import { h, badRequest, normalizeDomain } from '../util.js';
 
 const router = Router();
 
@@ -21,10 +21,11 @@ router.post('/', h(async (req, res) => {
         summary.skipped.push({ index: i, reason: 'missing company name' });
         continue;
       }
+      const domain = normalizeDomain(c.domain || c.website);
       let company;
-      if (c.domain) {
+      if (domain) {
         ({ rows: [company] } = await client.query(
-          'SELECT * FROM companies WHERE lower(domain) = lower($1)', [c.domain]));
+          'SELECT * FROM companies WHERE lower(domain) = lower($1)', [domain]));
       }
       if (!company) {
         ({ rows: [company] } = await client.query(
@@ -44,7 +45,8 @@ router.post('/', h(async (req, res) => {
              buying_committee_status = coalesce($13, buying_committee_status),
              next_step = coalesce($14, next_step)
            WHERE id = $1 RETURNING *`,
-          [company.id, c.name, c.domain || null, c.industry || null,
+          [company.id, c.name, domain,
+           c.industry || null,
            c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
            c.lifecycle_stage || null, c.phone || null, c.target_tier || null,
            c.source || null, c.campaign || null, c.buying_committee_status || null,
@@ -56,9 +58,9 @@ router.post('/', h(async (req, res) => {
              name, domain, industry, employee_count, ad_spend_range, website, lifecycle_stage, phone,
              target_tier, source, campaign, buying_committee_status, next_step
            )
-           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, coalesce($7, 'lead'), $8,
+          VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, coalesce($7, 'lead'), $8,
                    $9, $10, $11, coalesce($12, 'unknown'), $13) RETURNING *`,
-          [c.name, c.domain || null, c.industry || null,
+          [c.name, domain, c.industry || null,
            c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
            c.lifecycle_stage || null, c.phone || null, c.target_tier || null,
            c.source || null, c.campaign || null, c.buying_committee_status || null,

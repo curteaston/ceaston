@@ -53,6 +53,88 @@ function hasValues(data, key, values) {
   return Array.isArray(data[key]) && values.every((value) => data[key].includes(value));
 }
 
+let dbModule;
+async function dbQuery(text, params) {
+  process.env.DATABASE_URL ||= `postgres://${process.env.LOCAL_CRM_DBUSER || 'crm'}@127.0.0.1:${process.env.LOCAL_CRM_PGPORT || '55432'}/${process.env.LOCAL_CRM_DB || 'hvac_crm'}`;
+  dbModule ||= await import('../server/src/db.js');
+  return dbModule.query(text, params);
+}
+
+async function closeDbPool() {
+  if (dbModule?.pool) await dbModule.pool.end();
+}
+
+async function smokeImportDomainIdentity() {
+  const stamp = Date.now();
+  const domain = `import-smoke-${stamp}.example`;
+  let companyId = null;
+  try {
+    const first = await post('/import', {
+      companies: [{
+        name: `Import Smoke Alpha ${stamp}`,
+        website: `https://www.${domain}/contact`,
+        contacts: [{ name: 'Import Smoke Owner', email: `owner@${domain}` }],
+      }],
+    });
+    assert(first.data.companies_created === 1, `First domain import should create 1 company, got ${first.text}`);
+
+    const second = await post('/import', {
+      companies: [{
+        name: `Import Smoke Beta ${stamp}`,
+        domain: `www.${domain}`,
+        contacts: [{ name: 'Import Smoke Owner', email: `owner@${domain}`, title: 'Owner' }],
+      }],
+    });
+    assert(second.data.companies_updated === 1, `Second domain import should update existing company, got ${second.text}`);
+    assert(second.data.companies_created === 0, `Second domain import should not create a duplicate, got ${second.text}`);
+
+    const lookup = await get(`/companies/lookup?domain=${encodeURIComponent(`https://www.${domain}/services`)}`);
+    companyId = lookup.data.id;
+    assert(lookup.data.domain === domain, `Lookup should return normalized domain ${domain}, got ${lookup.data.domain}`);
+    assert(lookup.data.name === `Import Smoke Beta ${stamp}`, 'Domain-matched re-import should update the existing company name');
+
+    const listed = await get(`/companies?domain=${encodeURIComponent(domain)}`);
+    assert(listed.data.total === 1, `Domain search should find exactly 1 smoke company, got ${listed.data.total}`);
+  } finally {
+    if (companyId) await del(`/companies/${companyId}`, { expectOk: false });
+  }
+}
+
+async function smokeSequenceStatusConstraint() {
+  const stamp = Date.now();
+  let companyId = null;
+  let sequenceId = null;
+  try {
+    const company = await post('/companies', {
+      name: `Status Constraint Smoke ${stamp}`,
+      domain: `status-constraint-${stamp}.example`,
+    });
+    companyId = company.data.id;
+    const sequence = await post('/sequences', {
+      name: `Status Constraint Smoke ${stamp}`,
+      steps: [{ day_offset: 0, kind: 'task', description: 'Status constraint smoke' }],
+    });
+    sequenceId = sequence.data.id;
+
+    try {
+      await dbQuery(
+        `INSERT INTO sequence_enrollments (sequence_id, company_id, status)
+         VALUES ($1, $2, 'bogus')`,
+        [sequenceId, companyId],
+      );
+      failures.push('Database allowed invalid sequence enrollment status "bogus"');
+    } catch (err) {
+      assert(
+        /sequence_enrollments_status_check|violates check constraint/.test(err.message),
+        `Invalid enrollment status failed for the wrong reason: ${err.message}`,
+      );
+    }
+  } finally {
+    if (sequenceId) await del(`/sequences/${sequenceId}`, { expectOk: false });
+    if (companyId) await del(`/companies/${companyId}`, { expectOk: false });
+  }
+}
+
 async function smoke() {
   const health = (await get('/health')).data;
   assert(health?.ok === true, 'API health did not return ok=true');
@@ -94,6 +176,9 @@ async function smoke() {
     const invalidTier = await patch(`/companies/${companyId}`, { target_tier: 'definitely_not_a_tier' }, { expectOk: false });
     assert(invalidTier.res.status === 400, `Invalid target_tier should return 400, got ${invalidTier.res.status}`);
   }
+
+  await smokeImportDomainIdentity();
+  await smokeSequenceStatusConstraint();
 
   const arctic = await get('/companies/lookup?domain=arcticairsolutions.com', { expectOk: false });
   if (arctic.res.ok) {
@@ -148,6 +233,8 @@ try {
   await smoke();
 } catch (err) {
   failures.push(err.message);
+} finally {
+  await closeDbPool();
 }
 
 for (const warning of warnings) console.warn(`Warning: ${warning}`);
