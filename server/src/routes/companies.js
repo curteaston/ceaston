@@ -31,6 +31,24 @@ function validateProspectingFields(b) {
   }
 }
 
+function companyDeleteConfirmation(name) {
+  return `DELETE ${name}`;
+}
+
+function bulkCompanyDeleteConfirmation(count) {
+  return `DELETE ${count} ${count === 1 ? 'COMPANY' : 'COMPANIES'}`;
+}
+
+function deleteConfirmation(req) {
+  return String(req.body?.confirm || req.body?.confirmation || req.get('x-crm-delete-confirmation') || '').trim();
+}
+
+function requireDeleteConfirmation(req, expected) {
+  if (deleteConfirmation(req) !== expected) {
+    throw badRequest(`Deletion confirmation required. Re-submit with confirmation: ${expected}`);
+  }
+}
+
 // Shared timeline query: notes + activities for a company, pinned notes first then newest first.
 export async function companyTimeline(companyId) {
   const { rows } = await query(
@@ -198,6 +216,7 @@ router.post('/bulk', h(async (req, res) => {
   if (ids.length > 1000) throw badRequest('Max 1000 companies per bulk call');
 
   if (action === 'delete') {
+    requireDeleteConfirmation(req, bulkCompanyDeleteConfirmation(ids.length));
     const { rowCount } = await query('DELETE FROM companies WHERE id = ANY($1::int[])', [ids]);
     return res.json({ deleted: rowCount });
   }
@@ -320,6 +339,9 @@ router.patch('/:id', h(async (req, res) => {
 }));
 
 router.delete('/:id', h(async (req, res) => {
+  const { rows } = await query('SELECT name FROM companies WHERE id = $1', [req.params.id]);
+  if (!rows[0]) throw notFound('Company not found');
+  requireDeleteConfirmation(req, companyDeleteConfirmation(rows[0].name));
   const { rowCount } = await query('DELETE FROM companies WHERE id = $1', [req.params.id]);
   if (!rowCount) throw notFound('Company not found');
   res.status(204).end();

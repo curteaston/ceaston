@@ -54,8 +54,13 @@ async function post(path, body, options) {
   return request('POST', path, body, options);
 }
 
-async function del(path, options) {
-  return request('DELETE', path, undefined, options);
+async function del(path, bodyOrOptions, maybeOptions) {
+  const hasBody = bodyOrOptions && !Object.prototype.hasOwnProperty.call(bodyOrOptions, 'expectOk');
+  return request('DELETE', path, hasBody ? bodyOrOptions : undefined, hasBody ? maybeOptions : bodyOrOptions);
+}
+
+function companyDeleteConfirmation(name) {
+  return `DELETE ${name}`;
 }
 
 function findOnPath(names) {
@@ -400,6 +405,7 @@ async function seedWorkflowRecords() {
     next_step: 'Enroll owner in smoke sequence',
   })).data;
   created.companyId = company.id;
+  created.companyName = company.name;
 
   const contacts = [];
   for (const contact of [
@@ -471,7 +477,9 @@ async function seedWorkflowRecords() {
 
 async function cleanupRecords() {
   if (created.sequenceId) await del(`/sequences/${created.sequenceId}`, { expectOk: false });
-  if (created.companyId) await del(`/companies/${created.companyId}`, { expectOk: false });
+  if (created.companyId && created.companyName) {
+    await del(`/companies/${created.companyId}`, { confirm: companyDeleteConfirmation(created.companyName) }, { expectOk: false });
+  }
 }
 
 async function smoke() {

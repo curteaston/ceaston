@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useStore } from '../store.js';
 import { Field } from '../components/widgets.jsx';
+import { downloadBackupSnapshot } from '../dataSafety.js';
 
 const TEMPLATE_CATEGORIES = ['General', 'Intro', 'Follow-up', 'Proposal', 'Re-engagement', 'Other'];
 
@@ -309,16 +310,7 @@ function DataSafety() {
   const downloadBackup = async () => {
     setExporting(true);
     try {
-      const snapshot = await api.get('/export/snapshot');
-      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `runwise-crm-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const snapshot = await downloadBackupSnapshot();
       notify(`Backup exported: ${snapshot.counts.companies} companies, ${snapshot.counts.contacts} contacts`);
     } catch (e) {
       notify('Backup failed: ' + (e.message || 'unknown error'), 'error');
