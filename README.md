@@ -127,14 +127,17 @@ If you already have a Postgres database you want to use, set `DATABASE_URL` befo
 startup. When `DATABASE_URL` is set, `npm run dev:local` skips local Postgres
 initialization and uses that database for the API process.
 
-`npm run test:local` builds the client, reuses the running API on `3001` when
-one is healthy, seeds demo prospecting data only when the database is empty,
-then runs API, browser, sequence workflow, and backup/restore recovery smokes.
-It uses the Vite client on `5173` when available and otherwise falls back to the
-single-port API UI on `3001`. Set `LOCAL_CRM_TEST_BUILD=0` to skip the pre-smoke
-client build when you know `client/dist` is already fresh. If Edge or Chrome is
-installed somewhere unusual, set `CRM_BROWSER_BIN` to the browser executable
-path.
+`npm run test:local` builds the client, creates a disposable Postgres database,
+starts a temporary single-port API on a free local port, seeds known demo data,
+runs API, browser, sequence workflow, and backup/restore recovery smokes, then
+drops the disposable database. It does not use the working `hvac_crm` database
+you may be inspecting in DBeaver unless you explicitly opt out. Set
+`LOCAL_CRM_TEST_BUILD=0` to skip the pre-smoke client build when you know
+`client/dist` is already fresh. Set `LOCAL_CRM_TEST_KEEP_DB=1` to keep the
+disposable database after a failed run for inspection, or
+`LOCAL_CRM_TEST_ISOLATION=0` to deliberately run smokes against the configured
+database. If Edge or Chrome is installed somewhere unusual, set
+`CRM_BROWSER_BIN` to the browser executable path.
 
 ## Backup, restore, and recovery drill
 
