@@ -128,17 +128,58 @@ startup. When `DATABASE_URL` is set, `npm run dev:local` skips local Postgres
 initialization and uses that database for the API process.
 
 `npm run test:local` runs API contract checks plus a headless Edge/Chrome smoke
-render of `/companies/1`. The browser smoke expects the demo prospecting data
-that `npm run dev:local` creates when the local database is empty. If Edge or
-Chrome is installed somewhere unusual, set `CRM_BROWSER_BIN` to the browser
+render of `/companies/1`, sequence workflow checks, and a backup/restore
+recovery drill. The browser and recovery smokes expect the demo prospecting
+data that `npm run dev:local` creates when the local database is empty. If Edge
+or Chrome is installed somewhere unusual, set `CRM_BROWSER_BIN` to the browser
 executable path.
+
+## Backup, restore, and recovery drill
+
+Export a prospecting data snapshot from the running API:
+
+```bash
+npm run backup:snapshot
+```
+
+By default, snapshots are written to `.local/backups/`. You can choose a file:
+
+```bash
+npm run backup:snapshot -- --out .local/backups/before-import.json
+```
+
+Restore a snapshot into the configured database:
+
+```bash
+npm run restore:snapshot -- --file .local/backups/before-import.json
+```
+
+Restore refuses to replace a non-empty target unless you pass `--force`:
+
+```bash
+npm run restore:snapshot -- --file .local/backups/before-import.json --force
+```
+
+The restore replaces prospecting records only. `app_settings` are not exported
+or restored, and webhook secrets are intentionally omitted, so connected
+services may need to be reconnected after a disaster recovery restore.
+
+Run the recovery drill anytime the local API is running:
+
+```bash
+npm run test:local:recovery
+```
+
+The drill exports a snapshot, creates a disposable Postgres database, restores
+the snapshot into it, compares table counts, verifies sensitive settings stayed
+out, and drops the disposable database.
 
 ## CI
 
 GitHub Actions runs on every push and pull request. The workflow installs from
 lockfiles, checks JavaScript syntax, builds the Vite client, boots the API
 against a fresh Postgres service, seeds demo data only if the database is empty,
-then runs both API and browser smoke checks.
+then runs API, browser, sequence workflow, and backup/restore recovery smokes.
 
 Run the local equivalent before pushing:
 
