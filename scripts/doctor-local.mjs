@@ -11,9 +11,11 @@ const dbName = process.env.LOCAL_CRM_DB || 'hvac_crm';
 const dbUser = process.env.LOCAL_CRM_DBUSER || 'crm';
 const pgData = process.env.LOCAL_CRM_PGDATA || join(root, '.local', 'pgdata');
 const pgBin = process.env.PG_BIN || 'C:\\Program Files\\PostgreSQL\\18\\bin';
+const apiPort = process.env.LOCAL_CRM_API_PORT || '3001';
+const uiPort = process.env.LOCAL_CRM_UI_PORT || '5173';
 const databaseUrl = process.env.DATABASE_URL || `postgres://${dbUser}@127.0.0.1:${pgPort}/${dbName}`;
-const apiBase = process.env.CRM_API_URL || 'http://localhost:3001';
-const uiBase = process.env.CRM_UI_URL || 'http://localhost:5173';
+const apiBase = process.env.CRM_API_URL || `http://localhost:${apiPort}`;
+const uiBase = process.env.CRM_UI_URL || `http://localhost:${uiPort}`;
 const explicitDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
 const results = [];

@@ -5,8 +5,8 @@ import { createConnection } from 'net';
 import { tmpdir } from 'os';
 import { delimiter, join } from 'path';
 
-const apiBase = process.env.CRM_API_URL || 'http://localhost:3001';
-const uiBase = process.env.CRM_UI_URL || 'http://localhost:5173';
+const apiBase = process.env.CRM_API_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`;
+const uiBase = process.env.CRM_UI_URL || `http://localhost:${process.env.LOCAL_CRM_UI_PORT || 5173}`;
 const timeoutMs = Number(process.env.CRM_WORKFLOW_SMOKE_TIMEOUT_MS || 45000);
 
 const headers = {

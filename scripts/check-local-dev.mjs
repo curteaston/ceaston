@@ -1,5 +1,5 @@
-const apiBase = process.env.CRM_API_URL || 'http://localhost:3001';
-const uiBase = process.env.CRM_UI_URL || 'http://localhost:5173';
+const apiBase = process.env.CRM_API_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`;
+const uiBase = process.env.CRM_UI_URL || `http://localhost:${process.env.LOCAL_CRM_UI_PORT || 5173}`;
 
 async function getJson(url) {
   const res = await fetch(url);
