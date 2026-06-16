@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES, CONTACT_ROLES } from '../util.js';
+import { h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES, CONTACT_ROLES, normalizeDomain } from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
@@ -25,8 +25,9 @@ function validateContactRole(role) {
 
 async function resolveCompanyId({ company_id, company_domain, company_name }) {
   if (company_id) return company_id;
-  if (company_domain) {
-    const { rows } = await query('SELECT id FROM companies WHERE lower(domain) = lower($1)', [company_domain]);
+  const domain = normalizeDomain(company_domain);
+  if (domain) {
+    const { rows } = await query('SELECT id FROM companies WHERE lower(domain) = lower($1)', [domain]);
     if (rows[0]) return rows[0].id;
   }
   if (company_name) {
@@ -207,18 +208,9 @@ router.get('/:id/history', h(async (req, res) => {
 router.post('/', h(async (req, res) => {
   const b = req.body;
   const companyId = await resolveCompanyId(b);
-  // company_id and name are still NOT NULL in the DB schema; fall back to sentinel values
-  // when the user creates a contact without filling those fields.
+  if (!companyId) throw badRequest('company_id, company_domain, or company_name is required');
   if (!b.name && !b.first_name && !b.last_name) b.name = '(unnamed)';
   if (!b.name) b.name = [b.first_name, b.last_name].filter(Boolean).join(' ') || '(unnamed)';
-  let resolvedCompanyId = companyId;
-  if (!resolvedCompanyId) {
-    // Create a placeholder company so the NOT NULL constraint is satisfied
-    const { rows: co } = await query(
-      `INSERT INTO companies (name, industry) VALUES ('(no company)', 'HVAC') RETURNING id`
-    );
-    resolvedCompanyId = co[0].id;
-  }
   validateLeadStatus(b.lead_status);
   validateContactRole(b.contact_role);
   const { rows } = await query(
@@ -232,13 +224,13 @@ router.post('/', h(async (req, res) => {
        $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
        coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
      ) RETURNING *`,
-    [resolvedCompanyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
+    [companyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
      b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
      b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
      b.last_contacted_at || null, b.owner || null, b.lead_status || null,
      b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
   );
-  await touchCompany(resolvedCompanyId);
+  await touchCompany(companyId);
   emit('contact.created', { contact: rows[0] });
   res.status(201).json(rows[0]);
 }));
