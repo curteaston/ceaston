@@ -78,6 +78,9 @@ jobs:
       - name: Sequence workflow smoke
         run: npm run test:local:workflow
 
+      - name: Backup restore recovery smoke
+        run: npm run test:local:recovery
+
       - name: Show server log on failure
         if: failure()
         run: cat server.log || true
