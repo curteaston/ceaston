@@ -200,6 +200,29 @@ router.post('/:id/enroll', h(async (req, res) => {
   const steps = await loadSteps(req.params.id);
   if (!steps.length) throw badRequest('This sequence has no steps yet');
 
+  const { rows: companyRows } = await query(
+    `SELECT name, do_not_contact, not_interested, bad_fit, suppression_reason
+       FROM companies WHERE id = $1`,
+    [b.company_id]
+  );
+  const company = companyRows[0];
+  if (!company) throw notFound('Company not found');
+  if (company.do_not_contact || company.not_interested || company.bad_fit) {
+    throw badRequest(`Cannot enroll suppressed account: ${company.suppression_reason || company.name}`);
+  }
+  if (b.contact_id) {
+    const { rows: contactRows } = await query(
+      `SELECT name, do_not_contact, not_interested, bad_fit
+         FROM contacts WHERE id = $1 AND company_id = $2`,
+      [b.contact_id, b.company_id]
+    );
+    const contact = contactRows[0];
+    if (!contact) throw badRequest('contact_id does not belong to this company');
+    if (contact.do_not_contact || contact.not_interested || contact.bad_fit) {
+      throw badRequest(`Cannot enroll suppressed contact: ${contact.name}`);
+    }
+  }
+
   const dup = await query(
     `SELECT id FROM sequence_enrollments WHERE sequence_id = $1 AND company_id = $2 AND status = 'active'`,
     [req.params.id, b.company_id]
@@ -300,6 +323,15 @@ async function cancelPendingSteps(enrollmentId) {
   );
 }
 
+async function stopEnrollmentForSuppression(enrollmentId) {
+  await cancelPendingSteps(enrollmentId);
+  await query(
+    `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now()
+     WHERE id = $1 AND status = 'active'`,
+    [enrollmentId]
+  );
+}
+
 // When a contact replies, pull them out of every active sequence (cadence hygiene).
 // Called from the activities route when an interaction is logged with outcome 'replied',
 // and from the manual "mark replied" button. Returns how many enrollments were stopped.
@@ -360,7 +392,11 @@ async function finishEnrollments() {
 async function sendAutoEmail(run, cfg) {
   const { rows } = await query(
     `SELECT e.company_id, e.contact_id, co.name AS company_name, co.domain,
-            ct.name AS contact_name, ct.title, ct.email
+            co.do_not_contact AS company_dnc, co.not_interested AS company_not_interested,
+            co.bad_fit AS company_bad_fit,
+            ct.name AS contact_name, ct.title, ct.email,
+            ct.do_not_contact AS contact_dnc, ct.not_interested AS contact_not_interested,
+            ct.bad_fit AS contact_bad_fit
      FROM sequence_enrollments e
      JOIN companies co ON co.id = e.company_id
      LEFT JOIN contacts ct ON ct.id = e.contact_id
@@ -372,6 +408,13 @@ async function sendAutoEmail(run, cfg) {
     await query(`UPDATE sequence_step_runs SET status = 'failed', error = $2 WHERE id = $1`, [run.id, msg]);
   };
 
+  if (
+    ctx?.company_dnc || ctx?.company_not_interested || ctx?.company_bad_fit ||
+    ctx?.contact_dnc || ctx?.contact_not_interested || ctx?.contact_bad_fit
+  ) {
+    await stopEnrollmentForSuppression(run.enrollment_id);
+    return;
+  }
   if (!ctx?.email) return fail('No contact email to send to — enroll with a contact that has an email.');
   if (!cfg) return fail('Sequence sending domain is not configured (Settings → Sequence sending).');
 

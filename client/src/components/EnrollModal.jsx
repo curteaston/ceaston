@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { useStore } from '../store.js';
 import Modal from './Modal.jsx';
 import { Field } from './widgets.jsx';
+import { isSuppressed } from '../prospecting.js';
 
 // Enroll a company (and optional contact) into an outbound sequence.
 export default function EnrollModal({ company, onClose, onEnrolled }) {
@@ -18,7 +19,8 @@ export default function EnrollModal({ company, onClose, onEnrolled }) {
     api.get('/sequences').then((rows) => setSequences(rows.filter((s) => s.active && s.step_count > 0))).catch(() => {});
     api.get(`/contacts?company_id=${company.id}&limit=200`).then((d) => {
       setContacts(d.contacts);
-      const first = d.contacts.find((c) => c.email) || d.contacts[0];
+      const eligible = d.contacts.filter((c) => !isSuppressed(c));
+      const first = eligible.find((c) => c.email) || eligible[0];
       if (first) setContactId(String(first.id));
     }).catch(() => {});
   }, [company.id]);
@@ -26,6 +28,7 @@ export default function EnrollModal({ company, onClose, onEnrolled }) {
   const selected = sequences.find((s) => String(s.id) === sequenceId);
   const contact = contacts.find((c) => String(c.id) === contactId);
   const needsEmail = selected; // any sequence may contain an auto-email step
+  const contactSuppressed = contact && isSuppressed(contact);
 
   const submit = () => {
     if (!sequenceId) return notify('Pick a sequence', true);
@@ -53,7 +56,9 @@ export default function EnrollModal({ company, onClose, onEnrolled }) {
           <select value={contactId} onChange={(e) => setContactId(e.target.value)}>
             <option value="">No specific contact</option>
             {contacts.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}{c.email ? ` · ${c.email}` : ' · (no email)'}</option>
+              <option key={c.id} value={c.id} disabled={isSuppressed(c)}>
+                {c.name}{c.email ? ` · ${c.email}` : ' · (no email)'}{isSuppressed(c) ? ' · suppressed' : ''}
+              </option>
             ))}
           </select>
         </Field>
@@ -66,9 +71,12 @@ export default function EnrollModal({ company, onClose, onEnrolled }) {
       {needsEmail && contact && !contact.email && (
         <p className="muted small">⚠ {contact.name} has no email — auto-email steps for this enrollment will be skipped until you add one.</p>
       )}
+      {contactSuppressed && (
+        <p className="error-text small">This contact is suppressed. Pick another contact or clear suppression first.</p>
+      )}
 
       <div className="form-actions pad-top">
-        <button className="btn primary" onClick={submit} disabled={!sequenceId}>Enroll</button>
+        <button className="btn primary" onClick={submit} disabled={!sequenceId || contactSuppressed}>Enroll</button>
       </div>
     </Modal>
   );

@@ -1,15 +1,25 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES } from '../util.js';
+import { h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES, CONTACT_ROLES } from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
 
-const CONTACT_FIELDS = ['company_id', 'name', 'first_name', 'last_name', 'title', 'email', 'email_2', 'phone', 'phone_cell', 'phone_direct', 'phone_other', 'source', 'last_contacted_at', 'owner', 'lead_status'];
+const CONTACT_FIELDS = [
+  'company_id', 'name', 'first_name', 'last_name', 'title', 'contact_role', 'email', 'email_2',
+  'phone', 'phone_cell', 'phone_direct', 'phone_other', 'source', 'last_contacted_at', 'owner',
+  'lead_status', 'do_not_contact', 'replied', 'not_interested', 'bad_fit',
+];
 
 function validateLeadStatus(status) {
   if (status && !LEAD_STATUSES.includes(status)) {
     throw badRequest(`lead_status must be one of: ${LEAD_STATUSES.join(', ')}`);
+  }
+}
+
+function validateContactRole(role) {
+  if (role && !CONTACT_ROLES.includes(role)) {
+    throw badRequest(`contact_role must be one of: ${CONTACT_ROLES.join(', ')}`);
   }
 }
 
@@ -51,8 +61,15 @@ router.get('/', h(async (req, res) => {
   }
   if (q.source) add('ct.source ILIKE ?', `%${q.source}%`);
   if (q.title) add('ct.title ILIKE ?', `%${q.title}%`);
+  if (q.contact_role) add('ct.contact_role = ?', q.contact_role);
   if (q.has_email === 'true') where.push(`ct.email IS NOT NULL AND ct.email <> ''`);
   if (q.has_phone === 'true') where.push(`ct.phone IS NOT NULL AND ct.phone <> ''`);
+  if (q.do_not_contact === 'true') where.push('ct.do_not_contact');
+  if (q.suppressed === 'true') where.push('(ct.do_not_contact OR ct.not_interested OR ct.bad_fit)');
+  if (q.suppressed === 'false') where.push('NOT (ct.do_not_contact OR ct.not_interested OR ct.bad_fit)');
+  if (q.replied === 'true') where.push('ct.replied');
+  if (q.not_interested === 'true') where.push('ct.not_interested');
+  if (q.bad_fit === 'true') where.push('ct.bad_fit');
   if (q.created_after) add('ct.created_at >= ?', q.created_after);
   if (q.created_before) add('ct.created_at <= ?', q.created_before);
   if (q.last_contact_after) add('ct.last_contacted_at >= ?', q.last_contact_after);
@@ -92,6 +109,7 @@ router.get('/', h(async (req, res) => {
     name: 'ct.name', email: 'ct.email', title: 'ct.title', owner: 'ct.owner',
     lead_status: 'ct.lead_status', created_at: 'ct.created_at',
     last_contacted_at: 'ct.last_contacted_at', company_name: 'co.name',
+    contact_role: 'ct.contact_role',
   };
   const sort = sortable[q.sort] || 'ct.name';
   const order = q.order === 'desc' ? 'DESC' : 'ASC';
@@ -141,15 +159,16 @@ router.post('/bulk', h(async (req, res) => {
   }
   if (action === 'update') {
     validateLeadStatus(patch?.lead_status);
+    validateContactRole(patch?.contact_role);
     const sets = [];
     const values = [];
-    for (const col of ['owner', 'lead_status']) {
+    for (const col of ['owner', 'lead_status', 'contact_role', 'do_not_contact', 'replied', 'not_interested', 'bad_fit']) {
       if (patch && Object.prototype.hasOwnProperty.call(patch, col)) {
         values.push(patch[col] === '' ? null : patch[col]);
         sets.push(`${col} = $${values.length}`);
       }
     }
-    if (!sets.length) throw badRequest('patch must include owner and/or lead_status');
+    if (!sets.length) throw badRequest('patch did not include updatable fields');
     values.push(ids);
     const { rowCount } = await query(
       `UPDATE contacts SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[])`,
@@ -201,11 +220,23 @@ router.post('/', h(async (req, res) => {
     resolvedCompanyId = co[0].id;
   }
   validateLeadStatus(b.lead_status);
+  validateContactRole(b.contact_role);
   const { rows } = await query(
-    `INSERT INTO contacts (company_id, name, title, email, phone, source, last_contacted_at, owner, lead_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, 'new')) RETURNING *`,
-    [resolvedCompanyId, b.name, b.title || null, b.email || null, b.phone || null, b.source || null,
-     b.last_contacted_at || null, b.owner || null, b.lead_status || null]
+    `INSERT INTO contacts (
+       company_id, name, first_name, last_name, title, contact_role, email, email_2, phone,
+       phone_cell, phone_direct, phone_other, source, last_contacted_at, owner, lead_status,
+       do_not_contact, replied, not_interested, bad_fit
+     )
+     VALUES (
+       $1, $2, $3, $4, $5, $6, $7, $8, $9,
+       $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
+       coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
+     ) RETURNING *`,
+    [resolvedCompanyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
+     b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
+     b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
+     b.last_contacted_at || null, b.owner || null, b.lead_status || null,
+     b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
   );
   await touchCompany(resolvedCompanyId);
   emit('contact.created', { contact: rows[0] });
@@ -216,6 +247,7 @@ router.post('/', h(async (req, res) => {
 router.post('/upsert', h(async (req, res) => {
   const b = req.body;
   validateLeadStatus(b.lead_status);
+  validateContactRole(b.contact_role);
   const companyId = await resolveCompanyId(b);
   let existing = null;
 
@@ -243,10 +275,21 @@ router.post('/upsert', h(async (req, res) => {
   if (!companyId) throw badRequest('company_id (or company_domain / company_name) required to create a new contact');
   if (!b.name) throw badRequest('name is required to create a new contact');
   const { rows } = await query(
-    `INSERT INTO contacts (company_id, name, title, email, phone, source, last_contacted_at, owner, lead_status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, 'new')) RETURNING *`,
-    [companyId, b.name, b.title || null, b.email || null, b.phone || null, b.source || null,
-     b.last_contacted_at || null, b.owner || null, b.lead_status || null]
+    `INSERT INTO contacts (
+       company_id, name, first_name, last_name, title, contact_role, email, email_2, phone,
+       phone_cell, phone_direct, phone_other, source, last_contacted_at, owner, lead_status,
+       do_not_contact, replied, not_interested, bad_fit
+     )
+     VALUES (
+       $1, $2, $3, $4, $5, $6, $7, $8, $9,
+       $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
+       coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
+     ) RETURNING *`,
+    [companyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
+     b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
+     b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
+     b.last_contacted_at || null, b.owner || null, b.lead_status || null,
+     b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
   );
   await touchCompany(companyId);
   emit('contact.created', { contact: rows[0] });
@@ -255,6 +298,7 @@ router.post('/upsert', h(async (req, res) => {
 
 router.patch('/:id', h(async (req, res) => {
   validateLeadStatus(req.body.lead_status);
+  validateContactRole(req.body.contact_role);
   const upd = buildUpdate('contacts', req.params.id, req.body, CONTACT_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
   const { rows } = await query(upd.text, upd.values);

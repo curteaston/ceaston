@@ -4,7 +4,10 @@ import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDb, query } from './db.js';
-import { h, STAGES, AD_SPEND_RANGES, LEAD_STATUSES, LIFECYCLE_STAGES } from './util.js';
+import {
+  h, STAGES, AD_SPEND_RANGES, LEAD_STATUSES, LIFECYCLE_STAGES,
+  TARGET_TIERS, BUYING_COMMITTEE_STATUSES, CONTACT_ROLES, SCHEMA_VERSION,
+} from './util.js';
 import companies from './routes/companies.js';
 import contacts from './routes/contacts.js';
 import deals from './routes/deals.js';
@@ -31,7 +34,7 @@ app.use(express.json({ limit: '10mb' }));
 // Liveness and login endpoints are reachable without authentication.
 app.get('/api/health', h(async (req, res) => {
   await query('SELECT 1');
-  res.json({ ok: true });
+  res.json({ ok: true, schema_version: SCHEMA_VERSION });
 }));
 app.use('/api/auth', authRouter);
 
@@ -42,11 +45,15 @@ app.use('/api', requireAuth);
 // Enum metadata for clients (filter dropdowns, n8n option lists).
 app.get('/api/meta', (req, res) => {
   res.json({
+    schema_version: SCHEMA_VERSION,
     stages: STAGES,
     ad_spend_ranges: AD_SPEND_RANGES,
     priorities: ['low', 'medium', 'high'],
     lead_statuses: LEAD_STATUSES,
     lifecycle_stages: LIFECYCLE_STAGES,
+    target_tiers: TARGET_TIERS,
+    buying_committee_statuses: BUYING_COMMITTEE_STATUSES,
+    contact_roles: CONTACT_ROLES,
   });
 });
 

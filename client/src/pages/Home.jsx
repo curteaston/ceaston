@@ -5,6 +5,7 @@ import { useStore } from '../store.js';
 import Modal from '../components/Modal.jsx';
 import { CompanySelect, Field, PriorityChip, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
+import { BUYING_COMMITTEE_LABELS, CONTACT_ROLE_LABELS, ROLE_COVERAGE, TARGET_TIER_LABELS } from '../prospecting.js';
 
 const FEED_ICONS = {
   call: '📞', email: '✉️', sms: '💬', meeting: '📅',
@@ -148,6 +149,34 @@ function HomeTaskRow({ task, onToggle }) {
   );
 }
 
+function NextActionRow({ account }) {
+  const roles = new Set(Array.isArray(account.roles) ? account.roles : []);
+  const missing = ROLE_COVERAGE.filter((role) => !roles.has(role));
+  const task = account.next_task || null;
+  const action = account.next_step || task?.description || (missing.length
+    ? `Find ${CONTACT_ROLE_LABELS[missing[0]] || missing[0]} contact`
+    : 'Make the next touch');
+
+  return (
+    <div className="next-action-row">
+      <div className="grow">
+        <div className="row gap wrap">
+          <Link to={`/companies/${account.id}`} className="company-link">{account.name}</Link>
+          {account.target_tier && <span className="chip tier-chip">{TARGET_TIER_LABELS[account.target_tier] || account.target_tier}</span>}
+          <span className="chip">{BUYING_COMMITTEE_LABELS[account.buying_committee_status] || account.buying_committee_status || 'Unknown'}</span>
+        </div>
+        <div className="next-action-main">{action}</div>
+        <div className="muted small">
+          {account.campaign || account.source || 'No campaign/source'} · {account.contact_count} contacts · last touch {relTime(account.last_activity_at)}
+        </div>
+      </div>
+      <div className="next-action-side">
+        {missing.length > 0 ? `${missing.length} roles missing` : 'Roles covered'}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { run } = useStore();
   const [data, setData] = useState(null);
@@ -178,7 +207,7 @@ export default function Home() {
 
   if (!data) return <p className="muted">Loading…</p>;
 
-  const { meetings_today, tasks_today, needs_attention, recent_activity } = data;
+  const { meetings_today, tasks_today, needs_attention, next_actions = [], recent_activity } = data;
   const tasks = taskView === 'open' ? tasks_today.open : tasks_today.completed;
   const attentionCount =
     needs_attention.overdue_tasks.length +
@@ -246,6 +275,16 @@ export default function Home() {
             </div>
           ) : (
             tasks.map((t) => <HomeTaskRow key={t.id} task={t} onToggle={toggleTask} />)
+          )}
+        </div>
+      </Section>
+
+      <Section icon="🎯" title="Account Next Action">
+        <div className="outline-card">
+          {next_actions.length === 0 ? (
+            <div className="empty-state"><p>No eligible prospect accounts need action.</p></div>
+          ) : (
+            next_actions.map((account) => <NextActionRow key={account.id} account={account} />)
           )}
         </div>
       </Section>

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { api } from '../api.js';
 import { useStore, LIFECYCLE_LABELS } from '../store.js';
 
@@ -159,6 +158,7 @@ export default function Import() {
     if (!file) return;
     try {
       if (/\.(xlsx|xls)$/i.test(file.name)) {
+        const XLSX = await import('xlsx');
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];

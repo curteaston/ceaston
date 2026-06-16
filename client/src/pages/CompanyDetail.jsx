@@ -11,6 +11,14 @@ import CompanySequences from '../components/CompanySequences.jsx';
 import { Field, PhoneLink, StageChip, TaskRow } from '../components/widgets.jsx';
 import { CompanyForm } from './Companies.jsx';
 import { fmtDate, fmtMoney, fmtPhone, relTime, absUrl } from '../format.js';
+import {
+  BUYING_COMMITTEE_LABELS,
+  CONTACT_ROLE_LABELS,
+  ROLE_COVERAGE,
+  TARGET_TIER_LABELS,
+  isSuppressed,
+  suppressionText,
+} from '../prospecting.js';
 
 // Returns a date N business days from today, formatted as YYYY-MM-DD
 function addBusinessDays(n) {
@@ -402,7 +410,7 @@ function MeetingForm({ company, onClose, onSaved }) {
 function ActivityForm({ type, company, onSubmit }) {
   const [form, setForm] = useState({ body: '', outcome: '', contact_id: '', occurred_at: new Date().toISOString().slice(0, 16) });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const outcomeOptions = ['Connected', 'Left voicemail', 'No answer', 'Wrong number'];
+  const outcomeOptions = ['Connected', 'Left voicemail', 'No answer', 'Replied', 'Booked meeting', 'Not interested', 'Do not contact', 'Bad fit', 'Wrong number'];
   const contact = company.contacts.find((c) => String(c.id) === String(form.contact_id));
   const phone = contact?.phone || company.contacts[0]?.phone || '';
 
@@ -626,6 +634,9 @@ export default function CompanyDetail() {
 
   const openDeals = company.deals.filter((d) => !['won', 'lost'].includes(d.stage));
   const openTasks = company.tasks.filter((t) => !t.completed);
+  const rolesPresent = new Set(company.contacts.map((c) => c.contact_role).filter(Boolean));
+  const missingRoles = ROLE_COVERAGE.filter((role) => !rolesPresent.has(role));
+  const suppressed = isSuppressed(company);
 
   return (
     <div>
@@ -640,6 +651,11 @@ export default function CompanyDetail() {
         <div className="stack left-panel">
           {/* Company header card */}
           <div className="card company-header-card">
+            {suppressed && (
+              <div className="suppression-banner">
+                Suppressed: {suppressionText(company)}
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{company.name}</div>
@@ -679,6 +695,54 @@ export default function CompanyDetail() {
                   placeholder="--"
                   onBlur={(e) => { if (e.target.value !== (company.owner || '')) mutateCompany(() => api.patch(`/companies/${company.id}`, { owner: e.target.value || null }), 'Saved'); }}
                 />
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Target tier</span>
+                <select
+                  className="key-info-select"
+                  value={company.target_tier || ''}
+                  onChange={(e) => mutateCompany(() => api.patch(`/companies/${company.id}`, { target_tier: e.target.value || null }), 'Saved')}
+                >
+                  <option value="">--</option>
+                  {meta.target_tiers.map((t) => <option key={t} value={t}>{TARGET_TIER_LABELS[t] || t}</option>)}
+                </select>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Buying committee</span>
+                <select
+                  className="key-info-select"
+                  value={company.buying_committee_status || 'unknown'}
+                  onChange={(e) => mutateCompany(() => api.patch(`/companies/${company.id}`, { buying_committee_status: e.target.value }), 'Saved')}
+                >
+                  {meta.buying_committee_statuses.map((s) => <option key={s} value={s}>{BUYING_COMMITTEE_LABELS[s] || s}</option>)}
+                </select>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Next step</span>
+                <textarea
+                  className="key-info-input key-info-textarea"
+                  defaultValue={company.next_step || ''}
+                  placeholder="Add the next concrete action"
+                  onBlur={(e) => { if (e.target.value !== (company.next_step || '')) mutateCompany(() => api.patch(`/companies/${company.id}`, { next_step: e.target.value || null }), 'Saved'); }}
+                />
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Source / campaign</span>
+                <span className="key-info-value">{[company.source, company.campaign].filter(Boolean).join(' / ') || <span className="muted">--</span>}</span>
+              </div>
+              <div className="key-info-row">
+                <span className="key-info-label">Suppression</span>
+                <label className="checkbox-inline">
+                  <input
+                    type="checkbox"
+                    checked={!!company.do_not_contact}
+                    onChange={(e) => mutateCompany(() => api.patch(`/companies/${company.id}`, {
+                      do_not_contact: e.target.checked,
+                      suppression_reason: e.target.checked ? (company.suppression_reason || 'Manual do-not-contact') : null,
+                    }), e.target.checked ? 'Account suppressed' : 'Account eligible')}
+                  />
+                  Do not contact account
+                </label>
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">City</span>
@@ -767,18 +831,52 @@ export default function CompanyDetail() {
         <div className="stack">
           <div className="card">
             <div className="card-head">
+              <h3>Buying committee</h3>
+              <span className={`chip ${missingRoles.length ? 'prio-medium' : 'ok-chip'}`}>
+                {missingRoles.length ? `${missingRoles.length} missing` : 'Covered'}
+              </span>
+            </div>
+            <div className="role-coverage">
+              {ROLE_COVERAGE.map((role) => {
+                const found = company.contacts.filter((c) => c.contact_role === role);
+                return (
+                  <div key={role} className={`role-row ${found.length ? 'covered' : ''}`}>
+                    <span>{CONTACT_ROLE_LABELS[role] || role}</span>
+                    <b>{found.length ? found.map((c) => c.name).join(', ') : 'Missing'}</b>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-head">
               <h3>Contacts ({company.contacts.length})</h3>
               <button className="btn small" onClick={() => setModal('contact')}>+ Add</button>
             </div>
             {company.contacts.length === 0 && <p className="muted">No contacts yet.</p>}
             {company.contacts.map((c) => (
-              <button key={c.id} className="contact-card" onClick={() => setOpenContact(c)}>
+              <div
+                key={c.id}
+                className="contact-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenContact(c)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenContact(c);
+                  }
+                }}
+              >
                 <div className="contact-name">{c.name}</div>
                 <div className="muted small">{c.title || '—'}</div>
+                {c.contact_role && <div><span className="chip role-chip">{CONTACT_ROLE_LABELS[c.contact_role] || c.contact_role}</span></div>}
+                {isSuppressed(c) && <div><span className="chip danger-chip">Suppressed</span></div>}
                 {c.phone && <div className="small"><PhoneLink phone={fmtPhone(c.phone) || c.phone} contactId={c.id} companyId={c.company_id} contactName={c.name} /></div>}
                 {c.email && <div className="small"><button className="link-btn" style={{ fontSize: 'inherit' }} onClick={(e) => { e.stopPropagation(); setModal({ type: 'email', to: c.email, contactId: c.id }); }}>✉️ {c.email}</button></div>}
                 <div className="small">Last contact: <b>{relTime(c.last_contacted_at)}</b></div>
-              </button>
+              </div>
             ))}
           </div>
 

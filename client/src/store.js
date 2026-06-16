@@ -2,12 +2,18 @@ import { create } from 'zustand';
 import { api, qs } from './api.js';
 
 const DEFAULT_META = {
+  schema_version: 'prospecting-v1',
   stages: ['lead', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'],
   ad_spend_ranges: ['unknown', '$0', '<$1k', '$1k-$5k', '$5k-$10k', '$10k-$25k', '$25k+'],
   priorities: ['low', 'medium', 'high'],
   lead_statuses: ['new', 'attempted', 'connected', 'qualified', 'unqualified', 'customer'],
   lifecycle_stages: ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'],
+  target_tiers: ['tier_1', 'tier_2', 'tier_3'],
+  buying_committee_statuses: ['unknown', 'missing_roles', 'partial', 'mapped', 'engaged'],
+  contact_roles: ['owner', 'gm', 'marketing', 'ops', 'office_manager', 'dispatcher', 'other'],
 };
+
+const REQUIRED_META_KEYS = ['target_tiers', 'buying_committee_statuses', 'contact_roles'];
 
 export const LIFECYCLE_LABELS = {
   subscriber: 'Subscriber',
@@ -21,6 +27,7 @@ export const LIFECYCLE_LABELS = {
 
 export const useStore = create((set, get) => ({
   meta: DEFAULT_META,
+  apiWarning: null,
   toast: null,
 
   // Quick call logging: set when a phone number is clicked, read by the global modal.
@@ -48,7 +55,17 @@ export const useStore = create((set, get) => ({
 
   async fetchMeta() {
     try {
-      set({ meta: await api.get('/meta') });
+      const serverMeta = await api.get('/meta');
+      const missing = REQUIRED_META_KEYS.filter((key) => !Array.isArray(serverMeta[key]));
+      const wrongSchema = serverMeta.schema_version && serverMeta.schema_version !== DEFAULT_META.schema_version;
+      const warningParts = [
+        wrongSchema ? `schema ${serverMeta.schema_version}` : '',
+        missing.length ? `missing ${missing.join(', ')}` : '',
+      ].filter(Boolean);
+      set({
+        meta: { ...DEFAULT_META, ...serverMeta },
+        apiWarning: warningParts.length ? `API/client mismatch: ${warningParts.join('; ')}` : null,
+      });
     } catch { /* defaults already set */ }
   },
 

@@ -1,5 +1,7 @@
 node_modules/
 client/dist/
+.local/
+work-pgdata/
 .env
 *.log
 .DS_Store

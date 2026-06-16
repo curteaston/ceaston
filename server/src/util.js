@@ -10,6 +10,14 @@ export const LEAD_STATUSES = ['new', 'attempted', 'connected', 'qualified', 'unq
 
 export const LIFECYCLE_STAGES = ['subscriber', 'lead', 'mql', 'sql', 'opportunity', 'customer', 'evangelist'];
 
+export const TARGET_TIERS = ['tier_1', 'tier_2', 'tier_3'];
+
+export const BUYING_COMMITTEE_STATUSES = ['unknown', 'missing_roles', 'partial', 'mapped', 'engaged'];
+
+export const CONTACT_ROLES = ['owner', 'gm', 'marketing', 'ops', 'office_manager', 'dispatcher', 'other'];
+
+export const SCHEMA_VERSION = 'prospecting-v1';
+
 // Wrap async route handlers so rejections hit the error middleware.
 export const h = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 

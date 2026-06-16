@@ -6,6 +6,84 @@ import { handleContactReply } from './sequences.js';
 
 const router = Router();
 
+function classifyOutcome(outcome, body) {
+  const text = `${outcome || ''} ${body || ''}`.toLowerCase();
+  return {
+    replied: text.includes('replied') || text.includes('reply'),
+    accountStop:
+      text.includes('not interested') ||
+      text.includes('do not contact') ||
+      text.includes('dnc') ||
+      text.includes('unsubscribe') ||
+      text.includes('remove me') ||
+      text.includes('stop contacting'),
+    badFit:
+      text.includes('bad fit') ||
+      text.includes('unqualified') ||
+      text.includes('wrong company'),
+    wrongNumber: text.includes('wrong number'),
+  };
+}
+
+async function applyProspectingOutcome(activity) {
+  const flags = classifyOutcome(activity.outcome, activity.body);
+  const lastTouch = activity.type || null;
+  await query(
+    `UPDATE companies
+        SET last_touch_channel = coalesce($2, last_touch_channel)
+      WHERE id = $1`,
+    [activity.company_id, lastTouch]
+  );
+
+  if (activity.contact_id) {
+    await query(
+      `UPDATE contacts
+          SET replied = replied OR $2,
+              do_not_contact = do_not_contact OR $3,
+              not_interested = not_interested OR $4,
+              bad_fit = bad_fit OR $5
+        WHERE id = $1`,
+      [
+        activity.contact_id,
+        flags.replied,
+        flags.accountStop || flags.wrongNumber,
+        flags.accountStop,
+        flags.badFit || flags.wrongNumber,
+      ]
+    );
+  }
+
+  if (flags.replied || flags.accountStop || flags.badFit) {
+    const suppressionReason = flags.accountStop
+      ? `Suppressed after ${activity.outcome || activity.type || 'interaction'}`
+      : flags.badFit
+        ? `Marked bad fit after ${activity.outcome || activity.type || 'interaction'}`
+        : null;
+    await query(
+      `UPDATE companies
+          SET replied = replied OR $2,
+              do_not_contact = do_not_contact OR $3,
+              not_interested = not_interested OR $4,
+              bad_fit = bad_fit OR $5,
+              suppression_reason = coalesce($6, suppression_reason),
+              next_step = CASE
+                WHEN $3 OR $5 THEN null
+                WHEN $2 AND (next_step IS NULL OR next_step = '') THEN 'Review reply before next touch'
+                ELSE next_step
+              END
+        WHERE id = $1`,
+      [
+        activity.company_id,
+        flags.replied,
+        flags.accountStop,
+        flags.accountStop,
+        flags.badFit,
+        suppressionReason,
+      ]
+    );
+  }
+}
+
 router.get('/', h(async (req, res) => {
   const { company_id, contact_id, type } = req.query;
   const where = [];
@@ -46,6 +124,7 @@ router.post('/', h(async (req, res) => {
   const activity = rows[0];
   emit('activity.logged', { activity });
   await touchCompany(companyId, activity.occurred_at);
+  await applyProspectingOutcome(activity);
   if (activity.contact_id) {
     await query(
       `UPDATE contacts SET last_contacted_at = GREATEST(coalesce(last_contacted_at, 'epoch'), $2) WHERE id = $1`,

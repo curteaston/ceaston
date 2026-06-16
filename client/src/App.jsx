@@ -1,21 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { useStore } from './store.js';
 import { api } from './api.js';
-import Home from './pages/Home.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Reports from './pages/Reports.jsx';
-import Companies from './pages/Companies.jsx';
 import CallLogModal from './components/CallLogModal.jsx';
-import Contacts from './pages/Contacts.jsx';
-import ContactDetail from './pages/ContactDetail.jsx';
-import CompanyDetail from './pages/CompanyDetail.jsx';
-import Pipeline from './pages/Pipeline.jsx';
-import Sequences from './pages/Sequences.jsx';
-import Tasks from './pages/Tasks.jsx';
-import Import from './pages/Import.jsx';
-import Settings from './pages/Settings.jsx';
 import Login from './pages/Login.jsx';
+
+const Home = lazy(() => import('./pages/Home.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const Reports = lazy(() => import('./pages/Reports.jsx'));
+const Companies = lazy(() => import('./pages/Companies.jsx'));
+const Contacts = lazy(() => import('./pages/Contacts.jsx'));
+const ContactDetail = lazy(() => import('./pages/ContactDetail.jsx'));
+const CompanyDetail = lazy(() => import('./pages/CompanyDetail.jsx'));
+const Pipeline = lazy(() => import('./pages/Pipeline.jsx'));
+const Sequences = lazy(() => import('./pages/Sequences.jsx'));
+const Tasks = lazy(() => import('./pages/Tasks.jsx'));
+const Import = lazy(() => import('./pages/Import.jsx'));
+const Settings = lazy(() => import('./pages/Settings.jsx'));
 
 function GlobalSearch() {
   const [q, setQ] = useState('');
@@ -88,7 +89,7 @@ const NAV_ITEMS = [
 ];
 
 export default function App() {
-  const { toast, fetchMeta } = useStore();
+  const { toast, fetchMeta, apiWarning } = useStore();
   const [auth, setAuth] = useState(null); // null = checking, true = ok, false = need login
   const [authRequired, setAuthRequired] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('nav_collapsed') === '1');
@@ -151,20 +152,23 @@ export default function App() {
           <GlobalSearch />
         </header>
         <main className="content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/companies" element={<Companies />} />
-            <Route path="/companies/:id" element={<CompanyDetail />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/contacts/:id" element={<ContactDetail />} />
-            <Route path="/pipeline" element={<Pipeline />} />
-            <Route path="/sequences" element={<Sequences />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/import" element={<Import />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          {apiWarning && <div className="runtime-warning">{apiWarning}</div>}
+          <Suspense fallback={<p className="muted">Loading...</p>}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/companies/:id" element={<CompanyDetail />} />
+              <Route path="/contacts" element={<Contacts />} />
+              <Route path="/contacts/:id" element={<ContactDetail />} />
+              <Route path="/pipeline" element={<Pipeline />} />
+              <Route path="/sequences" element={<Sequences />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/import" element={<Import />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
       {toast && <div className={`toast ${toast.isError ? 'error' : ''}`}>{toast.message}</div>}

@@ -51,16 +51,61 @@ running concurrent outbound cadences.
   enrollments. Auto-emails send through a **separate sending domain** configured in
   Settings — never your primary Office 365 mailbox.
 
-## Quick start (Docker)
+## Quick start (local dev, recommended on Windows)
+
+Requires Node 20+ and PostgreSQL 18 installed locally. This path does **not** use
+Docker. It creates a workspace-owned Postgres data directory at `.local/pgdata`,
+runs Postgres on port `55432`, the API on `3001`, and the Vite client on `5173`.
 
 ```bash
-docker compose up --build
-# open http://localhost:3001
+npm run install:all
+npm run dev:local
+npm run dev:local:check
+npm run test:local
 ```
 
-## Quick start (local dev)
+Open http://localhost:5173.
 
-Requires Node 20+ and a Postgres database.
+`npm run dev:local` seeds demo prospecting data only when the local database is
+empty. Set `LOCAL_CRM_SEED=0` before startup if you want a completely blank local
+database. `npm run seed` remains available for manual seeding, but do not use it
+as a repeated startup step unless you are intentionally adding another set of
+demo deals, tasks, notes, and activities.
+
+Stop the local dev stack with:
+
+```bash
+npm run dev:local:stop
+```
+
+If PostgreSQL is installed somewhere other than `C:\Program Files\PostgreSQL\18\bin`,
+set `PG_BIN` before running `npm run dev:local`.
+
+`npm run test:local` runs API contract checks plus a headless Edge/Chrome smoke
+render of `/companies/1`. The browser smoke expects the demo prospecting data
+that `npm run dev:local` creates when the local database is empty. If Edge or
+Chrome is installed somewhere unusual, set `CRM_BROWSER_BIN` to the browser
+executable path.
+
+## CI
+
+GitHub Actions runs on every push and pull request. The workflow installs from
+lockfiles, checks JavaScript syntax, builds the Vite client, boots the API
+against a fresh Postgres service, seeds demo data only if the database is empty,
+then runs both API and browser smoke checks.
+
+Run the local equivalent before pushing:
+
+```bash
+npm run check:syntax
+npm run build
+npm run dev:local:check
+npm run test:local
+```
+
+## Quick start (manual local dev)
+
+Use this only when you want to point the API at an existing database yourself.
 
 ```bash
 npm run install:all
@@ -77,6 +122,16 @@ npm run seed
 
 For production without Docker: `npm run build` then `npm start` — the API server
 serves the built React app on a single port.
+
+## Quick start (Docker)
+
+Docker remains supported, but it is not the recommended Windows development path
+for this project.
+
+```bash
+docker compose up --build
+# open http://localhost:3001
+```
 
 ## Configuration
 

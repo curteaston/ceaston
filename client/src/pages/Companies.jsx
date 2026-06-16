@@ -10,6 +10,13 @@ import SavedViews from '../components/SavedViews.jsx';
 import { Field, StageChip } from '../components/widgets.jsx';
 import { fmtDate, fmtDateTime, fmtMoney, relTime } from '../format.js';
 import FilterDrawer, { FilterSection } from '../components/FilterDrawer.jsx';
+import {
+  BUYING_COMMITTEE_LABELS,
+  LAST_TOUCH_CHANNELS,
+  TARGET_TIER_LABELS,
+  isSuppressed,
+  suppressionText,
+} from '../prospecting.js';
 
 const COMPANY_TYPES = ['HVAC Contractor', 'Plumbing', 'Electrical', 'General Contractor', 'Property Management', 'Distributor', 'Manufacturer', 'Other'];
 const TIMEZONES = [
@@ -24,6 +31,8 @@ const TIMEZONES = [
 
 const BLANK_FILTERS = {
   owner: '', unassigned: false, lifecycle_stage: '',
+  target_tier: '', source: '', campaign: '', buying_committee_status: '',
+  suppressed: '', needs_next_action: false,
   industry: '', type: '', city: '', state: '', postal_code: '', timezone: '',
   ad_spend_range: '', employee_min: '', employee_max: '',
   revenue_min: '', revenue_max: '',
@@ -46,9 +55,13 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const [form, setForm] = useState({
     website: '', name: '', phone: '', industry: 'HVAC', type: '', city: '', state: '',
     postal_code: '', employee_count: '', annual_revenue: '', ad_spend_range: '',
-    timezone: '', description: '', owner: '', lifecycle_stage: 'lead', ...initial,
+    timezone: '', description: '', owner: '', lifecycle_stage: 'lead',
+    target_tier: '', source: '', campaign: '', last_touch_channel: '', next_step: '',
+    buying_committee_status: 'unknown', do_not_contact: false, replied: false,
+    not_interested: false, bad_fit: false, suppression_reason: '', ...initial,
   });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const chk = (k) => (e) => setForm({ ...form, [k]: e.target.checked });
 
   return (
     <form
@@ -77,6 +90,39 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
           {meta.ad_spend_ranges.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
       </Field>
+      <Field label="Target tier">
+        <select value={form.target_tier || ''} onChange={upd('target_tier')}>
+          <option value="">--</option>
+          {meta.target_tiers.map((t) => <option key={t} value={t}>{TARGET_TIER_LABELS[t] || t}</option>)}
+        </select>
+      </Field>
+      <Field label="Source"><input value={form.source || ''} onChange={upd('source')} placeholder="Apollo, referral, Google search..." /></Field>
+      <Field label="Campaign"><input value={form.campaign || ''} onChange={upd('campaign')} placeholder="June HVAC owners" /></Field>
+      <Field label="Buying committee">
+        <select value={form.buying_committee_status || 'unknown'} onChange={upd('buying_committee_status')}>
+          {meta.buying_committee_statuses.map((s) => <option key={s} value={s}>{BUYING_COMMITTEE_LABELS[s] || s}</option>)}
+        </select>
+      </Field>
+      <Field label="Last touch channel">
+        <select value={form.last_touch_channel || ''} onChange={upd('last_touch_channel')}>
+          <option value="">--</option>
+          {LAST_TOUCH_CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </Field>
+      <Field label="Next step" style={{ gridColumn: '1 / -1' }}>
+        <input value={form.next_step || ''} onChange={upd('next_step')} placeholder="Call owner, find ops manager, send audit invite..." />
+      </Field>
+      <div className="form-grid-wide suppression-fields">
+        <label><input type="checkbox" checked={!!form.replied} onChange={chk('replied')} /> Replied</label>
+        <label><input type="checkbox" checked={!!form.do_not_contact} onChange={chk('do_not_contact')} /> Do not contact</label>
+        <label><input type="checkbox" checked={!!form.not_interested} onChange={chk('not_interested')} /> Not interested</label>
+        <label><input type="checkbox" checked={!!form.bad_fit} onChange={chk('bad_fit')} /> Bad fit</label>
+      </div>
+      {(form.do_not_contact || form.not_interested || form.bad_fit) && (
+        <Field label="Suppression reason" style={{ gridColumn: '1 / -1' }}>
+          <input value={form.suppression_reason || ''} onChange={upd('suppression_reason')} placeholder="Owner declined, asked to stop, bad market fit..." />
+        </Field>
+      )}
       <Field label="Time zone">
         <select value={form.timezone || ''} onChange={upd('timezone')}>
           <option value="">—</option>
@@ -94,6 +140,12 @@ export function CompanyForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
 const ALL_COLUMNS = [
   { key: 'name', label: 'Company name', sort: 'name', always: true },
   { key: 'owner', label: 'Company owner', sort: 'owner' },
+  { key: 'target_tier', label: 'Target Tier', sort: 'target_tier' },
+  { key: 'buying_committee_status', label: 'Committee', sort: 'buying_committee_status' },
+  { key: 'next_step', label: 'Next Step' },
+  { key: 'suppression', label: 'Suppression' },
+  { key: 'source', label: 'Source' },
+  { key: 'campaign', label: 'Campaign' },
   { key: 'created_at', label: 'Create Date', sort: 'created_at' },
   { key: 'last_activity_at', label: 'Last Activity Date', sort: 'last_activity_at' },
   { key: 'lifecycle_stage', label: 'Lifecycle Stage', sort: 'lifecycle_stage' },
@@ -111,7 +163,7 @@ const ALL_COLUMNS = [
   { key: 'latest_deal_stage', label: 'Deal Stage' },
   { key: 'open_task_count', label: 'Open Tasks' },
 ];
-const DEFAULT_VISIBLE = ['name', 'owner', 'created_at', 'last_activity_at', 'lifecycle_stage', 'industry', 'contact_count', 'open_deal_value'];
+const DEFAULT_VISIBLE = ['name', 'owner', 'target_tier', 'buying_committee_status', 'next_step', 'suppression', 'last_activity_at', 'contact_count'];
 
 function BulkEnrollModal({ count, onClose, onEnroll }) {
   const [sequences, setSequences] = useState([]);
@@ -175,6 +227,8 @@ export default function Companies() {
 
   const activeFilterCount = useMemo(() => [
     filters.owner, filters.unassigned, filters.lifecycle_stage,
+    filters.target_tier, filters.source, filters.campaign, filters.buying_committee_status,
+    filters.suppressed, filters.needs_next_action,
     filters.industry, filters.type, filters.city, filters.state, filters.postal_code, filters.timezone,
     filters.ad_spend_range, filters.employee_min, filters.employee_max,
     filters.revenue_min, filters.revenue_max,
@@ -202,6 +256,12 @@ export default function Companies() {
     if (tab === 'all' && filters.owner) p.owner = filters.owner;
     if (filters.unassigned) p.unassigned = 'true';
     if (filters.lifecycle_stage) p.lifecycle_stage = filters.lifecycle_stage;
+    if (filters.target_tier) p.target_tier = filters.target_tier;
+    if (filters.source.trim()) p.source = filters.source.trim();
+    if (filters.campaign.trim()) p.campaign = filters.campaign.trim();
+    if (filters.buying_committee_status) p.buying_committee_status = filters.buying_committee_status;
+    if (filters.suppressed) p.suppressed = filters.suppressed;
+    if (filters.needs_next_action) p.needs_next_action = 'true';
     if (filters.industry) p.industry = filters.industry;
     if (filters.type) p.type = filters.type;
     if (filters.city) p.city = filters.city;
@@ -379,9 +439,17 @@ export default function Companies() {
           <>
             <Link to={`/companies/${c.id}`} onClick={(e) => e.stopPropagation()} className="company-link">{c.name}</Link>
             {c.domain && <div className="muted small">{c.domain}</div>}
+            {isSuppressed(c) && <div className="chip danger-chip">Suppressed</div>}
           </>
         );
       case 'owner': return c.owner || <span className="muted">No owner</span>;
+      case 'target_tier': return c.target_tier ? <span className="chip tier-chip">{TARGET_TIER_LABELS[c.target_tier] || c.target_tier}</span> : '--';
+      case 'buying_committee_status': return BUYING_COMMITTEE_LABELS[c.buying_committee_status] || c.buying_committee_status || '--';
+      case 'next_step': return c.next_step || <span className="muted">Missing</span>;
+      case 'suppression':
+        return isSuppressed(c) ? <span className="chip danger-chip">{suppressionText(c)}</span> : <span className="chip ok-chip">Eligible</span>;
+      case 'source': return c.source || '--';
+      case 'campaign': return c.campaign || '--';
       case 'created_at': return fmtDate(c.created_at);
       case 'last_activity_at': return c.last_activity_at ? fmtDateTime(c.last_activity_at) : '--';
       case 'lifecycle_stage': return <span className="chip lifecycle">{LIFECYCLE_LABELS[c.lifecycle_stage] || c.lifecycle_stage}</span>;
@@ -406,6 +474,10 @@ export default function Companies() {
   const sectionCounts = {
     companyInfo: [filters.industry, filters.type, filters.city, filters.state, filters.postal_code, filters.timezone, filters.domain, filters.description, filters.has_phone].filter(Boolean).length,
     ownership: [filters.owner, filters.unassigned, filters.lead_status].filter(Boolean).length,
+    prospecting: [
+      filters.target_tier, filters.source, filters.campaign, filters.buying_committee_status,
+      filters.suppressed, filters.needs_next_action,
+    ].filter(Boolean).length,
     lifecycle: filters.lifecycle_stage ? 1 : 0,
     financial: [filters.revenue_min, filters.revenue_max, filters.ad_spend_range].filter(Boolean).length,
     size: [filters.employee_min, filters.employee_max].filter(Boolean).length,
@@ -630,6 +702,43 @@ export default function Companies() {
                 <option value="Bad Timing">Bad Timing</option>
               </select>
             </div>
+          </FilterSection>
+
+          <FilterSection title="Prospecting" activeCount={sectionCounts.prospecting}>
+            <div className="fd-field">
+              <label>Target tier</label>
+              <select value={filters.target_tier} onChange={(e) => setF({ target_tier: e.target.value })}>
+                <option value="">Any tier</option>
+                {meta.target_tiers.map((t) => <option key={t} value={t}>{TARGET_TIER_LABELS[t] || t}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Buying committee</label>
+              <select value={filters.buying_committee_status} onChange={(e) => setF({ buying_committee_status: e.target.value })}>
+                <option value="">Any status</option>
+                {meta.buying_committee_statuses.map((s) => <option key={s} value={s}>{BUYING_COMMITTEE_LABELS[s] || s}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
+              <label>Source contains</label>
+              <input value={filters.source} onChange={(e) => setF({ source: e.target.value })} placeholder="Apollo, referral..." />
+            </div>
+            <div className="fd-field">
+              <label>Campaign contains</label>
+              <input value={filters.campaign} onChange={(e) => setF({ campaign: e.target.value })} placeholder="June HVAC owners" />
+            </div>
+            <div className="fd-field">
+              <label>Suppression</label>
+              <select value={filters.suppressed} onChange={(e) => setF({ suppressed: e.target.value })}>
+                <option value="">Any</option>
+                <option value="false">Eligible only</option>
+                <option value="true">Suppressed only</option>
+              </select>
+            </div>
+            <label className="fd-checkbox">
+              <input type="checkbox" checked={filters.needs_next_action} onChange={(e) => setF({ needs_next_action: e.target.checked })} />
+              Missing next step
+            </label>
           </FilterSection>
 
           <FilterSection title="Lifecycle stage" activeCount={sectionCounts.lifecycle}>

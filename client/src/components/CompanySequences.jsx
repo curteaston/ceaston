@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { useStore } from '../store.js';
 import EnrollModal from './EnrollModal.jsx';
 import { fmtDate } from '../format.js';
+import { isSuppressed, suppressionText } from '../prospecting.js';
 
 const RUN_ICON = { task: '☑️', auto_email: '✉️' };
 const STATUS_LABEL = {
@@ -29,14 +30,16 @@ export default function CompanySequences({ company }) {
 
   const active = enrollments.filter((e) => e.status === 'active');
   const past = enrollments.filter((e) => e.status !== 'active');
+  const suppressed = isSuppressed(company);
 
   return (
     <div className="card">
       <div className="card-head">
         <h3>Sequences</h3>
-        <button className="btn small" onClick={() => setEnrolling(true)}>+ Enroll</button>
+        <button className="btn small" disabled={suppressed} onClick={() => setEnrolling(true)}>+ Enroll</button>
       </div>
 
+      {suppressed && <p className="error-text small">Enrollment blocked: {suppressionText(company)}</p>}
       {enrollments.length === 0 && <p className="muted small">Not in any sequence. Enroll to start an outbound cadence.</p>}
 
       {[...active, ...past].map((e) => {

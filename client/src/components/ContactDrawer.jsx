@@ -6,6 +6,7 @@ import Modal from './Modal.jsx';
 import Timeline from './Timeline.jsx';
 import VoiceNoteInput from './VoiceNoteInput.jsx';
 import { Field, PhoneLink } from './widgets.jsx';
+import { CONTACT_ROLE_LABELS, isSuppressed } from '../prospecting.js';
 
 const INTERACTION_TYPES = ['call', 'email', 'sms', 'meeting', 'linkedin', 'other'];
 const OUTCOMES = ['connected', 'voicemail', 'no answer', 'replied', 'bounced', 'booked meeting', 'not interested'];
@@ -50,15 +51,24 @@ function LogInteraction({ contact, onLogged }) {
 export function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
   const { meta } = useStore();
   const [form, setForm] = useState({
-    name: '', title: '', email: '', phone: '', source: '', owner: '', lead_status: 'new', ...initial,
+    name: '', title: '', contact_role: '', email: '', phone: '', source: '', owner: '',
+    lead_status: 'new', do_not_contact: false, replied: false, not_interested: false,
+    bad_fit: false, ...initial,
   });
   const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const chk = (k) => (e) => setForm({ ...form, [k]: e.target.checked });
   return (
     <form className="form-grid" onSubmit={(e) => { e.preventDefault(); onSubmit(form); }}>
       <Field label="First name"><input value={form.first_name || ''} onChange={upd('first_name')} /></Field>
       <Field label="Last name"><input value={form.last_name || ''} onChange={upd('last_name')} /></Field>
       <Field label="Name *"><input required value={form.name} onChange={upd('name')} /></Field>
       <Field label="Title"><input value={form.title || ''} onChange={upd('title')} /></Field>
+      <Field label="Buying role">
+        <select value={form.contact_role || ''} onChange={upd('contact_role')}>
+          <option value="">--</option>
+          {meta.contact_roles.map((r) => <option key={r} value={r}>{CONTACT_ROLE_LABELS[r] || r}</option>)}
+        </select>
+      </Field>
       <Field label="Primary email"><input type="email" value={form.email || ''} onChange={upd('email')} /></Field>
       <Field label="Secondary email"><input type="email" value={form.email_2 || ''} onChange={upd('email_2')} /></Field>
       <Field label="Direct phone"><input value={form.phone_direct || ''} onChange={upd('phone_direct')} /></Field>
@@ -71,6 +81,12 @@ export function ContactForm({ initial = {}, onSubmit, submitLabel = 'Save' }) {
           {meta.lead_statuses.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </Field>
+      <div className="form-grid-wide suppression-fields">
+        <label><input type="checkbox" checked={!!form.replied} onChange={chk('replied')} /> Replied</label>
+        <label><input type="checkbox" checked={!!form.do_not_contact} onChange={chk('do_not_contact')} /> Do not contact</label>
+        <label><input type="checkbox" checked={!!form.not_interested} onChange={chk('not_interested')} /> Not interested</label>
+        <label><input type="checkbox" checked={!!form.bad_fit} onChange={chk('bad_fit')} /> Bad fit</label>
+      </div>
       <div className="form-actions"><button className="btn primary" type="submit">{submitLabel}</button></div>
     </form>
   );
@@ -128,6 +144,8 @@ export default function ContactDrawer({ contact, onClose }) {
         <div className="contact-info">
           <div>
             <div className="muted">{contact.title || 'No title'}</div>
+            {contact.contact_role && <div><span className="chip role-chip">{CONTACT_ROLE_LABELS[contact.contact_role] || contact.contact_role}</span></div>}
+            {isSuppressed(contact) && <div><span className="chip danger-chip">Suppressed contact</span></div>}
             {contact.email && <div><a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
             {contact.email_2 && <div><a href={`mailto:${contact.email_2}`}>{contact.email_2}</a></div>}
             {contact.phone_direct && <div><span className="muted small">Direct: </span><PhoneLink phone={contact.phone_direct} contactId={contact.id} companyId={contact.company_id} contactName={contact.name} /></div>}

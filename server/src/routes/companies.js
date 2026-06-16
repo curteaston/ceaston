@@ -1,15 +1,33 @@
 import { Router } from 'express';
 import { query, touchCompany } from '../db.js';
-import { h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES } from '../util.js';
+import {
+  h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES,
+  TARGET_TIERS, BUYING_COMMITTEE_STATUSES,
+} from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
 
-const COMPANY_FIELDS = ['name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website', 'phone', 'owner', 'lifecycle_stage', 'city', 'state', 'lead_status', 'type', 'postal_code', 'annual_revenue', 'timezone', 'description'];
+const COMPANY_FIELDS = [
+  'name', 'domain', 'industry', 'employee_count', 'ad_spend_range', 'website', 'phone',
+  'owner', 'lifecycle_stage', 'city', 'state', 'lead_status', 'type', 'postal_code',
+  'annual_revenue', 'timezone', 'description', 'target_tier', 'source', 'campaign',
+  'last_touch_channel', 'next_step', 'buying_committee_status', 'do_not_contact',
+  'replied', 'not_interested', 'bad_fit', 'suppression_reason',
+];
 
 function validateLifecycle(stage) {
   if (stage && !LIFECYCLE_STAGES.includes(stage)) {
     throw badRequest(`lifecycle_stage must be one of: ${LIFECYCLE_STAGES.join(', ')}`);
+  }
+}
+
+function validateProspectingFields(b) {
+  if (b.target_tier && !TARGET_TIERS.includes(b.target_tier)) {
+    throw badRequest(`target_tier must be one of: ${TARGET_TIERS.join(', ')}`);
+  }
+  if (b.buying_committee_status && !BUYING_COMMITTEE_STATUSES.includes(b.buying_committee_status)) {
+    throw badRequest(`buying_committee_status must be one of: ${BUYING_COMMITTEE_STATUSES.join(', ')}`);
   }
 }
 
@@ -92,6 +110,19 @@ router.get('/', h(async (req, res) => {
   if (q.revenue_min) add('co.annual_revenue >= ?', Number(q.revenue_min));
   if (q.revenue_max) add('co.annual_revenue <= ?', Number(q.revenue_max));
   if (q.lead_status) add('co.lead_status = ?', q.lead_status);
+  if (q.target_tier) add('co.target_tier = ?', q.target_tier);
+  if (q.source) add('co.source ILIKE ?', `%${q.source}%`);
+  if (q.campaign) add('co.campaign ILIKE ?', `%${q.campaign}%`);
+  if (q.last_touch_channel) add('co.last_touch_channel = ?', q.last_touch_channel);
+  if (q.buying_committee_status) add('co.buying_committee_status = ?', q.buying_committee_status);
+  if (q.do_not_contact === 'true') where.push('co.do_not_contact');
+  if (q.suppressed === 'true') where.push('(co.do_not_contact OR co.not_interested OR co.bad_fit)');
+  if (q.suppressed === 'false') where.push('NOT (co.do_not_contact OR co.not_interested OR co.bad_fit)');
+  if (q.replied === 'true') where.push('co.replied');
+  if (q.not_interested === 'true') where.push('co.not_interested');
+  if (q.bad_fit === 'true') where.push('co.bad_fit');
+  if (q.next_step) add('co.next_step ILIKE ?', `%${q.next_step}%`);
+  if (q.needs_next_action === 'true') where.push(`NOT (co.do_not_contact OR co.not_interested OR co.bad_fit) AND (co.next_step IS NULL OR co.next_step = '')`);
   if (q.has_phone === 'true') where.push(`(co.phone IS NOT NULL AND co.phone <> '')`);
   if (q.description) add('co.description ILIKE ?', `%${q.description}%`);
   if (q.domain) add('co.domain ILIKE ?', `%${q.domain}%`);
@@ -128,7 +159,16 @@ router.get('/', h(async (req, res) => {
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const sortable = { name: 'co.name', created_at: 'co.created_at', last_activity_at: 'co.last_activity_at', employee_count: 'co.employee_count', owner: 'co.owner', lifecycle_stage: 'co.lifecycle_stage' };
+  const sortable = {
+    name: 'co.name',
+    created_at: 'co.created_at',
+    last_activity_at: 'co.last_activity_at',
+    employee_count: 'co.employee_count',
+    owner: 'co.owner',
+    lifecycle_stage: 'co.lifecycle_stage',
+    target_tier: 'co.target_tier',
+    buying_committee_status: 'co.buying_committee_status',
+  };
   const sort = sortable[q.sort] || 'co.last_activity_at';
   const order = q.order === 'asc' ? 'ASC' : 'DESC';
   const limit = Math.min(toInt(q.limit) || 100, 500);
@@ -165,15 +205,20 @@ router.post('/bulk', h(async (req, res) => {
     if (patch?.lifecycle_stage && !LIFECYCLE_STAGES.includes(patch.lifecycle_stage)) {
       throw badRequest('Invalid lifecycle_stage');
     }
+    validateProspectingFields(patch || {});
     const sets = [];
     const values = [];
-    for (const col of ['owner', 'lifecycle_stage']) {
+    for (const col of [
+      'owner', 'lifecycle_stage', 'target_tier', 'source', 'campaign', 'last_touch_channel',
+      'next_step', 'buying_committee_status', 'do_not_contact', 'replied', 'not_interested',
+      'bad_fit', 'suppression_reason',
+    ]) {
       if (patch && Object.prototype.hasOwnProperty.call(patch, col)) {
         values.push(patch[col] === '' ? null : patch[col]);
         sets.push(`${col} = $${values.length}`);
       }
     }
-    if (!sets.length) throw badRequest('patch must include owner and/or lifecycle_stage');
+    if (!sets.length) throw badRequest('patch did not include updatable fields');
     values.push(ids);
     const { rowCount } = await query(
       `UPDATE companies SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[])`,
@@ -232,11 +277,27 @@ router.post('/', h(async (req, res) => {
   const b = req.body;
   if (!b.name) throw badRequest('name is required');
   validateLifecycle(b.lifecycle_stage);
+  validateProspectingFields(b);
   const { rows } = await query(
-    `INSERT INTO companies (name, domain, industry, employee_count, ad_spend_range, website, owner, lifecycle_stage)
-     VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, coalesce($8, 'lead')) RETURNING *`,
+    `INSERT INTO companies (
+       name, domain, industry, employee_count, ad_spend_range, website, phone, owner, lifecycle_stage,
+       city, state, lead_status, type, postal_code, annual_revenue, timezone, description,
+       target_tier, source, campaign, last_touch_channel, next_step, buying_committee_status,
+       do_not_contact, replied, not_interested, bad_fit, suppression_reason
+     )
+     VALUES (
+       $1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, $8, coalesce($9, 'lead'),
+       $10, $11, $12, $13, $14, $15, $16, $17,
+       $18, $19, $20, $21, $22, coalesce($23, 'unknown'),
+       coalesce($24, false), coalesce($25, false), coalesce($26, false), coalesce($27, false), $28
+     ) RETURNING *`,
     [b.name, b.domain || null, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
-     b.website || null, b.owner || null, b.lifecycle_stage || null]
+     b.website || null, b.phone || null, b.owner || null, b.lifecycle_stage || null,
+     b.city || null, b.state || null, b.lead_status || null, b.type || null, b.postal_code || null,
+     b.annual_revenue ?? null, b.timezone || null, b.description || null,
+     b.target_tier || null, b.source || null, b.campaign || null, b.last_touch_channel || null,
+     b.next_step || null, b.buying_committee_status || null,
+     b.do_not_contact, b.replied, b.not_interested, b.bad_fit, b.suppression_reason || null]
   );
   emit('company.created', { company: rows[0] });
   res.status(201).json(rows[0]);
@@ -244,6 +305,7 @@ router.post('/', h(async (req, res) => {
 
 router.patch('/:id', h(async (req, res) => {
   validateLifecycle(req.body.lifecycle_stage);
+  validateProspectingFields(req.body);
   const upd = buildUpdate('companies', req.params.id, req.body, COMPANY_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
   const { rows } = await query(upd.text, upd.values);

@@ -8,6 +8,7 @@ import { CompanySelect, Field, PhoneLink } from '../components/widgets.jsx';
 import SavedViews from '../components/SavedViews.jsx';
 import { fmtDate, fmtDateTime, relTime } from '../format.js';
 import FilterDrawer, { FilterSection } from '../components/FilterDrawer.jsx';
+import { CONTACT_ROLE_LABELS, isSuppressed } from '../prospecting.js';
 
 const ALL_COLUMNS = [
   { key: 'name', label: 'Name', sort: 'name', always: true },
@@ -20,6 +21,8 @@ const ALL_COLUMNS = [
   { key: 'phone_cell', label: 'Cell Phone' },
   { key: 'phone_other', label: 'Other Phone' },
   { key: 'title', label: 'Title', sort: 'title' },
+  { key: 'contact_role', label: 'Buying Role', sort: 'contact_role' },
+  { key: 'suppression', label: 'Suppression' },
   { key: 'owner', label: 'Contact Owner', sort: 'owner' },
   { key: 'company', label: 'Primary Company', sort: 'company_name' },
   { key: 'last_contacted_at', label: 'Last Activity Date', sort: 'last_contacted_at' },
@@ -27,7 +30,7 @@ const ALL_COLUMNS = [
   { key: 'source', label: 'Source' },
   { key: 'created_at', label: 'Create Date', sort: 'created_at' },
 ];
-const DEFAULT_VISIBLE = ['name', 'email', 'phone', 'owner', 'company', 'last_contacted_at', 'lead_status'];
+const DEFAULT_VISIBLE = ['name', 'contact_role', 'email', 'phone', 'owner', 'company', 'last_contacted_at', 'lead_status', 'suppression'];
 
 const LEAD_STATUSES = ['New', 'Working', 'Open', 'Qualified', 'Unqualified', 'Attempted to Contact', 'Connected', 'Bad Timing'];
 
@@ -45,7 +48,7 @@ const TIMEZONES = [
 const BLANK_FILTERS = {
   owner: '', unassigned: false,
   lead_statuses: [],
-  source: '', title: '',
+  source: '', title: '', contact_role: '', suppressed: '',
   has_email: false, has_phone: false,
   never_contacted: false,
   inactive_days: '',
@@ -166,7 +169,7 @@ function AddContactModal({ onClose, onSaved }) {
   const { run, meta } = useStore();
   const [companyId, setCompanyId] = useState('');
   const [form, setForm] = useState({
-    firstName: '', lastName: '', title: '',
+    firstName: '', lastName: '', title: '', contact_role: '',
     email: '', email_2: '',
     phone_direct: '', phone_cell: '', phone_other: '',
     source: '', owner: '', lead_status: 'new',
@@ -182,6 +185,7 @@ function AddContactModal({ onClose, onSaved }) {
         first_name: form.firstName || undefined,
         last_name: form.lastName || undefined,
         title: form.title || undefined,
+        contact_role: form.contact_role || undefined,
         email: form.email || undefined,
         email_2: form.email_2 || undefined,
         phone_direct: form.phone_direct || undefined,
@@ -204,6 +208,12 @@ function AddContactModal({ onClose, onSaved }) {
         <Field label="Last name"><input value={form.lastName} onChange={upd('lastName')} /></Field>
         <Field label="Company"><CompanyTypeahead value={companyId} onChange={setCompanyId} /></Field>
         <Field label="Title"><input value={form.title} onChange={upd('title')} /></Field>
+        <Field label="Buying role">
+          <select value={form.contact_role} onChange={upd('contact_role')}>
+            <option value="">--</option>
+            {meta.contact_roles.map((r) => <option key={r} value={r}>{CONTACT_ROLE_LABELS[r] || r}</option>)}
+          </select>
+        </Field>
         <Field label="Primary email"><input type="email" value={form.email} onChange={upd('email')} /></Field>
         <Field label="Secondary email"><input type="email" value={form.email_2} onChange={upd('email_2')} /></Field>
         <Field label="Direct phone"><input value={form.phone_direct} onChange={upd('phone_direct')} /></Field>
@@ -259,7 +269,7 @@ export default function Contacts() {
   const activeFilterCount = useMemo(() => [
     filters.owner, filters.unassigned,
     filters.lead_statuses.length > 0,
-    filters.source, filters.title,
+    filters.source, filters.title, filters.contact_role, filters.suppressed,
     filters.has_email, filters.has_phone,
     filters.never_contacted,
     filters.inactive_days, filters.last_contact_from, filters.last_contact_to,
@@ -283,6 +293,8 @@ export default function Contacts() {
     if (filters.lead_statuses.length) p.lead_status = filters.lead_statuses.join(',');
     if (filters.source.trim()) p.source = filters.source.trim();
     if (filters.title.trim()) p.title = filters.title.trim();
+    if (filters.contact_role) p.contact_role = filters.contact_role;
+    if (filters.suppressed) p.suppressed = filters.suppressed;
     if (filters.has_email) p.has_email = 'true';
     if (filters.has_phone) p.has_phone = 'true';
     if (filters.never_contacted) p.never_contacted = 'true';
@@ -442,6 +454,8 @@ export default function Contacts() {
       case 'phone_cell': return c.phone_cell ? <PhoneLink phone={c.phone_cell} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
       case 'phone_other': return c.phone_other ? <PhoneLink phone={c.phone_other} contactId={c.id} companyId={c.company_id} contactName={c.name} /> : '--';
       case 'title': return c.title || '--';
+      case 'contact_role': return c.contact_role ? <span className="chip role-chip">{CONTACT_ROLE_LABELS[c.contact_role] || c.contact_role}</span> : '--';
+      case 'suppression': return isSuppressed(c) ? <span className="chip danger-chip">Suppressed</span> : <span className="chip ok-chip">Eligible</span>;
       case 'owner': return c.owner || <span className="muted">No owner</span>;
       case 'company':
         return (
@@ -472,7 +486,7 @@ export default function Contacts() {
 
   // Per-section active counts
   const sectionCounts = {
-    details: [filters.source, filters.title, filters.has_email, filters.has_phone, filters.email_contains, filters.phone_contains].filter(Boolean).length,
+    details: [filters.source, filters.title, filters.contact_role, filters.suppressed, filters.has_email, filters.has_phone, filters.email_contains, filters.phone_contains].filter(Boolean).length,
     ownership: [filters.owner, filters.unassigned].filter(Boolean).length,
     leadStatus: filters.lead_statuses.length > 0 ? 1 : 0,
     activity: [filters.never_contacted, filters.inactive_days, filters.last_contact_from, filters.last_contact_to].filter(Boolean).length,
@@ -639,8 +653,23 @@ export default function Contacts() {
               <input value={filters.title} onChange={(e) => setF({ title: e.target.value })} placeholder="e.g. Service Manager" />
             </div>
             <div className="fd-field">
+              <label>Buying role</label>
+              <select value={filters.contact_role} onChange={(e) => setF({ contact_role: e.target.value })}>
+                <option value="">Any role</option>
+                {meta.contact_roles.map((r) => <option key={r} value={r}>{CONTACT_ROLE_LABELS[r] || r}</option>)}
+              </select>
+            </div>
+            <div className="fd-field">
               <label>Source</label>
               <input value={filters.source} onChange={(e) => setF({ source: e.target.value })} placeholder="e.g. Website" />
+            </div>
+            <div className="fd-field">
+              <label>Suppression</label>
+              <select value={filters.suppressed} onChange={(e) => setF({ suppressed: e.target.value })}>
+                <option value="">Any</option>
+                <option value="false">Eligible only</option>
+                <option value="true">Suppressed only</option>
+              </select>
             </div>
             <div className="fd-field">
               <label>Email contains</label>

@@ -14,7 +14,7 @@ const TASK_SELECT = `
 
 // GET /api/home — everything the home screen needs in one payload.
 router.get('/', h(async (req, res) => {
-  const [meetings, tasksOpen, tasksCompleted, overdue, pastDueDeals, staleCompanies, recent] = await Promise.all([
+  const [meetings, tasksOpen, tasksCompleted, overdue, pastDueDeals, staleCompanies, nextActions, recent] = await Promise.all([
     query(
       `SELECT a.*, co.name AS company_name, ct.name AS contact_name
        FROM activities a
@@ -43,6 +43,37 @@ router.get('/', h(async (req, res) => {
          AND (co.last_activity_at IS NULL OR co.last_activity_at < now() - interval '14 days')
        ORDER BY co.last_activity_at NULLS FIRST LIMIT 10`),
     query(
+      `SELECT co.id, co.name, co.domain, co.target_tier, co.source, co.campaign,
+              co.next_step, co.buying_committee_status, co.last_activity_at,
+              co.last_touch_channel, co.owner,
+              (SELECT count(*) FROM contacts ct WHERE ct.company_id = co.id)::int AS contact_count,
+              (SELECT count(*) FROM contacts ct WHERE ct.company_id = co.id AND ct.contact_role IS NOT NULL)::int AS mapped_contacts,
+              (SELECT coalesce(json_agg(DISTINCT ct.contact_role) FILTER (WHERE ct.contact_role IS NOT NULL), '[]'::json)
+                 FROM contacts ct WHERE ct.company_id = co.id) AS roles,
+              (SELECT json_build_object('id', t.id, 'description', t.description, 'due_date', t.due_date, 'priority', t.priority)
+                 FROM tasks t
+                 WHERE (t.company_id = co.id OR t.contact_id IN (SELECT id FROM contacts WHERE company_id = co.id))
+                   AND NOT t.completed
+                 ORDER BY t.due_date NULLS LAST, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END
+                 LIMIT 1) AS next_task
+       FROM companies co
+       WHERE NOT (co.do_not_contact OR co.not_interested OR co.bad_fit)
+         AND co.lifecycle_stage NOT IN ('customer', 'evangelist')
+       ORDER BY
+         CASE co.target_tier WHEN 'tier_1' THEN 0 WHEN 'tier_2' THEN 1 WHEN 'tier_3' THEN 2 ELSE 3 END,
+         CASE
+           WHEN co.next_step IS NOT NULL AND co.next_step <> '' THEN 0
+           WHEN EXISTS (
+             SELECT 1 FROM tasks t
+             WHERE (t.company_id = co.id OR t.contact_id IN (SELECT id FROM contacts WHERE company_id = co.id))
+               AND NOT t.completed
+           ) THEN 1
+           WHEN co.last_activity_at IS NULL THEN 2
+           ELSE 3
+         END,
+         co.last_activity_at NULLS FIRST
+       LIMIT 12`),
+    query(
       `SELECT * FROM (
          SELECT 'note' AS kind, n.id, n.company_id, co.name AS company_name,
                 n.contact_id, ct.name AS contact_name, n.body, n.source,
@@ -67,6 +98,7 @@ router.get('/', h(async (req, res) => {
       past_due_deals: pastDueDeals.rows,
       stale_companies: staleCompanies.rows,
     },
+    next_actions: nextActions.rows,
     recent_activity: recent.rows,
   });
 }));
