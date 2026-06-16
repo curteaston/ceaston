@@ -1,8 +1,45 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { h, badRequest, normalizeDomain } from '../util.js';
+import {
+  h,
+  badRequest,
+  normalizeDomain,
+  LIFECYCLE_STAGES,
+  TARGET_TIERS,
+  BUYING_COMMITTEE_STATUSES,
+  CONTACT_ROLES,
+} from '../util.js';
 
 const router = Router();
+
+function cleanString(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
+function cleanEmail(value) {
+  return cleanString(value)?.toLowerCase() || null;
+}
+
+function cleanInteger(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.trunc(value) : null;
+  const digits = String(value).replace(/[^\d]/g, '');
+  if (!digits) return null;
+  const parsed = Number.parseInt(digits, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function cleanEnum(value, allowed) {
+  const text = cleanString(value);
+  if (!text) return null;
+  const normalized = text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return allowed.find((item) => item === normalized) || null;
+}
+
+function cleanLifecycle(value) {
+  return cleanEnum(value, LIFECYCLE_STAGES);
+}
 
 // POST /api/import — bulk seed prospect lists.
 router.post('/', h(async (req, res) => {
@@ -17,11 +54,26 @@ router.post('/', h(async (req, res) => {
   try {
     await client.query('BEGIN');
     for (const [i, c] of companies.entries()) {
-      if (!c || !c.name) {
+      const name = cleanString(c?.name);
+      if (!c || !name) {
         summary.skipped.push({ index: i, reason: 'missing company name' });
         continue;
       }
-      const domain = normalizeDomain(c.domain || c.website);
+      const domain = normalizeDomain(cleanString(c.domain) || cleanString(c.website));
+      const employeeCount = cleanInteger(c.employee_count);
+      const companyFields = {
+        name,
+        industry: cleanString(c.industry),
+        ad_spend_range: cleanString(c.ad_spend_range),
+        website: cleanString(c.website),
+        lifecycle_stage: cleanLifecycle(c.lifecycle_stage),
+        phone: cleanString(c.phone),
+        target_tier: cleanEnum(c.target_tier, TARGET_TIERS),
+        source: cleanString(c.source),
+        campaign: cleanString(c.campaign),
+        buying_committee_status: cleanEnum(c.buying_committee_status, BUYING_COMMITTEE_STATUSES),
+        next_step: cleanString(c.next_step),
+      };
       let company;
       if (domain) {
         ({ rows: [company] } = await client.query(
@@ -29,12 +81,12 @@ router.post('/', h(async (req, res) => {
       }
       if (!company) {
         ({ rows: [company] } = await client.query(
-          'SELECT * FROM companies WHERE lower(name) = lower($1)', [c.name]));
+          'SELECT * FROM companies WHERE lower(name) = lower($1)', [name]));
       }
       if (company?.archived_at) {
         summary.skipped.push({
           index: i,
-          name: c.name,
+          name,
           reason: 'archived company exists; restore it before importing updates',
         });
         continue;
@@ -53,12 +105,12 @@ router.post('/', h(async (req, res) => {
              buying_committee_status = coalesce($13, buying_committee_status),
              next_step = coalesce($14, next_step)
            WHERE id = $1 RETURNING *`,
-          [company.id, c.name, domain,
-           c.industry || null,
-           c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
-           c.lifecycle_stage || null, c.phone || null, c.target_tier || null,
-           c.source || null, c.campaign || null, c.buying_committee_status || null,
-           c.next_step || null]));
+          [company.id, companyFields.name, domain,
+           companyFields.industry,
+           employeeCount, companyFields.ad_spend_range, companyFields.website,
+           companyFields.lifecycle_stage, companyFields.phone, companyFields.target_tier,
+           companyFields.source, companyFields.campaign, companyFields.buying_committee_status,
+           companyFields.next_step]));
         summary.companies_updated++;
       } else {
         ({ rows: [company] } = await client.query(
@@ -68,26 +120,40 @@ router.post('/', h(async (req, res) => {
            )
           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, coalesce($7, 'lead'), $8,
                    $9, $10, $11, coalesce($12, 'unknown'), $13) RETURNING *`,
-          [c.name, domain, c.industry || null,
-           c.employee_count ?? null, c.ad_spend_range || null, c.website || null,
-           c.lifecycle_stage || null, c.phone || null, c.target_tier || null,
-           c.source || null, c.campaign || null, c.buying_committee_status || null,
-           c.next_step || null]));
+          [companyFields.name, domain, companyFields.industry,
+           employeeCount, companyFields.ad_spend_range, companyFields.website,
+           companyFields.lifecycle_stage, companyFields.phone, companyFields.target_tier,
+           companyFields.source, companyFields.campaign, companyFields.buying_committee_status,
+           companyFields.next_step]));
         summary.companies_created++;
       }
 
-      for (const ct of c.contacts || []) {
-        if (!ct || !ct.name) continue;
+      for (const ct of Array.isArray(c.contacts) ? c.contacts : []) {
+        const contactName = cleanString(ct?.name) || [cleanString(ct?.first_name), cleanString(ct?.last_name)].filter(Boolean).join(' ') || null;
+        if (!ct || !contactName) continue;
+        const contactFields = {
+          name: contactName,
+          first_name: cleanString(ct.first_name),
+          last_name: cleanString(ct.last_name),
+          title: cleanString(ct.title),
+          contact_role: cleanEnum(ct.contact_role, CONTACT_ROLES),
+          email: cleanEmail(ct.email),
+          email_2: cleanEmail(ct.email_2),
+          phone_direct: cleanString(ct.phone_direct),
+          phone_cell: cleanString(ct.phone_cell),
+          phone_other: cleanString(ct.phone_other),
+          source: cleanString(ct.source),
+        };
         let existing;
-        if (ct.email) {
+        if (contactFields.email) {
           ({ rows: [existing] } = await client.query(
             'SELECT id FROM contacts WHERE company_id = $1 AND lower(email) = lower($2)',
-            [company.id, ct.email]));
+            [company.id, contactFields.email]));
         }
         if (!existing) {
           ({ rows: [existing] } = await client.query(
             'SELECT id FROM contacts WHERE company_id = $1 AND lower(name) = lower($2)',
-            [company.id, ct.name]));
+            [company.id, contactFields.name]));
         }
         if (existing) {
           await client.query(
@@ -101,12 +167,12 @@ router.post('/', h(async (req, res) => {
                source = coalesce($11, source)
              WHERE id = $1`,
             [existing.id,
-             ct.first_name || null, ct.last_name || null,
-             ct.title || null,
-             ct.contact_role || null,
-             ct.email || null, ct.email_2 || null,
-             ct.phone_direct || null, ct.phone_cell || null, ct.phone_other || null,
-             ct.source || null]);
+             contactFields.first_name, contactFields.last_name,
+             contactFields.title,
+             contactFields.contact_role,
+             contactFields.email, contactFields.email_2,
+             contactFields.phone_direct, contactFields.phone_cell, contactFields.phone_other,
+             contactFields.source]);
           summary.contacts_updated++;
         } else {
           await client.query(
@@ -114,13 +180,13 @@ router.post('/', h(async (req, res) => {
                (company_id, name, first_name, last_name, title, contact_role, email, email_2,
                 phone_direct, phone_cell, phone_other, source)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-            [company.id, ct.name,
-             ct.first_name || null, ct.last_name || null,
-             ct.title || null,
-             ct.contact_role || null,
-             ct.email || null, ct.email_2 || null,
-             ct.phone_direct || null, ct.phone_cell || null, ct.phone_other || null,
-             ct.source || null]);
+            [company.id, contactFields.name,
+             contactFields.first_name, contactFields.last_name,
+             contactFields.title,
+             contactFields.contact_role,
+             contactFields.email, contactFields.email_2,
+             contactFields.phone_direct, contactFields.phone_cell, contactFields.phone_other,
+             contactFields.source]);
           summary.contacts_created++;
         }
       }
