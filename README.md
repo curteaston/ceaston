@@ -293,17 +293,19 @@ enrollment. The auto-email scheduler runs in-process every 5 minutes.
 
 ## Importing data
 
-The **Bulk import** page accepts a **CSV or Excel (`.xlsx`/`.xls`) file** — or pasted
+The **Bulk import** page accepts a **CSV or Excel (`.xlsx`) file** — or pasted
 rows — with **whatever column names your spreadsheet already uses**. After upload you
 map each of your columns to a CRM field; the importer auto-guesses the obvious matches
 (e.g. "Business"→Company name, "# Staff"→Employee count) and you adjust the rest. Only
 **Company name** must be mapped.
 
-Mappable fields — company: name (required), domain, website, industry, employee_count,
-ad_spend_range, owner, lifecycle_stage · contact: contact_name, contact_title,
-contact_email, contact_phone, contact_source. Repeat a company across rows to attach
-multiple contacts. Companies are matched by domain (then name) and updated rather than
-duplicated, so re-importing an enriched list is safe.
+Legacy `.xls` files are not supported; save them as `.xlsx` or CSV before importing.
+
+Mappable fields — company: name (required), website, industry, employee_count,
+ad_spend_range, lifecycle_stage, company_phone · contact: first_name, last_name,
+title, primary_email, secondary_email, direct_phone, cell_phone, other_phone,
+source. Repeat a company across rows to attach multiple contacts. Companies are matched
+by name and updated rather than duplicated, so re-importing an enriched list is safe.
 
 The underlying `POST /api/import` endpoint takes a pre-shaped JSON payload (see the API
 table above) and is what n8n should call directly; the mapping step is a convenience in

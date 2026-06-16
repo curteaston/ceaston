@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { api } from '../api.js';
+import { gridToTable, nonEmptyRows, parseCsv } from '../importParsing.js';
 import { useStore, LIFECYCLE_LABELS } from '../store.js';
 
 // CRM target fields the importer can fill. `group` drives the section headings.
@@ -40,43 +41,6 @@ function autoMap(headers) {
     }
   }
   return mapping;
-}
-
-// Parse CSV text -> { headers, rows }. Handles quoted fields.
-function parseCsv(text) {
-  const grid = [];
-  let row = [];
-  let cell = '';
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
-      else if (ch === '"') inQuotes = false;
-      else cell += ch;
-    } else if (ch === '"') inQuotes = true;
-    else if (ch === ',') { row.push(cell); cell = ''; }
-    else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i++;
-      row.push(cell); cell = '';
-      if (row.some((c) => c.trim() !== '')) grid.push(row);
-      row = [];
-    } else cell += ch;
-  }
-  row.push(cell);
-  if (row.some((c) => c.trim() !== '')) grid.push(row);
-  if (!grid.length) return { headers: [], rows: [] };
-  return gridToTable(grid);
-}
-
-function gridToTable(grid) {
-  const headers = grid[0].map((h, i) => String(h).trim() || `Column ${i + 1}`);
-  const rows = grid.slice(1).map((r) => {
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = r[i] != null ? String(r[i]).trim() : ''; });
-    return obj;
-  });
-  return { headers, rows };
 }
 
 // Group consecutive rows by company name into the import payload.
@@ -160,7 +124,7 @@ export default function Import() {
       if (/\.xlsx$/i.test(file.name)) {
         const { default: readXlsxFile } = await import('read-excel-file/browser');
         const grid = await readXlsxFile(file);
-        startMapping(gridToTable(grid.filter((r) => r.some((c) => String(c ?? '').trim() !== ''))), file.name);
+        startMapping(gridToTable(nonEmptyRows(grid)), file.name);
       } else if (/\.xls$/i.test(file.name)) {
         setError('Legacy .xls files are not supported. Save the sheet as .xlsx or CSV and upload again.');
       } else {

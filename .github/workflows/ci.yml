@@ -45,8 +45,14 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
+      - name: Dependency audit
+        run: npm run audit
+
       - name: Syntax check
         run: npm run check:syntax
+
+      - name: Import parser smoke
+        run: npm run test:import
 
       - name: Build client
         run: npm run build

@@ -6,6 +6,7 @@
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",
     "ci:install": "npm --prefix server ci && npm --prefix client ci",
+    "audit": "npm --prefix server audit --audit-level=high && npm --prefix client audit --audit-level=high",
     "check:syntax": "node scripts/check-js.mjs",
     "dev:local": "scripts\\start-local-dev.cmd",
     "dev:local:stop": "scripts\\stop-local-dev.cmd",
@@ -14,6 +15,7 @@
     "test:local:api": "node scripts/smoke-local-api.mjs",
     "test:local:browser": "node scripts/smoke-local-browser.mjs",
     "test:local:workflow": "node scripts/smoke-sequence-workflow.mjs",
+    "test:import": "npm --prefix client run test:import",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
