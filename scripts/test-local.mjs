@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'child_process';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
+import { createConnection, createServer } from 'net';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { normalizeHttpBase, resolveUiBase, servesAppShell } from './local-smoke-env.mjs';
@@ -7,11 +8,19 @@ import { normalizeHttpBase, resolveUiBase, servesAppShell } from './local-smoke-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const isWindows = process.platform === 'win32';
 
-const apiBase = normalizeHttpBase(process.env.CRM_API_URL || process.env.CRM_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`);
-const apiPort = new URL(apiBase).port || (apiBase.startsWith('https:') ? '443' : '80');
-const databaseUrl = process.env.DATABASE_URL || `postgres://${process.env.LOCAL_CRM_DBUSER || 'crm'}@127.0.0.1:${process.env.LOCAL_CRM_PGPORT || '55432'}/${process.env.LOCAL_CRM_DB || 'hvac_crm'}`;
+const defaultDatabaseUrl = `postgres://${process.env.LOCAL_CRM_DBUSER || 'crm'}@127.0.0.1:${process.env.LOCAL_CRM_PGPORT || '55432'}/${process.env.LOCAL_CRM_DB || 'hvac_crm'}`;
+const baseDatabaseUrl = process.env.LOCAL_CRM_TEST_DATABASE_URL || process.env.DATABASE_URL || defaultDatabaseUrl;
+const requestedApiBase = normalizeHttpBase(process.env.CRM_API_URL || process.env.CRM_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`);
+const apiBaseExplicit = Boolean(process.env.CRM_API_URL || process.env.CRM_URL || process.env.LOCAL_CRM_API_PORT);
 const buildClient = process.env.LOCAL_CRM_TEST_BUILD !== '0';
+const isolatedMode = process.env.LOCAL_CRM_TEST_ISOLATION !== '0';
+const keepTestDb = process.env.LOCAL_CRM_TEST_KEEP_DB === '1';
+const pgBin = process.env.PG_BIN || (isWindows ? 'C:\\Program Files\\PostgreSQL\\18\\bin' : '');
 
+let apiBase = requestedApiBase;
+let apiPort = portFromHttpBase(apiBase);
+let databaseUrl = baseDatabaseUrl;
+let testDatabaseName = null;
 let startedApi = null;
 let shuttingDown = false;
 
@@ -47,8 +56,9 @@ function runSync(command, args, options = {}) {
     stdio: options.stdio || 'inherit',
     timeout: options.timeoutMs || 120000,
   });
-  if (result.status === 0) return;
-  const detail = result.error?.message || `exit code ${result.status}`;
+  if (result.status === 0 || options.allowFailure) return result;
+  const output = `${result.stdout || ''}${result.stderr || ''}${result.error?.message || ''}`.trim();
+  const detail = output || `exit code ${result.status}`;
   throw new Error(`${options.label || command} failed: ${detail}`);
 }
 
@@ -64,6 +74,174 @@ function runNodeScript(script, args = [], env = {}) {
     timeoutMs: 180000,
     label: script,
   });
+}
+
+function portFromHttpBase(value) {
+  const url = new URL(value);
+  if (url.port) return url.port;
+  return url.protocol === 'https:' ? '443' : '80';
+}
+
+function redactDatabaseUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.password) url.password = '***';
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function findOnPath(command) {
+  const names = isWindows && !command.toLowerCase().endsWith('.exe')
+    ? [`${command}.exe`, command]
+    : [command];
+  const pathValue = process.env.PATH || process.env.Path || '';
+  const dirs = pathValue.split(isWindows ? ';' : ':').filter(Boolean);
+  for (const dir of dirs) {
+    for (const name of names) {
+      const candidate = join(dir, name);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+function findPgTool(name) {
+  const exe = isWindows && !name.endsWith('.exe') ? `${name}.exe` : name;
+  if (pgBin) {
+    const fromPgBin = join(pgBin, exe);
+    if (existsSync(fromPgBin)) return fromPgBin;
+  }
+  return findOnPath(name);
+}
+
+function parseDatabaseUrl(value) {
+  const url = new URL(value);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+    throw new Error(`DATABASE_URL must use postgres:// or postgresql://, got ${url.protocol}`);
+  }
+  return {
+    host: url.hostname || '127.0.0.1',
+    port: url.port || '5432',
+    user: decodeURIComponent(url.username || ''),
+    password: decodeURIComponent(url.password || ''),
+    database: decodeURIComponent(url.pathname.replace(/^\//, '') || 'postgres'),
+  };
+}
+
+function databaseUrlForName(value, databaseName) {
+  const url = new URL(value);
+  url.pathname = `/${encodeURIComponent(databaseName)}`;
+  return url.toString();
+}
+
+function quoteIdentifier(value) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) throw new Error(`Unsafe SQL identifier: ${value}`);
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function sqlLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function runPsql(database, sql, options = {}) {
+  const psql = findPgTool('psql');
+  if (!psql) throw new Error('Could not find psql. Set PG_BIN or add PostgreSQL bin to PATH for isolated local tests.');
+
+  const spec = parseDatabaseUrl(baseDatabaseUrl);
+  const args = [
+    '-v', 'ON_ERROR_STOP=1',
+    '-h', spec.host,
+    '-p', spec.port,
+    '-d', database,
+    '-tAc', sql,
+  ];
+  if (spec.user) args.splice(6, 0, '-U', spec.user);
+  return runSync(psql, args, {
+    ...options,
+    stdio: options.stdio || 'pipe',
+    env: {
+      ...(spec.password ? { PGPASSWORD: spec.password } : {}),
+      ...(options.env || {}),
+    },
+  });
+}
+
+async function findFreePort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+async function canConnect(port) {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host: '127.0.0.1', port: Number(port), timeout: 1000 });
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once('error', () => resolve(false));
+  });
+}
+
+async function configureIsolatedTarget() {
+  testDatabaseName = `hvac_crm_test_${Date.now()}_${process.pid}`;
+  databaseUrl = databaseUrlForName(baseDatabaseUrl, testDatabaseName);
+
+  if (apiBaseExplicit) {
+    apiPort = portFromHttpBase(apiBase);
+    if (await canConnect(apiPort)) {
+      throw new Error(
+        `Isolated local tests cannot use ${apiBase} because that port is already occupied. ` +
+        'Unset CRM_API_URL/LOCAL_CRM_API_PORT or set LOCAL_CRM_TEST_ISOLATION=0 to test the running app deliberately.',
+      );
+    }
+  } else {
+    apiPort = String(await findFreePort());
+    apiBase = `http://127.0.0.1:${apiPort}`;
+  }
+}
+
+function createTestDatabase() {
+  if (!testDatabaseName) return;
+  console.log(`Creating isolated test database ${testDatabaseName}...`);
+  runPsql('postgres', `CREATE DATABASE ${quoteIdentifier(testDatabaseName)}`, {
+    label: 'create isolated test database',
+  });
+}
+
+function dropTestDatabase() {
+  if (!testDatabaseName) return;
+  if (!testDatabaseName.startsWith('hvac_crm_test_')) {
+    throw new Error(`Refusing to drop unexpected database name ${testDatabaseName}`);
+  }
+  if (keepTestDb) {
+    console.log(`Keeping isolated test database ${testDatabaseName} because LOCAL_CRM_TEST_KEEP_DB=1.`);
+    return;
+  }
+
+  console.log(`Dropping isolated test database ${testDatabaseName}...`);
+  runPsql('postgres', `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = ${sqlLiteral(testDatabaseName)} AND pid <> pg_backend_pid()`, {
+    allowFailure: true,
+    label: 'terminate isolated test database connections',
+    timeoutMs: 15000,
+  });
+  runPsql('postgres', `DROP DATABASE IF EXISTS ${quoteIdentifier(testDatabaseName)} WITH (FORCE)`, {
+    allowFailure: true,
+    label: 'drop isolated test database',
+    timeoutMs: 30000,
+  });
+  console.log(`Dropped isolated test database ${testDatabaseName}.`);
 }
 
 function prefixStream(stream, name, writer) {
@@ -82,7 +260,8 @@ function prefixStream(stream, name, writer) {
 }
 
 function startApi() {
-  console.log(`API is not running at ${apiBase}; starting single-port local API for tests.`);
+  const mode = isolatedMode ? 'isolated single-port API' : 'single-port local API';
+  console.log(`Starting ${mode} for tests at ${apiBase}.`);
   const child = spawn(process.execPath, [join(root, 'scripts', 'start-local-view.mjs')], {
     cwd: root,
     env: makeEnv({
@@ -104,16 +283,27 @@ function startApi() {
   startedApi = child;
 }
 
-function stopStartedServices() {
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function stopStartedServices() {
   shuttingDown = true;
   if (!startedApi || startedApi.exitCode !== null || startedApi.signalCode) return;
+  const child = startedApi;
+  const exited = new Promise((resolve) => child.once('exit', resolve));
   if (isWindows) {
-    spawnSync('taskkill', ['/PID', String(startedApi.pid), '/T', '/F'], {
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
       stdio: 'ignore',
     });
   } else {
-    startedApi.kill('SIGTERM');
+    child.kill('SIGTERM');
   }
+  await Promise.race([exited, delay(5000)]);
+  child.stdout?.destroy();
+  child.stderr?.destroy();
+  child.removeAllListeners();
+  startedApi = null;
 }
 
 async function getJson(url) {
@@ -152,7 +342,7 @@ async function waitForApi(timeoutMs = 30000) {
 }
 
 async function ensureApi() {
-  if (await apiHealthy()) {
+  if (!isolatedMode && await apiHealthy()) {
     console.log(`Using running API at ${apiBase}.`);
     return;
   }
@@ -161,19 +351,24 @@ async function ensureApi() {
 }
 
 async function ensureUi() {
-  const uiBase = await resolveUiBase({ apiBase });
+  const uiBase = isolatedMode ? apiBase : await resolveUiBase({ apiBase });
   if (!(await servesAppShell(uiBase))) {
-    throw new Error(`Client shell was not reachable at ${uiBase}. Run npm run dev:local, npm run start:local, or check the API logs.`);
+    throw new Error(`Client shell was not reachable at ${uiBase}. Check the API logs.`);
   }
   return uiBase;
 }
 
-process.on('SIGINT', () => {
-  stopStartedServices();
+async function cleanup() {
+  await stopStartedServices();
+  if (isolatedMode) dropTestDatabase();
+}
+
+process.on('SIGINT', async () => {
+  await cleanup();
   process.exit(130);
 });
-process.on('SIGTERM', () => {
-  stopStartedServices();
+process.on('SIGTERM', async () => {
+  await cleanup();
   process.exit(143);
 });
 
@@ -181,6 +376,11 @@ try {
   if (buildClient) {
     console.log('Building client before local smoke tests...');
     runNpm(['--prefix', 'client', 'run', 'build'], { timeoutMs: 180000, label: 'client build' });
+  }
+
+  if (isolatedMode) {
+    await configureIsolatedTarget();
+    createTestDatabase();
   }
 
   await ensureApi();
@@ -202,8 +402,10 @@ try {
 
   console.log('');
   console.log('Running local smoke suite.');
-  console.log(`API: ${apiBase}`);
-  console.log(`UI:  ${uiBase}`);
+  console.log(`Mode: ${isolatedMode ? 'isolated disposable database' : 'existing configured database'}`);
+  console.log(`API:  ${apiBase}`);
+  console.log(`UI:   ${uiBase}`);
+  console.log(`DB:   ${redactDatabaseUrl(databaseUrl)}`);
   console.log('');
 
   runNodeScript('scripts/smoke-local-api.mjs', [], smokeEnv);
@@ -218,5 +420,6 @@ try {
   console.error(`Local smoke suite failed: ${err.message}`);
   process.exitCode = 1;
 } finally {
-  stopStartedServices();
+  await cleanup();
+  process.exit(process.exitCode || 0);
 }
