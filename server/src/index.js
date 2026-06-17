@@ -26,6 +26,7 @@ import reports from './routes/reports.js';
 import tags from './routes/tags.js';
 import emailTemplates from './routes/email_templates.js';
 import dataExport from './routes/data_export.js';
+import audit from './routes/audit.js';
 import { authRouter, requireAuth } from './auth.js';
 
 const app = express();
@@ -93,6 +94,7 @@ app.use('/api/reports', reports);
 app.use('/api/tags', tags);
 app.use('/api/email-templates', emailTemplates);
 app.use('/api/export', dataExport);
+app.use('/api/audit', audit);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown API route' }));
 

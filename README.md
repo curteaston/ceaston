@@ -130,14 +130,112 @@ initialization and uses that database for the API process.
 `npm run test:local` builds the client, creates a disposable Postgres database,
 starts a temporary single-port API on a free local port, seeds known demo data,
 runs API, browser, sequence workflow, and backup/restore recovery smokes, then
-drops the disposable database. It does not use the working `hvac_crm` database
-you may be inspecting in DBeaver unless you explicitly opt out. Set
+drops the disposable database. It does not use the configured working CRM
+database (default `hvac_crm`) unless you explicitly opt out. Set
 `LOCAL_CRM_TEST_BUILD=0` to skip the pre-smoke client build when you know
 `client/dist` is already fresh. Set `LOCAL_CRM_TEST_KEEP_DB=1` to keep the
 disposable database after a failed run for inspection, or
 `LOCAL_CRM_TEST_ISOLATION=0` to deliberately run smokes against the configured
 database. If Edge or Chrome is installed somewhere unusual, set
 `CRM_BROWSER_BIN` to the browser executable path.
+
+## Database change control
+
+The app applies tracked SQL migrations on startup. The current baseline is
+`server/src/schema.sql`, recorded as migration `001_bootstrap_schema` in the
+`crm_schema_migrations` table. After that baseline has been applied to a
+database, do not edit it for normal changes. Add future schema changes as new
+files in `server/src/migrations/` named like `002_add_example_column.sql`.
+
+Run migrations explicitly with:
+
+```bash
+npm run db:migrate
+```
+
+Check what the database has applied with:
+
+```bash
+npm run db:migrate:status
+```
+
+Check for manual schema drift with:
+
+```bash
+npm run db:schema:check
+```
+
+This creates a disposable database, applies the tracked migrations, compares its
+schema to the configured working database, then drops the disposable database.
+If this fails, fix the difference with a new migration instead of hand-editing
+tables in DBeaver.
+
+The default local migration target is the same database used by local dev:
+`postgres://crm@127.0.0.1:55432/hvac_crm`. Override with `DATABASE_URL` only
+when you deliberately want to point at another database.
+
+DBeaver is for inspection and emergency debugging, not routine schema edits.
+Create a read-only DBeaver login with:
+
+```bash
+npm run db:readonly:create
+```
+
+The command prints the DBeaver connection fields and verifies the role can read
+companies but cannot run write probes. Prefer that `crm_readonly` login for
+normal browsing. Keep the write-capable `crm` login for app runtime and rare
+maintenance.
+
+For the local CRM write-capable owner connection, use:
+
+```text
+Host: 127.0.0.1
+Port: 55432
+Database: hvac_crm
+Username: crm
+Password: blank
+```
+
+If DBeaver shows `hooks.getrunwise.com:5432` or a database like `n8n_data`, you
+are looking at a different system. Do not make CRM schema changes there.
+
+## Data audit and undo
+
+High-risk data changes write audit batches to `data_audit_batches` and row-level
+events to `data_audit_events`. Covered paths include imports, company/contact
+creates and edits, company/contact bulk updates, company/contact hard deletes,
+and company archive/restore actions.
+
+List recent audit batches:
+
+```bash
+curl http://localhost:3001/api/audit
+```
+
+Inspect a batch:
+
+```bash
+curl http://localhost:3001/api/audit/<batch_id>
+```
+
+Undo an undoable batch:
+
+```bash
+curl -X POST http://localhost:3001/api/audit/<batch_id>/undo ^
+  -H "Content-Type: application/json" ^
+  -d "{}"
+```
+
+Undo is intentionally conservative. It only runs when the current row still
+matches the audited "after" state, so it refuses to overwrite later work. Import
+undo can remove companies/contacts created by that import and restore rows that
+the import updated. Hard-delete undo can restore the deleted company/contact and
+the dependent rows captured before the cascade.
+
+Archive batches are audited but not audit-undoable because archiving also stops
+active sequence enrollments. Use the restore endpoint intentionally for archived
+accounts instead of pretending the sequence side effects are a safe one-click
+undo.
 
 ## Backup, restore, and recovery drill
 
@@ -167,7 +265,9 @@ npm run restore:snapshot -- --file .local/backups/before-import.json --force
 
 The restore replaces prospecting records only. `app_settings` are not exported
 or restored, and webhook secrets are intentionally omitted, so connected
-services may need to be reconnected after a disaster recovery restore.
+services may need to be reconnected after a disaster recovery restore. Audit
+batches and audit events are included so the data-change history survives a
+normal backup/restore.
 
 Run the recovery drill anytime the local API is running:
 

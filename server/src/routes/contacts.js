@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { query, touchCompany } from '../db.js';
+import { pool, query, touchCompany } from '../db.js';
+import {
+  auditChange,
+  auditContactCascadeDelete,
+  auditEnrollmentContactNulling,
+  createAuditBatch,
+} from '../audit.js';
 import {
   h, badRequest, notFound, buildUpdate, toInt, LEAD_STATUSES, CONTACT_ROLES,
   normalizeDomain, assertEnum, rejectBlank,
@@ -169,8 +175,27 @@ router.post('/bulk', h(async (req, res) => {
   if (ids.length > 1000) throw badRequest('Max 1000 contacts per bulk call');
 
   if (action === 'delete') {
-    const { rowCount } = await query('DELETE FROM contacts WHERE id = ANY($1::int[])', [ids]);
-    return res.json({ deleted: rowCount });
+    const client = await pool.connect();
+    let auditBatchId;
+    try {
+      await client.query('BEGIN');
+      auditBatchId = await createAuditBatch(client, {
+        action: 'contacts.bulk.delete',
+        summary: `Bulk delete ${ids.length} contacts`,
+        req,
+        metadata: { ids },
+      });
+      const { enrollmentBeforeRows } = await auditContactCascadeDelete(client, auditBatchId, ids, { route: 'contacts.bulk.delete' });
+      const { rowCount } = await client.query('DELETE FROM contacts WHERE id = ANY($1::int[])', [ids]);
+      await auditEnrollmentContactNulling(client, auditBatchId, enrollmentBeforeRows, { route: 'contacts.bulk.delete' });
+      await client.query('COMMIT');
+      return res.json({ deleted: rowCount, audit_batch_id: auditBatchId });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
   if (action === 'update') {
     const cleanPatch = { ...(patch || {}) };
@@ -189,11 +214,40 @@ router.post('/bulk', h(async (req, res) => {
     }
     if (!sets.length) throw badRequest('patch did not include updatable fields');
     values.push(ids);
-    const { rowCount } = await query(
-      `UPDATE contacts SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[])`,
-      values
-    );
-    return res.json({ updated: rowCount });
+    const client = await pool.connect();
+    let rows;
+    let auditBatchId;
+    try {
+      await client.query('BEGIN');
+      auditBatchId = await createAuditBatch(client, {
+        action: 'contacts.bulk.update',
+        summary: `Bulk update ${ids.length} contacts`,
+        req,
+        metadata: { ids, patch: cleanPatch },
+      });
+      const beforeRows = await client.query('SELECT * FROM contacts WHERE id = ANY($1::int[]) ORDER BY id', [ids]);
+      ({ rows } = await client.query(
+        `UPDATE contacts SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[]) RETURNING *`,
+        values
+      ));
+      const beforeById = new Map(beforeRows.rows.map((row) => [row.id, row]));
+      for (const row of rows) {
+        await auditChange(client, auditBatchId, {
+          table: 'contacts',
+          operation: 'update',
+          before: beforeById.get(row.id),
+          after: row,
+          metadata: { route: 'contacts.bulk.update' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    return res.json({ updated: rows.length, audit_batch_id: auditBatchId });
   }
   throw badRequest(`action must be 'update' or 'delete'`);
 }));
@@ -235,26 +289,52 @@ router.post('/', h(async (req, res) => {
   if (!b.name) b.name = [b.first_name, b.last_name].filter(Boolean).join(' ') || '(unnamed)';
   validateLeadStatus(b.lead_status);
   validateContactRole(b.contact_role);
-  const { rows } = await query(
-    `INSERT INTO contacts (
-       company_id, name, first_name, last_name, title, contact_role, email, email_2, phone,
-       phone_cell, phone_direct, phone_other, source, last_contacted_at, owner, lead_status,
-       do_not_contact, replied, not_interested, bad_fit
-     )
-     VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9,
-       $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
-       coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
-     ) RETURNING *`,
-    [companyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
-     b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
-     b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
-     b.last_contacted_at || null, b.owner || null, b.lead_status || null,
-     b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
-  );
+  const client = await pool.connect();
+  let contact;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'contact.create',
+      summary: `Create contact ${b.name}`,
+      req,
+      metadata: { company_id: companyId },
+    });
+    const { rows } = await client.query(
+      `INSERT INTO contacts (
+         company_id, name, first_name, last_name, title, contact_role, email, email_2, phone,
+         phone_cell, phone_direct, phone_other, source, last_contacted_at, owner, lead_status,
+         do_not_contact, replied, not_interested, bad_fit
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9,
+         $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
+         coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
+       ) RETURNING *`,
+      [companyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
+       b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
+       b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
+       b.last_contacted_at || null, b.owner || null, b.lead_status || null,
+       b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
+    );
+    contact = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'contacts',
+      operation: 'insert',
+      before: null,
+      after: contact,
+      metadata: { route: 'contact.create' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
   await touchCompany(companyId);
-  emit('contact.created', { contact: rows[0] });
-  res.status(201).json(rows[0]);
+  emit('contact.created', { contact });
+  res.status(201).json({ ...contact, audit_batch_id: auditBatchId });
 }));
 
 // POST /api/contacts/upsert — match by email (within company if resolvable), else by company+name
@@ -289,33 +369,87 @@ router.post('/upsert', h(async (req, res) => {
 
   if (existing) {
     const upd = buildUpdate('contacts', existing.id, b, CONTACT_FIELDS.filter((f) => f !== 'company_id'));
-    const row = upd ? (await query(upd.text, upd.values)).rows[0] : existing;
+    let row = existing;
+    let auditBatchId = null;
+    if (upd) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        auditBatchId = await createAuditBatch(client, {
+          action: 'contact.upsert.update',
+          summary: `Upsert update contact ${existing.id}`,
+          req,
+          metadata: { contact_id: existing.id, patch: b },
+        });
+        const { rows } = await client.query(upd.text, upd.values);
+        row = rows[0];
+        await auditChange(client, auditBatchId, {
+          table: 'contacts',
+          operation: 'update',
+          before: existing,
+          after: row,
+          metadata: { route: 'contact.upsert.update' },
+        });
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
     await touchCompany(row.company_id);
-    return res.json({ ...row, upserted: 'updated' });
+    return res.json({ ...row, upserted: 'updated', audit_batch_id: auditBatchId });
   }
 
   if (!companyId) throw badRequest('company_id (or company_domain / company_name) required to create a new contact');
   if (!b.name) throw badRequest('name is required to create a new contact');
-  const { rows } = await query(
-    `INSERT INTO contacts (
-       company_id, name, first_name, last_name, title, contact_role, email, email_2, phone,
-       phone_cell, phone_direct, phone_other, source, last_contacted_at, owner, lead_status,
-       do_not_contact, replied, not_interested, bad_fit
-     )
-     VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9,
-       $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
-       coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
-     ) RETURNING *`,
-    [companyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
-     b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
-     b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
-     b.last_contacted_at || null, b.owner || null, b.lead_status || null,
-     b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
-  );
+  const client = await pool.connect();
+  let contact;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'contact.upsert.create',
+      summary: `Upsert create contact ${b.name}`,
+      req,
+      metadata: { company_id: companyId },
+    });
+    const { rows } = await client.query(
+      `INSERT INTO contacts (
+         company_id, name, first_name, last_name, title, contact_role, email, email_2, phone,
+         phone_cell, phone_direct, phone_other, source, last_contacted_at, owner, lead_status,
+         do_not_contact, replied, not_interested, bad_fit
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9,
+         $10, $11, $12, $13, $14, $15, coalesce($16, 'new'),
+         coalesce($17, false), coalesce($18, false), coalesce($19, false), coalesce($20, false)
+       ) RETURNING *`,
+      [companyId, b.name, b.first_name || null, b.last_name || null, b.title || null,
+       b.contact_role || null, b.email || null, b.email_2 || null, b.phone || null,
+       b.phone_cell || null, b.phone_direct || null, b.phone_other || null, b.source || null,
+       b.last_contacted_at || null, b.owner || null, b.lead_status || null,
+       b.do_not_contact, b.replied, b.not_interested, b.bad_fit]
+    );
+    contact = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'contacts',
+      operation: 'insert',
+      before: null,
+      after: contact,
+      metadata: { route: 'contact.upsert.create' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
   await touchCompany(companyId);
-  emit('contact.created', { contact: rows[0] });
-  res.status(201).json({ ...rows[0], upserted: 'created' });
+  emit('contact.created', { contact });
+  res.status(201).json({ ...contact, upserted: 'created', audit_batch_id: auditBatchId });
 }));
 
 router.patch('/:id', h(async (req, res) => {
@@ -326,15 +460,62 @@ router.patch('/:id', h(async (req, res) => {
   validateContactRole(body.contact_role);
   const upd = buildUpdate('contacts', req.params.id, body, CONTACT_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
-  const { rows } = await query(upd.text, upd.values);
-  if (!rows[0]) throw notFound('Contact not found');
-  res.json(rows[0]);
+  const client = await pool.connect();
+  let contact;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    const { rows: beforeRows } = await client.query('SELECT * FROM contacts WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Contact not found');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'contact.update',
+      summary: `Update contact ${req.params.id}`,
+      req,
+      metadata: { contact_id: req.params.id, patch: body },
+    });
+    const { rows } = await client.query(upd.text, upd.values);
+    contact = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'contacts',
+      operation: 'update',
+      before: beforeRows[0],
+      after: contact,
+      metadata: { route: 'contact.update' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  res.json({ ...contact, audit_batch_id: auditBatchId });
 }));
 
 router.delete('/:id', h(async (req, res) => {
-  const { rowCount } = await query('DELETE FROM contacts WHERE id = $1', [req.params.id]);
-  if (!rowCount) throw notFound('Contact not found');
-  res.status(204).end();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: existing } = await client.query('SELECT * FROM contacts WHERE id = $1', [req.params.id]);
+    if (!existing[0]) throw notFound('Contact not found');
+    const auditBatchId = await createAuditBatch(client, {
+      action: 'contact.delete',
+      summary: `Delete contact ${existing[0].name}`,
+      req,
+      metadata: { contact_id: req.params.id },
+    });
+    const { enrollmentBeforeRows } = await auditContactCascadeDelete(client, auditBatchId, [req.params.id], { route: 'contact.delete' });
+    const { rowCount } = await client.query('DELETE FROM contacts WHERE id = $1', [req.params.id]);
+    if (!rowCount) throw notFound('Contact not found');
+    await auditEnrollmentContactNulling(client, auditBatchId, enrollmentBeforeRows, { route: 'contact.delete' });
+    await client.query('COMMIT');
+    res.json({ deleted: 1, audit_batch_id: auditBatchId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 
 export default router;

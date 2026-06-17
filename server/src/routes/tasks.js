@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { query, touchCompany } from '../db.js';
+import { pool, query } from '../db.js';
+import { auditChange, auditRowDiff, createAuditBatch } from '../audit.js';
 import { h, badRequest, notFound, buildUpdate, PRIORITIES, assertEnum, requireNonBlank, rejectBlank } from '../util.js';
 import { emit } from '../events.js';
 
@@ -7,10 +8,18 @@ const router = Router();
 
 const TASK_FIELDS = ['company_id', 'contact_id', 'description', 'due_date', 'priority', 'owner'];
 
-async function taskCompanyId(task) {
+async function taskCompanyId(task, client = { query }) {
   if (task.company_id) return task.company_id;
-  const { rows } = await query('SELECT company_id FROM contacts WHERE id = $1', [task.contact_id]);
+  const { rows } = await client.query('SELECT company_id FROM contacts WHERE id = $1', [task.contact_id]);
   return rows[0]?.company_id ?? null;
+}
+
+async function touchCompanyWithClient(client, companyId, when) {
+  await client.query(
+    `UPDATE companies SET last_activity_at = GREATEST(coalesce(last_activity_at, 'epoch'), $2)
+     WHERE id = $1`,
+    [companyId, when || new Date()]
+  );
 }
 
 router.get('/', h(async (req, res) => {
@@ -56,12 +65,38 @@ router.post('/', h(async (req, res) => {
   const { rows: companyRows } = await query('SELECT name, archived_at FROM companies WHERE id = $1', [companyId]);
   if (!companyRows[0]) throw notFound('Company not found');
   if (companyRows[0].archived_at) throw badRequest(`Cannot add task to archived account: ${companyRows[0].name}`);
-  const { rows } = await query(
-    `INSERT INTO tasks (company_id, contact_id, description, due_date, priority, owner)
-     VALUES ($1, $2, $3, $4, coalesce($5, 'medium'), $6) RETURNING *`,
-    [b.company_id || null, b.contact_id || null, b.description, b.due_date || null, b.priority || null, b.owner || null]
-  );
-  res.status(201).json(rows[0]);
+  const client = await pool.connect();
+  let task;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'task.create',
+      summary: `Create task for company ${companyId}`,
+      req,
+      metadata: { company_id: companyId, contact_id: b.contact_id || null },
+    });
+    const { rows } = await client.query(
+      `INSERT INTO tasks (company_id, contact_id, description, due_date, priority, owner)
+       VALUES ($1, $2, $3, $4, coalesce($5, 'medium'), $6) RETURNING *`,
+      [b.company_id || null, b.contact_id || null, b.description, b.due_date || null, b.priority || null, b.owner || null]
+    );
+    task = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'tasks',
+      operation: 'insert',
+      before: null,
+      after: task,
+      metadata: { route: 'task.create' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  res.status(201).json({ ...task, audit_batch_id: auditBatchId });
 }));
 
 router.patch('/:id', h(async (req, res) => {
@@ -75,29 +110,84 @@ router.patch('/:id', h(async (req, res) => {
   const upd = buildUpdate('tasks', req.params.id, body, TASK_FIELDS, extraSets);
   if (!upd && extraSets.length === 0) throw badRequest('No updatable fields provided');
 
+  const client = await pool.connect();
   let row;
-  if (upd) {
-    ({ rows: [row] } = await query(upd.text, upd.values));
-  } else {
-    ({ rows: [row] } = await query(
-      `UPDATE tasks SET ${extraSets.join(', ')} WHERE id = $1 RETURNING *`,
-      [req.params.id]
-    ));
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    const { rows: beforeRows } = await client.query('SELECT * FROM tasks WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Task not found');
+    const companyId = body.completed === true ? await taskCompanyId(beforeRows[0], client) : null;
+    const { rows: beforeCompanyRows } = companyId
+      ? await client.query('SELECT * FROM companies WHERE id = $1', [companyId])
+      : { rows: [] };
+    auditBatchId = await createAuditBatch(client, {
+      action: 'task.update',
+      summary: `Update task ${req.params.id}`,
+      req,
+      metadata: { task_id: req.params.id, patch: body },
+    });
+    if (upd) {
+      ({ rows: [row] } = await client.query(upd.text, upd.values));
+    } else {
+      ({ rows: [row] } = await client.query(
+        `UPDATE tasks SET ${extraSets.join(', ')} WHERE id = $1 RETURNING *`,
+        [req.params.id]
+      ));
+    }
+    await auditChange(client, auditBatchId, {
+      table: 'tasks',
+      operation: 'update',
+      before: beforeRows[0],
+      after: row,
+      metadata: { route: 'task.update' },
+    });
+    if (companyId) {
+      await touchCompanyWithClient(client, companyId);
+      const { rows: afterCompanyRows } = await client.query('SELECT * FROM companies WHERE id = $1', [companyId]);
+      await auditRowDiff(client, auditBatchId, 'companies', beforeCompanyRows, afterCompanyRows, { route: 'task.update.touch_company' });
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-  if (!row) throw notFound('Task not found');
 
-  if (body.completed === true) {
-    const companyId = await taskCompanyId(row);
-    if (companyId) await touchCompany(companyId);
-    emit('task.completed', { task: row });
-  }
-  res.json(row);
+  if (body.completed === true) emit('task.completed', { task: row });
+  res.json({ ...row, audit_batch_id: auditBatchId });
 }));
 
 router.delete('/:id', h(async (req, res) => {
-  const { rowCount } = await query('DELETE FROM tasks WHERE id = $1', [req.params.id]);
-  if (!rowCount) throw notFound('Task not found');
-  res.status(204).end();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: beforeRows } = await client.query('SELECT * FROM tasks WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Task not found');
+    const auditBatchId = await createAuditBatch(client, {
+      action: 'task.delete',
+      summary: `Delete task ${req.params.id}`,
+      req,
+      metadata: { task_id: req.params.id },
+    });
+    await auditChange(client, auditBatchId, {
+      table: 'tasks',
+      operation: 'delete',
+      before: beforeRows[0],
+      after: null,
+      metadata: { route: 'task.delete' },
+    });
+    const { rowCount } = await client.query('DELETE FROM tasks WHERE id = $1', [req.params.id]);
+    if (!rowCount) throw notFound('Task not found');
+    await client.query('COMMIT');
+    res.json({ deleted: 1, audit_batch_id: auditBatchId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 
 export default router;

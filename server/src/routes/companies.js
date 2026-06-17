@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { query, touchCompany } from '../db.js';
+import { pool, query, touchCompany } from '../db.js';
+import {
+  auditChange,
+  auditCompanyCascadeDelete,
+  createAuditBatch,
+} from '../audit.js';
 import {
   h, badRequest, notFound, buildUpdate, toInt, LIFECYCLE_STAGES,
   TARGET_TIERS, BUYING_COMMITTEE_STATUSES, LEAD_STATUSES, normalizeDomain,
@@ -233,31 +238,109 @@ router.post('/bulk', h(async (req, res) => {
 
   if (action === 'delete') {
     requireDeleteConfirmation(req, bulkCompanyDeleteConfirmation(ids.length));
-    const { rowCount } = await query('DELETE FROM companies WHERE id = ANY($1::int[])', [ids]);
-    return res.json({ deleted: rowCount });
+    const client = await pool.connect();
+    let auditBatchId;
+    try {
+      await client.query('BEGIN');
+      auditBatchId = await createAuditBatch(client, {
+        action: 'companies.bulk.delete',
+        summary: `Bulk delete ${ids.length} companies`,
+        req,
+        metadata: { ids },
+      });
+      await auditCompanyCascadeDelete(client, auditBatchId, ids, { route: 'companies.bulk.delete' });
+      const { rowCount } = await client.query('DELETE FROM companies WHERE id = ANY($1::int[])', [ids]);
+      await client.query('COMMIT');
+      return res.json({ deleted: rowCount, audit_batch_id: auditBatchId });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
   if (action === 'archive') {
     const reason = String(req.body.reason || patch?.archived_reason || '').trim() || null;
-    const { rows } = await query(
-      `UPDATE companies
-          SET archived_at = coalesce(archived_at, now()),
-              archived_reason = coalesce($2, archived_reason)
-        WHERE id = ANY($1::int[]) AND archived_at IS NULL
-        RETURNING id`,
-      [ids, reason]
-    );
+    const client = await pool.connect();
+    let rows;
+    let auditBatchId;
+    try {
+      await client.query('BEGIN');
+      auditBatchId = await createAuditBatch(client, {
+        action: 'companies.bulk.archive',
+        summary: `Bulk archive ${ids.length} companies`,
+        req,
+        undoable: false,
+        metadata: { ids, reason, undo_note: 'Archive stops active sequence enrollments; use restore intentionally instead of audit undo.' },
+      });
+      const beforeRows = await client.query('SELECT * FROM companies WHERE id = ANY($1::int[]) AND archived_at IS NULL ORDER BY id', [ids]);
+      ({ rows } = await client.query(
+        `UPDATE companies
+            SET archived_at = coalesce(archived_at, now()),
+                archived_reason = coalesce($2, archived_reason)
+          WHERE id = ANY($1::int[]) AND archived_at IS NULL
+          RETURNING *`,
+        [ids, reason]
+      ));
+      const beforeById = new Map(beforeRows.rows.map((row) => [row.id, row]));
+      for (const row of rows) {
+        await auditChange(client, auditBatchId, {
+          table: 'companies',
+          operation: 'update',
+          before: beforeById.get(row.id),
+          after: row,
+          metadata: { route: 'companies.bulk.archive' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
     for (const row of rows) await stopActiveCompanyEnrollments(row.id);
-    return res.json({ archived: rows.length });
+    return res.json({ archived: rows.length, audit_batch_id: auditBatchId });
   }
   if (action === 'restore') {
-    const { rowCount } = await query(
-      `UPDATE companies
-          SET archived_at = NULL,
-              archived_reason = NULL
-        WHERE id = ANY($1::int[]) AND archived_at IS NOT NULL`,
-      [ids]
-    );
-    return res.json({ restored: rowCount });
+    const client = await pool.connect();
+    let rows;
+    let auditBatchId;
+    try {
+      await client.query('BEGIN');
+      auditBatchId = await createAuditBatch(client, {
+        action: 'companies.bulk.restore',
+        summary: `Bulk restore ${ids.length} companies`,
+        req,
+        metadata: { ids },
+      });
+      const beforeRows = await client.query('SELECT * FROM companies WHERE id = ANY($1::int[]) AND archived_at IS NOT NULL ORDER BY id', [ids]);
+      ({ rows } = await client.query(
+        `UPDATE companies
+            SET archived_at = NULL,
+                archived_reason = NULL
+          WHERE id = ANY($1::int[]) AND archived_at IS NOT NULL
+          RETURNING *`,
+        [ids]
+      ));
+      const beforeById = new Map(beforeRows.rows.map((row) => [row.id, row]));
+      for (const row of rows) {
+        await auditChange(client, auditBatchId, {
+          table: 'companies',
+          operation: 'update',
+          before: beforeById.get(row.id),
+          after: row,
+          metadata: { route: 'companies.bulk.restore' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    return res.json({ restored: rows.length, audit_batch_id: auditBatchId });
   }
   if (action === 'update') {
     const cleanPatch = { ...(patch || {}) };
@@ -283,11 +366,40 @@ router.post('/bulk', h(async (req, res) => {
     }
     if (!sets.length) throw badRequest('patch did not include updatable fields');
     values.push(ids);
-    const { rowCount } = await query(
-      `UPDATE companies SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[])`,
-      values
-    );
-    return res.json({ updated: rowCount });
+    const client = await pool.connect();
+    let rows;
+    let auditBatchId;
+    try {
+      await client.query('BEGIN');
+      auditBatchId = await createAuditBatch(client, {
+        action: 'companies.bulk.update',
+        summary: `Bulk update ${ids.length} companies`,
+        req,
+        metadata: { ids, patch: cleanPatch },
+      });
+      const beforeRows = await client.query('SELECT * FROM companies WHERE id = ANY($1::int[]) ORDER BY id', [ids]);
+      ({ rows } = await client.query(
+        `UPDATE companies SET ${sets.join(', ')} WHERE id = ANY($${values.length}::int[]) RETURNING *`,
+        values
+      ));
+      const beforeById = new Map(beforeRows.rows.map((row) => [row.id, row]));
+      for (const row of rows) {
+        await auditChange(client, auditBatchId, {
+          table: 'companies',
+          operation: 'update',
+          before: beforeById.get(row.id),
+          after: row,
+          metadata: { route: 'companies.bulk.update' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    return res.json({ updated: rows.length, audit_batch_id: auditBatchId });
   }
   throw badRequest(`action must be 'update', 'delete', 'archive', or 'restore'`);
 }));
@@ -324,32 +436,87 @@ router.get('/lookup', h(async (req, res) => {
 
 router.post('/:id/archive', h(async (req, res) => {
   const reason = String(req.body?.reason || '').trim() || null;
-  const { rows } = await query(
-    `UPDATE companies
-        SET archived_at = coalesce(archived_at, now()),
-            archived_reason = coalesce($2, archived_reason)
-      WHERE id = $1
-      RETURNING *`,
-    [req.params.id, reason]
-  );
-  if (!rows[0]) throw notFound('Company not found');
+  const client = await pool.connect();
+  let company;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'company.archive',
+      summary: `Archive company ${req.params.id}`,
+      req,
+      undoable: false,
+      metadata: { company_id: req.params.id, reason, undo_note: 'Archive stops active sequence enrollments; use restore intentionally instead of audit undo.' },
+    });
+    const { rows: beforeRows } = await client.query('SELECT * FROM companies WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Company not found');
+    const { rows } = await client.query(
+      `UPDATE companies
+          SET archived_at = coalesce(archived_at, now()),
+              archived_reason = coalesce($2, archived_reason)
+        WHERE id = $1
+        RETURNING *`,
+      [req.params.id, reason]
+    );
+    company = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'companies',
+      operation: 'update',
+      before: beforeRows[0],
+      after: company,
+      metadata: { route: 'company.archive' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
   const stoppedEnrollments = await stopActiveCompanyEnrollments(req.params.id);
-  emit('company.archived', { company: rows[0], stopped_enrollments: stoppedEnrollments });
-  res.json({ ...rows[0], stopped_enrollments: stoppedEnrollments });
+  emit('company.archived', { company, stopped_enrollments: stoppedEnrollments });
+  res.json({ ...company, stopped_enrollments: stoppedEnrollments, audit_batch_id: auditBatchId });
 }));
 
 router.post('/:id/restore', h(async (req, res) => {
-  const { rows } = await query(
-    `UPDATE companies
-        SET archived_at = NULL,
-            archived_reason = NULL
-      WHERE id = $1
-      RETURNING *`,
-    [req.params.id]
-  );
-  if (!rows[0]) throw notFound('Company not found');
-  emit('company.restored', { company: rows[0] });
-  res.json(rows[0]);
+  const client = await pool.connect();
+  let company;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'company.restore',
+      summary: `Restore company ${req.params.id}`,
+      req,
+      metadata: { company_id: req.params.id },
+    });
+    const { rows: beforeRows } = await client.query('SELECT * FROM companies WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Company not found');
+    const { rows } = await client.query(
+      `UPDATE companies
+          SET archived_at = NULL,
+              archived_reason = NULL
+        WHERE id = $1
+        RETURNING *`,
+      [req.params.id]
+    );
+    company = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'companies',
+      operation: 'update',
+      before: beforeRows[0],
+      after: company,
+      metadata: { route: 'company.restore' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  emit('company.restored', { company });
+  res.json({ ...company, audit_batch_id: auditBatchId });
 }));
 
 router.get('/:id', h(async (req, res) => {
@@ -375,29 +542,55 @@ router.post('/', h(async (req, res) => {
   validateLifecycle(b.lifecycle_stage);
   validateProspectingFields(b);
   const domain = normalizeDomain(b.domain || b.website);
-  const { rows } = await query(
-    `INSERT INTO companies (
-       name, domain, industry, employee_count, ad_spend_range, website, phone, owner, lifecycle_stage,
-       city, state, lead_status, type, postal_code, annual_revenue, timezone, description,
-       target_tier, source, campaign, last_touch_channel, next_step, buying_committee_status,
-       do_not_contact, replied, not_interested, bad_fit, suppression_reason
-     )
-     VALUES (
-       $1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, $8, coalesce($9, 'lead'),
-       $10, $11, $12, $13, $14, $15, $16, $17,
-       $18, $19, $20, $21, $22, coalesce($23, 'unknown'),
-       coalesce($24, false), coalesce($25, false), coalesce($26, false), coalesce($27, false), $28
-     ) RETURNING *`,
-    [b.name, domain, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
-     b.website || null, b.phone || null, b.owner || null, b.lifecycle_stage || null,
-     b.city || null, b.state || null, b.lead_status || null, b.type || null, b.postal_code || null,
-     b.annual_revenue ?? null, b.timezone || null, b.description || null,
-     b.target_tier || null, b.source || null, b.campaign || null, b.last_touch_channel || null,
-     b.next_step || null, b.buying_committee_status || null,
-     b.do_not_contact, b.replied, b.not_interested, b.bad_fit, b.suppression_reason || null]
-  );
-  emit('company.created', { company: rows[0] });
-  res.status(201).json(rows[0]);
+  const client = await pool.connect();
+  let company;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'company.create',
+      summary: `Create company ${b.name}`,
+      req,
+      metadata: { domain },
+    });
+    const { rows } = await client.query(
+      `INSERT INTO companies (
+         name, domain, industry, employee_count, ad_spend_range, website, phone, owner, lifecycle_stage,
+         city, state, lead_status, type, postal_code, annual_revenue, timezone, description,
+         target_tier, source, campaign, last_touch_channel, next_step, buying_committee_status,
+         do_not_contact, replied, not_interested, bad_fit, suppression_reason
+       )
+       VALUES (
+         $1, $2, coalesce($3, 'HVAC'), $4, $5, $6, $7, $8, coalesce($9, 'lead'),
+         $10, $11, $12, $13, $14, $15, $16, $17,
+         $18, $19, $20, $21, $22, coalesce($23, 'unknown'),
+         coalesce($24, false), coalesce($25, false), coalesce($26, false), coalesce($27, false), $28
+       ) RETURNING *`,
+      [b.name, domain, b.industry || null, b.employee_count ?? null, b.ad_spend_range || null,
+       b.website || null, b.phone || null, b.owner || null, b.lifecycle_stage || null,
+       b.city || null, b.state || null, b.lead_status || null, b.type || null, b.postal_code || null,
+       b.annual_revenue ?? null, b.timezone || null, b.description || null,
+       b.target_tier || null, b.source || null, b.campaign || null, b.last_touch_channel || null,
+       b.next_step || null, b.buying_committee_status || null,
+       b.do_not_contact, b.replied, b.not_interested, b.bad_fit, b.suppression_reason || null]
+    );
+    company = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'companies',
+      operation: 'insert',
+      before: null,
+      after: company,
+      metadata: { route: 'company.create' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  emit('company.created', { company });
+  res.status(201).json({ ...company, audit_batch_id: auditBatchId });
 }));
 
 router.patch('/:id', h(async (req, res) => {
@@ -414,18 +607,62 @@ router.patch('/:id', h(async (req, res) => {
   }
   const upd = buildUpdate('companies', req.params.id, body, COMPANY_FIELDS);
   if (!upd) throw badRequest('No updatable fields provided');
-  const { rows } = await query(upd.text, upd.values);
-  if (!rows[0]) throw notFound('Company not found');
-  res.json(rows[0]);
+  const client = await pool.connect();
+  let company;
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    const { rows: beforeRows } = await client.query('SELECT * FROM companies WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Company not found');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'company.update',
+      summary: `Update company ${req.params.id}`,
+      req,
+      metadata: { company_id: req.params.id, patch: body },
+    });
+    const { rows } = await client.query(upd.text, upd.values);
+    company = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'companies',
+      operation: 'update',
+      before: beforeRows[0],
+      after: company,
+      metadata: { route: 'company.update' },
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  res.json({ ...company, audit_batch_id: auditBatchId });
 }));
 
 router.delete('/:id', h(async (req, res) => {
   const { rows } = await query('SELECT name FROM companies WHERE id = $1', [req.params.id]);
   if (!rows[0]) throw notFound('Company not found');
   requireDeleteConfirmation(req, companyDeleteConfirmation(rows[0].name));
-  const { rowCount } = await query('DELETE FROM companies WHERE id = $1', [req.params.id]);
-  if (!rowCount) throw notFound('Company not found');
-  res.status(204).end();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const auditBatchId = await createAuditBatch(client, {
+      action: 'company.delete',
+      summary: `Delete company ${rows[0].name}`,
+      req,
+      metadata: { company_id: req.params.id },
+    });
+    await auditCompanyCascadeDelete(client, auditBatchId, [req.params.id], { route: 'company.delete' });
+    const { rowCount } = await client.query('DELETE FROM companies WHERE id = $1', [req.params.id]);
+    if (!rowCount) throw notFound('Company not found');
+    await client.query('COMMIT');
+    res.json({ deleted: 1, audit_batch_id: auditBatchId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 
 export default router;
