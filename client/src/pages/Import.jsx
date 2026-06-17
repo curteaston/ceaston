@@ -2,6 +2,12 @@ import { useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { gridToTable, nonEmptyRows, parseCsv } from '../importParsing.js';
 import { useStore, LIFECYCLE_LABELS } from '../store.js';
+import {
+  BUYING_COMMITTEE_LABELS,
+  CONTACT_ROLE_LABELS,
+  ROLE_COVERAGE,
+  TARGET_TIER_LABELS,
+} from '../prospecting.js';
 
 // CRM target fields the importer can fill. `group` drives the section headings.
 const TARGET_FIELDS = [
@@ -11,20 +17,63 @@ const TARGET_FIELDS = [
   { key: 'industry', label: 'Industry', group: 'Company', aliases: ['industry', 'vertical', 'sector', 'category'] },
   { key: 'employee_count', label: 'Employee count', group: 'Company', type: 'number', aliases: ['employees', 'employee count', 'headcount', 'size', 'staff', 'num employees'] },
   { key: 'ad_spend_range', label: 'Monthly ad spend', group: 'Company', aliases: ['ad spend', 'ad spend range', 'monthly ad spend', 'spend', 'budget', 'ad budget'] },
+  { key: 'company_owner', label: 'Company owner', group: 'Company', aliases: ['company owner', 'account owner', 'crm owner', 'owner', 'assigned to'] },
+  { key: 'target_tier', label: 'Target tier', group: 'Company', aliases: ['target tier', 'tier', 'priority tier', 'account tier', 'fit tier', 'priority'] },
+  { key: 'source', label: 'Source', group: 'Company', aliases: ['source', 'company source', 'account source', 'lead source', 'list source'] },
+  { key: 'campaign', label: 'Campaign', group: 'Company', aliases: ['campaign', 'list', 'sequence', 'play', 'motion', 'source campaign'] },
+  { key: 'buying_committee_status', label: 'Buying committee status', group: 'Company', aliases: ['buying committee', 'buying committee status', 'committee status', 'stakeholder status'] },
+  { key: 'next_step', label: 'Next step', group: 'Company', aliases: ['next step', 'next action', 'action', 'todo', 'follow up', 'recommended action'] },
   { key: 'lifecycle_stage', label: 'Lifecycle stage', group: 'Company', aliases: ['lifecycle', 'lifecycle stage', 'stage', 'status'] },
   { key: 'company_phone', label: 'Company phone', group: 'Company', aliases: ['company phone', 'main phone', 'office phone', 'main line', 'company telephone'] },
   { key: 'contact_first_name', label: 'First name', group: 'Contact', aliases: ['first name', 'firstname', 'first', 'given name', 'contact first name', 'name'] },
   { key: 'contact_last_name', label: 'Last name', group: 'Contact', aliases: ['last name', 'lastname', 'last', 'surname', 'family name', 'contact last name'] },
-  { key: 'contact_title', label: 'Contact title', group: 'Contact', aliases: ['title', 'contact title', 'job title', 'role', 'position'] },
+  { key: 'contact_role', label: 'Buying role', group: 'Contact', aliases: ['contact role', 'buying role', 'buyer role', 'persona', 'stakeholder role', 'role'] },
+  { key: 'contact_title', label: 'Contact title', group: 'Contact', aliases: ['title', 'contact title', 'job title', 'position'] },
   { key: 'contact_email', label: 'Primary email', group: 'Contact', aliases: ['email', 'contact email', 'e-mail', 'email address', 'primary email'] },
   { key: 'contact_email_2', label: 'Secondary email', group: 'Contact', aliases: ['email 2', 'secondary email', 'email2', 'alternate email', 'other email'] },
   { key: 'contact_phone_direct', label: 'Direct phone', group: 'Contact', aliases: ['direct phone', 'work phone', 'work direct phone', 'direct', 'phone', 'telephone', 'work direct', 'direct number'] },
   { key: 'contact_phone_cell', label: 'Cell phone', group: 'Contact', aliases: ['cell', 'cell phone', 'mobile', 'mobile phone', 'cellphone', 'cell number'] },
   { key: 'contact_phone_other', label: 'Other phone', group: 'Contact', aliases: ['other phone', 'other', 'alternate phone', 'home phone', 'fax'] },
+  { key: 'contact_owner', label: 'Contact owner', group: 'Contact', aliases: ['contact owner', 'rep owner', 'contact assignee', 'assigned rep'] },
   { key: 'contact_source', label: 'Contact source', group: 'Contact', aliases: ['source', 'contact source', 'lead source', 'origin'] },
 ];
 
 const norm = (s) => String(s || '').trim().toLowerCase().replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ');
+const enumNorm = (s) => norm(s).replace(/[^a-z0-9]+/g, ' ').trim();
+
+function normalizeEnum(value, labels) {
+  const text = enumNorm(value);
+  if (!text) return undefined;
+  return Object.entries(labels).find(([key, label]) => {
+    const friendlyKey = enumNorm(key);
+    return text === friendlyKey || text === enumNorm(label) || text === friendlyKey.replace(/\s+/g, '');
+  })?.[0];
+}
+
+function inferContactRole(explicitRole, title) {
+  const direct = normalizeEnum(explicitRole, CONTACT_ROLE_LABELS);
+  if (direct) return direct;
+  const t = norm(title);
+  if (!t) return undefined;
+  if (/\b(owner|founder|principal|president|ceo|chief executive)\b/.test(t)) return 'owner';
+  if (/\b(marketing|growth|demand|brand|advertising|media)\b/.test(t)) return 'marketing';
+  if (/\b(operations|operation|ops|service manager|install manager|installation manager|field manager|production manager)\b/.test(t)) return 'ops';
+  if (/\b(gm|general manager)\b/.test(t)) return 'gm';
+  if (/\b(office|administrator|admin)\b/.test(t)) return 'office_manager';
+  if (/\b(dispatch|dispatcher)\b/.test(t)) return 'dispatcher';
+  return undefined;
+}
+
+function inferBuyingCommitteeStatus(company) {
+  const direct = normalizeEnum(company.buying_committee_status, BUYING_COMMITTEE_LABELS);
+  if (direct) return direct;
+  const roles = new Set(company.contacts.map((contact) => contact.contact_role).filter(Boolean));
+  if (roles.size === 0) return undefined;
+  const missing = ROLE_COVERAGE.filter((role) => !roles.has(role));
+  if (missing.length === 0) return 'mapped';
+  if (missing.length < ROLE_COVERAGE.length) return 'partial';
+  return 'missing_roles';
+}
 
 function normalizeDomain(value) {
   const raw = String(value || '').trim().toLowerCase();
@@ -81,6 +130,12 @@ function buildCompanies(rows, mapping) {
         industry: col(row, 'industry') || undefined,
         employee_count: empRaw ? Number(empRaw) : undefined,
         ad_spend_range: col(row, 'ad_spend_range') || undefined,
+        owner: col(row, 'company_owner') || undefined,
+        target_tier: normalizeEnum(col(row, 'target_tier'), TARGET_TIER_LABELS),
+        source: col(row, 'source') || undefined,
+        campaign: col(row, 'campaign') || undefined,
+        buying_committee_status: col(row, 'buying_committee_status') || undefined,
+        next_step: col(row, 'next_step') || undefined,
         lifecycle_stage: normLifecycle(col(row, 'lifecycle_stage')),
         phone: col(row, 'company_phone') || undefined,
         contacts: [],
@@ -90,21 +145,28 @@ function buildCompanies(rows, mapping) {
     const lastName = col(row, 'contact_last_name');
     const contactName = firstName && lastName ? firstName + ' ' + lastName : firstName || lastName;
     if (contactName) {
+      const title = col(row, 'contact_title');
       byKey.get(key).contacts.push({
         name: contactName,
         first_name: firstName || undefined,
         last_name: lastName || undefined,
-        title: col(row, 'contact_title') || undefined,
+        title: title || undefined,
+        contact_role: inferContactRole(col(row, 'contact_role'), title),
         email: col(row, 'contact_email') || undefined,
         email_2: col(row, 'contact_email_2') || undefined,
         phone_direct: col(row, 'contact_phone_direct') || undefined,
         phone_cell: col(row, 'contact_phone_cell') || undefined,
         phone_other: col(row, 'contact_phone_other') || undefined,
+        owner: col(row, 'contact_owner') || undefined,
         source: col(row, 'contact_source') || undefined,
       });
     }
   }
-  return { companies: [...byKey.values()], skipped };
+  const companies = [...byKey.values()].map((company) => ({
+    ...company,
+    buying_committee_status: inferBuyingCommitteeStatus(company),
+  }));
+  return { companies, skipped };
 }
 
 const LIFECYCLE_KEYS = Object.keys(LIFECYCLE_LABELS);

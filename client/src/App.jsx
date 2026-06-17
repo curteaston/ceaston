@@ -9,6 +9,7 @@ const Home = lazy(() => import('./pages/Home.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const Reports = lazy(() => import('./pages/Reports.jsx'));
 const Companies = lazy(() => import('./pages/Companies.jsx'));
+const Prospecting = lazy(() => import('./pages/Prospecting.jsx'));
 const Contacts = lazy(() => import('./pages/Contacts.jsx'));
 const ContactDetail = lazy(() => import('./pages/ContactDetail.jsx'));
 const CompanyDetail = lazy(() => import('./pages/CompanyDetail.jsx'));
@@ -76,6 +77,7 @@ function GlobalSearch() {
 }
 
 const NAV_ITEMS = [
+  { to: '/prospecting', label: 'Prospecting', icon: '◎' },
   { to: '/', label: 'Home', icon: '🏠', end: true },
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
   { to: '/reports', label: 'Reports', icon: '📈' },
@@ -158,6 +160,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/companies" element={<Companies />} />
               <Route path="/companies/:id" element={<CompanyDetail />} />
               <Route path="/contacts" element={<Contacts />} />

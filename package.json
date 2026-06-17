@@ -27,6 +27,7 @@
     "test:local:workflow": "node scripts/smoke-sequence-workflow.mjs",
     "test:local:recovery": "node scripts/smoke-backup-restore.mjs",
     "test:local:audit": "node scripts/smoke-audit-undo.mjs",
+    "test:local:prospecting": "node scripts/smoke-prospecting-readiness.mjs",
     "test:import": "npm --prefix client run test:import",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",

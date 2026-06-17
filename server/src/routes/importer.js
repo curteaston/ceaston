@@ -76,6 +76,7 @@ router.post('/', h(async (req, res) => {
         website: cleanString(c.website),
         lifecycle_stage: cleanLifecycle(c.lifecycle_stage),
         phone: cleanString(c.phone),
+        owner: cleanString(c.owner),
         target_tier: cleanEnum(c.target_tier, TARGET_TIERS),
         source: cleanString(c.source),
         campaign: cleanString(c.campaign),
@@ -112,14 +113,15 @@ router.post('/', h(async (req, res) => {
              source = coalesce($11, source),
              campaign = coalesce($12, campaign),
              buying_committee_status = coalesce($13, buying_committee_status),
-             next_step = coalesce($14, next_step)
+             next_step = coalesce($14, next_step),
+             owner = coalesce($15, owner)
            WHERE id = $1 RETURNING *`,
           [company.id, companyFields.name, domain,
            companyFields.industry,
            employeeCount, companyFields.ad_spend_range, companyFields.website,
            companyFields.lifecycle_stage, companyFields.phone, companyFields.target_tier,
            companyFields.source, companyFields.campaign, companyFields.buying_committee_status,
-           companyFields.next_step]));
+           companyFields.next_step, companyFields.owner]));
         await auditChange(client, auditBatchId, {
           table: 'companies',
           operation: 'update',
@@ -132,15 +134,15 @@ router.post('/', h(async (req, res) => {
         ({ rows: [company] } = await client.query(
           `INSERT INTO companies (
              name, domain, industry, employee_count, ad_spend_range, website, lifecycle_stage, phone,
-             target_tier, source, campaign, buying_committee_status, next_step
+             target_tier, source, campaign, buying_committee_status, next_step, owner
            )
           VALUES ($1, $2, coalesce($3, 'HVAC'), $4, $5, $6, coalesce($7, 'lead'), $8,
-                   $9, $10, $11, coalesce($12, 'unknown'), $13) RETURNING *`,
+                   $9, $10, $11, coalesce($12, 'unknown'), $13, $14) RETURNING *`,
           [companyFields.name, domain, companyFields.industry,
            employeeCount, companyFields.ad_spend_range, companyFields.website,
            companyFields.lifecycle_stage, companyFields.phone, companyFields.target_tier,
            companyFields.source, companyFields.campaign, companyFields.buying_committee_status,
-           companyFields.next_step]));
+           companyFields.next_step, companyFields.owner]));
         await auditChange(client, auditBatchId, {
           table: 'companies',
           operation: 'insert',
@@ -165,6 +167,7 @@ router.post('/', h(async (req, res) => {
           phone_direct: cleanString(ct.phone_direct),
           phone_cell: cleanString(ct.phone_cell),
           phone_other: cleanString(ct.phone_other),
+          owner: cleanString(ct.owner),
           source: cleanString(ct.source),
         };
         let existing;
@@ -188,7 +191,8 @@ router.post('/', h(async (req, res) => {
                email = coalesce($6, email), email_2 = coalesce($7, email_2),
                phone_direct = coalesce($8, phone_direct), phone_cell = coalesce($9, phone_cell),
                phone_other = coalesce($10, phone_other),
-               source = coalesce($11, source)
+               source = coalesce($11, source),
+               owner = coalesce($12, owner)
              WHERE id = $1 RETURNING *`,
             [existing.id,
              contactFields.first_name, contactFields.last_name,
@@ -196,7 +200,7 @@ router.post('/', h(async (req, res) => {
              contactFields.contact_role,
              contactFields.email, contactFields.email_2,
              contactFields.phone_direct, contactFields.phone_cell, contactFields.phone_other,
-             contactFields.source]);
+             contactFields.source, contactFields.owner]);
           await auditChange(client, auditBatchId, {
             table: 'contacts',
             operation: 'update',
@@ -209,8 +213,8 @@ router.post('/', h(async (req, res) => {
           const { rows: [contact] } = await client.query(
             `INSERT INTO contacts
                (company_id, name, first_name, last_name, title, contact_role, email, email_2,
-                phone_direct, phone_cell, phone_other, source)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+                phone_direct, phone_cell, phone_other, source, owner)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
              RETURNING *`,
             [company.id, contactFields.name,
              contactFields.first_name, contactFields.last_name,
@@ -218,7 +222,7 @@ router.post('/', h(async (req, res) => {
              contactFields.contact_role,
              contactFields.email, contactFields.email_2,
              contactFields.phone_direct, contactFields.phone_cell, contactFields.phone_other,
-             contactFields.source]);
+             contactFields.source, contactFields.owner]);
           await auditChange(client, auditBatchId, {
             table: 'contacts',
             operation: 'insert',
