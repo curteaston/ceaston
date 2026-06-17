@@ -418,7 +418,8 @@ async function smokeCompanyDeleteConfirmation() {
   const stillThere = await get(`/companies/${companyId}`);
   assert(stillThere.data.id === companyId, 'Company should remain after missing/wrong delete confirmation');
   const deleted = await deleteCompany(companyId, firstName, { expectOk: false });
-  assert(deleted.res.status === 204, `Company delete with exact confirmation should return 204, got ${deleted.res.status}`);
+  assert(deleted.res.status === 200, `Company delete with exact confirmation should return 200 with audit details, got ${deleted.res.status}`);
+  assert(deleted.data?.audit_batch_id, `Company delete should return audit_batch_id, got ${deleted.text}`);
 
   const bulkNames = [
     `Bulk Delete Confirmation A ${stamp}`,
@@ -445,6 +446,7 @@ async function smokeCompanyDeleteConfirmation() {
       confirm: bulkCompanyDeleteConfirmation(ids.length),
     });
     assert(bulkDeleted.data.deleted === ids.length, `Bulk delete with exact confirmation should delete ${ids.length}, got ${bulkDeleted.text}`);
+    assert(bulkDeleted.data.audit_batch_id, `Bulk delete should return audit_batch_id, got ${bulkDeleted.text}`);
   } finally {
     for (const company of bulkCompanies) {
       await deleteCompany(company.id, company.name, { expectOk: false });
@@ -645,7 +647,8 @@ async function smoke() {
     } finally {
       if (sequenceId) {
         const cleanup = await del(`/sequences/${sequenceId}`, { expectOk: false });
-        assert(cleanup.res.status === 204, `Temporary smoke sequence cleanup returned ${cleanup.res.status}`);
+        assert(cleanup.res.status === 200, `Temporary smoke sequence cleanup returned ${cleanup.res.status}`);
+        assert(cleanup.data?.audit_batch_id, `Temporary smoke sequence cleanup should return audit_batch_id, got ${cleanup.text}`);
       }
     }
   } else {

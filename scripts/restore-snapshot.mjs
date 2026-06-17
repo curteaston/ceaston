@@ -20,6 +20,8 @@ const RESTORE_TABLES = [
   'saved_views',
   'email_templates',
   'webhooks',
+  'data_audit_batches',
+  'data_audit_events',
 ];
 
 const RESTORE_ORDER = [
@@ -39,6 +41,8 @@ const RESTORE_ORDER = [
   'saved_views',
   'email_templates',
   'webhooks',
+  'data_audit_batches',
+  'data_audit_events',
 ];
 
 const SERIAL_TABLES = RESTORE_TABLES.filter((table) => !['company_tags', 'contact_tags'].includes(table));

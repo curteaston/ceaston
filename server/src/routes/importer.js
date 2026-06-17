@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { auditChange, createAuditBatch } from '../audit.js';
 import {
   h,
   badRequest,
@@ -51,8 +52,15 @@ router.post('/', h(async (req, res) => {
 
   const summary = { companies_created: 0, companies_updated: 0, contacts_created: 0, contacts_updated: 0, skipped: [] };
   const client = await pool.connect();
+  let auditBatchId = null;
   try {
     await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'import',
+      summary: `Import ${companies.length} submitted companies`,
+      req,
+      metadata: { submitted_companies: companies.length },
+    });
     for (const [i, c] of companies.entries()) {
       const name = cleanString(c?.name);
       if (!c || !name) {
@@ -92,6 +100,7 @@ router.post('/', h(async (req, res) => {
         continue;
       }
       if (company) {
+        const before = company;
         ({ rows: [company] } = await client.query(
           `UPDATE companies SET
              name = coalesce($2, name), domain = coalesce($3, domain),
@@ -111,6 +120,13 @@ router.post('/', h(async (req, res) => {
            companyFields.lifecycle_stage, companyFields.phone, companyFields.target_tier,
            companyFields.source, companyFields.campaign, companyFields.buying_committee_status,
            companyFields.next_step]));
+        await auditChange(client, auditBatchId, {
+          table: 'companies',
+          operation: 'update',
+          before,
+          after: company,
+          metadata: { import_index: i },
+        });
         summary.companies_updated++;
       } else {
         ({ rows: [company] } = await client.query(
@@ -125,6 +141,13 @@ router.post('/', h(async (req, res) => {
            companyFields.lifecycle_stage, companyFields.phone, companyFields.target_tier,
            companyFields.source, companyFields.campaign, companyFields.buying_committee_status,
            companyFields.next_step]));
+        await auditChange(client, auditBatchId, {
+          table: 'companies',
+          operation: 'insert',
+          before: null,
+          after: company,
+          metadata: { import_index: i },
+        });
         summary.companies_created++;
       }
 
@@ -156,7 +179,8 @@ router.post('/', h(async (req, res) => {
             [company.id, contactFields.name]));
         }
         if (existing) {
-          await client.query(
+          const { rows: [before] } = await client.query('SELECT * FROM contacts WHERE id = $1', [existing.id]);
+          const { rows: [contact] } = await client.query(
             `UPDATE contacts SET
                first_name = coalesce($2, first_name), last_name = coalesce($3, last_name),
                title = coalesce($4, title),
@@ -165,7 +189,7 @@ router.post('/', h(async (req, res) => {
                phone_direct = coalesce($8, phone_direct), phone_cell = coalesce($9, phone_cell),
                phone_other = coalesce($10, phone_other),
                source = coalesce($11, source)
-             WHERE id = $1`,
+             WHERE id = $1 RETURNING *`,
             [existing.id,
              contactFields.first_name, contactFields.last_name,
              contactFields.title,
@@ -173,13 +197,21 @@ router.post('/', h(async (req, res) => {
              contactFields.email, contactFields.email_2,
              contactFields.phone_direct, contactFields.phone_cell, contactFields.phone_other,
              contactFields.source]);
+          await auditChange(client, auditBatchId, {
+            table: 'contacts',
+            operation: 'update',
+            before,
+            after: contact,
+            metadata: { import_index: i, company_id: company.id },
+          });
           summary.contacts_updated++;
         } else {
-          await client.query(
+          const { rows: [contact] } = await client.query(
             `INSERT INTO contacts
                (company_id, name, first_name, last_name, title, contact_role, email, email_2,
                 phone_direct, phone_cell, phone_other, source)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             RETURNING *`,
             [company.id, contactFields.name,
              contactFields.first_name, contactFields.last_name,
              contactFields.title,
@@ -187,10 +219,28 @@ router.post('/', h(async (req, res) => {
              contactFields.email, contactFields.email_2,
              contactFields.phone_direct, contactFields.phone_cell, contactFields.phone_other,
              contactFields.source]);
+          await auditChange(client, auditBatchId, {
+            table: 'contacts',
+            operation: 'insert',
+            before: null,
+            after: contact,
+            metadata: { import_index: i, company_id: company.id },
+          });
           summary.contacts_created++;
         }
       }
     }
+    await client.query(
+      `UPDATE data_audit_batches
+          SET summary = $2,
+              metadata = metadata || $3::jsonb
+        WHERE id = $1`,
+      [
+        auditBatchId,
+        `Import: ${summary.companies_created} companies created, ${summary.companies_updated} updated, ${summary.contacts_created} contacts created, ${summary.contacts_updated} updated`,
+        JSON.stringify({ summary }),
+      ],
+    );
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -198,7 +248,7 @@ router.post('/', h(async (req, res) => {
   } finally {
     client.release();
   }
-  res.status(201).json(summary);
+  res.status(201).json({ ...summary, audit_batch_id: auditBatchId });
 }));
 
 export default router;

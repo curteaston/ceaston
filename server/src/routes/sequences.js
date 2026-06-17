@@ -2,12 +2,29 @@ import { Router } from 'express';
 import nodemailer from 'nodemailer';
 import { query, pool, touchCompany } from '../db.js';
 import {
+  auditChange,
+  auditRowDiff,
+  auditRows,
+  auditSequenceCascadeDelete,
+  createAuditBatch,
+} from '../audit.js';
+import {
   h, badRequest, notFound, PRIORITIES, SEQUENCE_STEP_KINDS, SEQUENCE_TASK_TYPES,
   assertEnum, requireNonBlank, rejectBlank,
 } from '../util.js';
 import { emit } from '../events.js';
 
 const router = Router();
+
+const defaultDb = { query };
+
+async function touchCompanyWithClient(client, companyId, when) {
+  await client.query(
+    `UPDATE companies SET last_activity_at = GREATEST(coalesce(last_activity_at, 'epoch'), $2)
+     WHERE id = $1`,
+    [companyId, when || new Date()]
+  );
+}
 
 // ---- merge fields ----
 export function renderTemplate(tpl, { contact, company }) {
@@ -56,6 +73,34 @@ function enrollmentSummary(rows) {
   const completed = rows.filter((r) => doneStates.has(r.status)).length;
   const next = rows.find((r) => r.status === 'pending');
   return { total, completed, next_due: next?.due_date || null, next_kind: next?.kind || null };
+}
+
+async function snapshotEnrollments(client, enrollmentIds) {
+  const ids = enrollmentIds.map(Number).filter(Number.isFinite);
+  if (!ids.length) return { enrollments: [], runs: [], tasks: [] };
+  const { rows: enrollments } = await client.query(
+    'SELECT * FROM sequence_enrollments WHERE id = ANY($1::int[]) ORDER BY id',
+    [ids]
+  );
+  const { rows: runs } = await client.query(
+    'SELECT * FROM sequence_step_runs WHERE enrollment_id = ANY($1::int[]) ORDER BY id',
+    [ids]
+  );
+  const taskIds = runs.map((row) => row.task_id).filter(Boolean);
+  const { rows: tasks } = taskIds.length
+    ? await client.query('SELECT * FROM tasks WHERE id = ANY($1::int[]) ORDER BY id', [taskIds])
+    : { rows: [] };
+  return { enrollments, runs, tasks };
+}
+
+async function activeContactEnrollmentSnapshot(client, contactId) {
+  if (!contactId) return { enrollmentIds: [], enrollments: [], runs: [], tasks: [] };
+  const { rows } = await client.query(
+    'SELECT id FROM sequence_enrollments WHERE contact_id = $1 AND status = $2 ORDER BY id',
+    [contactId, 'active']
+  );
+  const enrollmentIds = rows.map((row) => row.id);
+  return { enrollmentIds, ...(await snapshotEnrollments(client, enrollmentIds)) };
 }
 
 // ================= CRUD =================
@@ -131,26 +176,43 @@ router.post('/', h(async (req, res) => {
   const b = req.body;
   b.name = requireNonBlank('name', b.name);
   const client = await pool.connect();
+  let seq;
+  let auditBatchId;
   try {
     await client.query('BEGIN');
+    auditBatchId = await createAuditBatch(client, {
+      action: 'sequence.create',
+      summary: `Create sequence ${b.name}`,
+      req,
+      metadata: { step_count: Array.isArray(b.steps) ? b.steps.length : 0 },
+    });
     const { rows } = await client.query(
       'INSERT INTO sequences (name, description, active) VALUES ($1, $2, coalesce($3, true)) RETURNING *',
       [b.name, b.description || null, b.active]
     );
-    const seq = rows[0];
-    await insertSteps(client, seq.id, b.steps || []);
+    seq = rows[0];
+    const steps = await insertSteps(client, seq.id, b.steps || []);
+    await auditChange(client, auditBatchId, {
+      table: 'sequences',
+      operation: 'insert',
+      before: null,
+      after: seq,
+      metadata: { route: 'sequence.create' },
+    });
+    await auditRows(client, auditBatchId, 'sequence_steps', 'insert', steps, { route: 'sequence.create.steps' });
     await client.query('COMMIT');
-    res.status(201).json({ ...seq, steps: await loadSteps(seq.id) });
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;
   } finally {
     client.release();
   }
+  res.status(201).json({ ...seq, steps: await loadSteps(seq.id), audit_batch_id: auditBatchId });
 }));
 
 async function insertSteps(client, sequenceId, steps) {
   if (!Array.isArray(steps)) throw badRequest('steps must be an array');
+  const inserted = [];
   for (const [i, rawStep] of steps.entries()) {
     const s = rawStep || {};
     const kind = s.kind || 'task';
@@ -159,13 +221,15 @@ async function insertSteps(client, sequenceId, steps) {
     assertEnum('step.kind', kind, SEQUENCE_STEP_KINDS);
     assertEnum('step.priority', priority, PRIORITIES);
     assertEnum('step.task_type', taskType, SEQUENCE_TASK_TYPES);
-    await client.query(
+    const { rows } = await client.query(
       `INSERT INTO sequence_steps (sequence_id, step_order, day_offset, kind, task_type, description, priority, subject, body)
-       VALUES ($1, $2, $3, $4, $5, $6, coalesce($7, 'medium'), $8, $9)`,
+       VALUES ($1, $2, $3, $4, $5, $6, coalesce($7, 'medium'), $8, $9) RETURNING *`,
       [sequenceId, i, Number(s.day_offset) || 0, kind,
        taskType, s.description || null, priority, s.subject || null, s.body || null]
     );
+    inserted.push(rows[0]);
   }
+  return inserted;
 }
 
 // PUT replaces the whole step list (simplest editing model).
@@ -173,32 +237,80 @@ router.put('/:id', h(async (req, res) => {
   const b = req.body;
   if (Object.prototype.hasOwnProperty.call(b, 'name')) b.name = rejectBlank('name', b.name);
   const client = await pool.connect();
+  let sequence;
+  let auditBatchId;
   try {
     await client.query('BEGIN');
+    const { rows: beforeSequenceRows } = await client.query('SELECT * FROM sequences WHERE id = $1', [req.params.id]);
+    if (!beforeSequenceRows[0]) throw notFound('Sequence not found');
+    const { rows: beforeSteps } = await client.query('SELECT * FROM sequence_steps WHERE sequence_id = $1 ORDER BY id', [req.params.id]);
+    const beforeStepIds = beforeSteps.map((row) => row.id);
+    const { rows: beforeRuns } = beforeStepIds.length
+      ? await client.query('SELECT * FROM sequence_step_runs WHERE step_id = ANY($1::int[]) ORDER BY id', [beforeStepIds])
+      : { rows: [] };
+    auditBatchId = await createAuditBatch(client, {
+      action: 'sequence.update',
+      summary: `Update sequence ${req.params.id}`,
+      req,
+      metadata: {
+        sequence_id: req.params.id,
+        replaces_steps: Array.isArray(b.steps),
+        step_count: Array.isArray(b.steps) ? b.steps.length : null,
+      },
+    });
     const { rows } = await client.query(
       `UPDATE sequences SET name = coalesce($2, name), description = $3, active = coalesce($4, active)
        WHERE id = $1 RETURNING *`,
       [req.params.id, b.name, b.description ?? null, b.active]
     );
-    if (!rows[0]) throw notFound('Sequence not found');
+    sequence = rows[0];
+    await auditChange(client, auditBatchId, {
+      table: 'sequences',
+      operation: 'update',
+      before: beforeSequenceRows[0],
+      after: sequence,
+      metadata: { route: 'sequence.update' },
+    });
     if (Array.isArray(b.steps)) {
+      await auditRows(client, auditBatchId, 'sequence_step_runs', 'delete', beforeRuns, { route: 'sequence.update.replace_steps.runs' });
+      await auditRows(client, auditBatchId, 'sequence_steps', 'delete', beforeSteps, { route: 'sequence.update.replace_steps.old_steps' });
       await client.query('DELETE FROM sequence_steps WHERE sequence_id = $1', [req.params.id]);
-      await insertSteps(client, req.params.id, b.steps);
+      const newSteps = await insertSteps(client, req.params.id, b.steps);
+      await auditRows(client, auditBatchId, 'sequence_steps', 'insert', newSteps, { route: 'sequence.update.replace_steps.new_steps' });
     }
     await client.query('COMMIT');
-    res.json({ ...rows[0], steps: await loadSteps(req.params.id) });
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;
   } finally {
     client.release();
   }
+  res.json({ ...sequence, steps: await loadSteps(req.params.id), audit_batch_id: auditBatchId });
 }));
 
 router.delete('/:id', h(async (req, res) => {
-  const { rowCount } = await query('DELETE FROM sequences WHERE id = $1', [req.params.id]);
-  if (!rowCount) throw notFound('Sequence not found');
-  res.status(204).end();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: beforeRows } = await client.query('SELECT * FROM sequences WHERE id = $1', [req.params.id]);
+    if (!beforeRows[0]) throw notFound('Sequence not found');
+    const auditBatchId = await createAuditBatch(client, {
+      action: 'sequence.delete',
+      summary: `Delete sequence ${beforeRows[0].name}`,
+      req,
+      metadata: { sequence_id: req.params.id },
+    });
+    await auditSequenceCascadeDelete(client, auditBatchId, [req.params.id], { route: 'sequence.delete' });
+    const { rowCount } = await client.query('DELETE FROM sequences WHERE id = $1', [req.params.id]);
+    if (!rowCount) throw notFound('Sequence not found');
+    await client.query('COMMIT');
+    res.json({ deleted: 1, audit_batch_id: auditBatchId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 
 // ================= enrollment =================
@@ -250,47 +362,72 @@ router.post('/:id/enroll', h(async (req, res) => {
     owner = rows[0]?.owner || null;
   }
 
-  const client = await pool.connect();
+  const auditClient = await pool.connect();
   try {
-    await client.query('BEGIN');
-    const { rows: enrollRows } = await client.query(
+    await auditClient.query('BEGIN');
+    const { rows: beforeCompanyRows } = await auditClient.query('SELECT * FROM companies WHERE id = $1', [b.company_id]);
+    const auditBatchId = await createAuditBatch(auditClient, {
+      action: 'sequence.enroll',
+      summary: `Enroll company ${b.company_id} in sequence ${req.params.id}`,
+      req,
+      metadata: { sequence_id: req.params.id, company_id: b.company_id, contact_id: b.contact_id || null },
+    });
+    const { rows: enrollRows } = await auditClient.query(
       `INSERT INTO sequence_enrollments (sequence_id, company_id, contact_id, owner)
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [req.params.id, b.company_id, b.contact_id || null, owner]
     );
     const enrollment = enrollRows[0];
+    const insertedTasks = [];
+    const insertedRuns = [];
 
     for (const step of steps) {
       const due = `CURRENT_DATE + ${parseInt(step.day_offset, 10) || 0}`;
       if (step.kind === 'task') {
-        const { rows: taskRows } = await client.query(
+        const { rows: taskRows } = await auditClient.query(
           `INSERT INTO tasks (company_id, contact_id, description, due_date, priority, owner)
-           VALUES ($1, $2, $3, ${due}, coalesce($4, 'medium'), $5) RETURNING id`,
+           VALUES ($1, $2, $3, ${due}, coalesce($4, 'medium'), $5) RETURNING *`,
           [b.company_id, b.contact_id || null,
-           step.description || `${seq.name} — step`, step.priority || null, owner]
+           step.description || `${seq.name} - step`, step.priority || null, owner]
         );
-        await client.query(
+        insertedTasks.push(taskRows[0]);
+        const { rows: runRows } = await auditClient.query(
           `INSERT INTO sequence_step_runs (enrollment_id, step_id, kind, due_date, status, task_id)
-           VALUES ($1, $2, 'task', ${due}, 'pending', $3)`,
+           VALUES ($1, $2, 'task', ${due}, 'pending', $3) RETURNING *`,
           [enrollment.id, step.id, taskRows[0].id]
         );
+        insertedRuns.push(runRows[0]);
       } else {
-        await client.query(
+        const { rows: runRows } = await auditClient.query(
           `INSERT INTO sequence_step_runs (enrollment_id, step_id, kind, due_date, status)
-           VALUES ($1, $2, 'auto_email', ${due}, 'pending')`,
+           VALUES ($1, $2, 'auto_email', ${due}, 'pending') RETURNING *`,
           [enrollment.id, step.id]
         );
+        insertedRuns.push(runRows[0]);
       }
     }
-    await client.query('COMMIT');
-    await touchCompany(b.company_id);
-    res.status(201).json(enrollment);
+
+    await auditChange(auditClient, auditBatchId, {
+      table: 'sequence_enrollments',
+      operation: 'insert',
+      before: null,
+      after: enrollment,
+      metadata: { route: 'sequence.enroll' },
+    });
+    await auditRows(auditClient, auditBatchId, 'tasks', 'insert', insertedTasks, { route: 'sequence.enroll.tasks' });
+    await auditRows(auditClient, auditBatchId, 'sequence_step_runs', 'insert', insertedRuns, { route: 'sequence.enroll.runs' });
+    await touchCompanyWithClient(auditClient, b.company_id);
+    const { rows: afterCompanyRows } = await auditClient.query('SELECT * FROM companies WHERE id = $1', [b.company_id]);
+    await auditRowDiff(auditClient, auditBatchId, 'companies', beforeCompanyRows, afterCompanyRows, { route: 'sequence.enroll.touch_company' });
+    await auditClient.query('COMMIT');
+    return res.status(201).json({ ...enrollment, audit_batch_id: auditBatchId });
   } catch (e) {
-    await client.query('ROLLBACK');
+    await auditClient.query('ROLLBACK');
     throw e;
   } finally {
-    client.release();
+    auditClient.release();
   }
+
 }));
 
 // GET /api/sequences/enrollments?company_id= — enrollments with progress
@@ -325,37 +462,37 @@ router.get('/enrollments/list', h(async (req, res) => {
 }));
 
 // Cancel an enrollment's remaining steps (delete open tasks, skip pending runs).
-async function cancelPendingSteps(enrollmentId) {
-  const { rows: pending } = await query(
+async function cancelPendingSteps(enrollmentId, client = defaultDb) {
+  const { rows: pending } = await client.query(
     `SELECT * FROM sequence_step_runs WHERE enrollment_id = $1 AND status = 'pending'`,
     [enrollmentId]
   );
   for (const run of pending) {
-    if (run.task_id) await query('DELETE FROM tasks WHERE id = $1 AND NOT completed', [run.task_id]);
+    if (run.task_id) await client.query('DELETE FROM tasks WHERE id = $1 AND NOT completed', [run.task_id]);
   }
-  await query(
+  await client.query(
     `UPDATE sequence_step_runs SET status = 'skipped' WHERE enrollment_id = $1 AND status = 'pending'`,
     [enrollmentId]
   );
 }
 
-async function stopEnrollmentForSuppression(enrollmentId) {
-  await cancelPendingSteps(enrollmentId);
-  await query(
+async function stopEnrollmentForSuppression(enrollmentId, client = defaultDb) {
+  await cancelPendingSteps(enrollmentId, client);
+  await client.query(
     `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now()
      WHERE id = $1 AND status = 'active'`,
     [enrollmentId]
   );
 }
 
-export async function stopActiveCompanyEnrollments(companyId) {
-  const { rows } = await query(
+export async function stopActiveCompanyEnrollments(companyId, client = defaultDb) {
+  const { rows } = await client.query(
     `SELECT id FROM sequence_enrollments WHERE company_id = $1 AND status = 'active'`,
     [companyId]
   );
-  for (const enrollment of rows) await cancelPendingSteps(enrollment.id);
+  for (const enrollment of rows) await cancelPendingSteps(enrollment.id, client);
   if (rows.length) {
-    await query(
+    await client.query(
       `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now()
        WHERE company_id = $1 AND status = 'active'`,
       [companyId]
@@ -367,65 +504,127 @@ export async function stopActiveCompanyEnrollments(companyId) {
 // When a contact replies, pull them out of every active sequence (cadence hygiene).
 // Called from the activities route when an interaction is logged with outcome 'replied',
 // and from the manual "mark replied" button. Returns how many enrollments were stopped.
-export async function handleContactReply(contactId) {
+export async function handleContactReply(contactId, client = defaultDb) {
   if (!contactId) return 0;
-  const { rows: contactRows } = await query(
+  const { rows: contactRows } = await client.query(
     'SELECT company_id FROM contacts WHERE id = $1',
     [contactId]
   );
   const companyId = contactRows[0]?.company_id;
-  await query('UPDATE contacts SET replied = true WHERE id = $1', [contactId]);
+  await client.query('UPDATE contacts SET replied = true WHERE id = $1', [contactId]);
   if (companyId) {
-    await query(
+    await client.query(
       `UPDATE companies
           SET replied = true,
               next_step = 'Review reply before next touch'
         WHERE id = $1`,
       [companyId]
     );
-    await touchCompany(companyId);
+    await touchCompanyWithClient(client, companyId);
   }
-  const { rows } = await query(
+  const { rows } = await client.query(
     `SELECT id FROM sequence_enrollments WHERE contact_id = $1 AND status = 'active'`,
     [contactId]
   );
   for (const e of rows) {
-    await cancelPendingSteps(e.id);
-    await query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [e.id]);
+    await cancelPendingSteps(e.id, client);
+    await client.query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [e.id]);
   }
   return rows.length;
 }
 
 router.post('/enrollments/:id/replied', h(async (req, res) => {
-  const { rows } = await query('SELECT * FROM sequence_enrollments WHERE id = $1', [req.params.id]);
-  const enrollment = rows[0];
-  if (!enrollment) throw notFound('Enrollment not found');
-  if (enrollment.contact_id) {
-    await handleContactReply(enrollment.contact_id);
-  } else {
-    await cancelPendingSteps(req.params.id);
-    await query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [req.params.id]);
-    await query(
-      `UPDATE companies
-          SET replied = true,
-              next_step = 'Review reply before next touch'
-        WHERE id = $1`,
-      [enrollment.company_id]
-    );
-    await touchCompany(enrollment.company_id);
+  const client = await pool.connect();
+  let auditBatchId;
+  let stoppedEnrollments = 0;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT * FROM sequence_enrollments WHERE id = $1', [req.params.id]);
+    const enrollment = rows[0];
+    if (!enrollment) throw notFound('Enrollment not found');
+    const { rows: beforeCompanyRows } = await client.query('SELECT * FROM companies WHERE id = $1', [enrollment.company_id]);
+    const { rows: beforeContactRows } = enrollment.contact_id
+      ? await client.query('SELECT * FROM contacts WHERE id = $1', [enrollment.contact_id])
+      : { rows: [] };
+    const beforeSnapshot = enrollment.contact_id
+      ? await activeContactEnrollmentSnapshot(client, enrollment.contact_id)
+      : { enrollmentIds: [enrollment.id], ...(await snapshotEnrollments(client, [enrollment.id])) };
+
+    auditBatchId = await createAuditBatch(client, {
+      action: 'sequence_enrollment.replied',
+      summary: `Mark enrollment ${req.params.id} replied`,
+      req,
+      metadata: { enrollment_id: req.params.id, company_id: enrollment.company_id, contact_id: enrollment.contact_id },
+    });
+
+    if (enrollment.contact_id) {
+      stoppedEnrollments = await handleContactReply(enrollment.contact_id, client);
+    } else {
+      await cancelPendingSteps(req.params.id, client);
+      await client.query(`UPDATE sequence_enrollments SET status = 'replied', finished_at = now() WHERE id = $1`, [req.params.id]);
+      await client.query(
+        `UPDATE companies
+            SET replied = true,
+                next_step = 'Review reply before next touch'
+          WHERE id = $1`,
+        [enrollment.company_id]
+      );
+      await touchCompanyWithClient(client, enrollment.company_id);
+      stoppedEnrollments = 1;
+    }
+
+    const { rows: afterCompanyRows } = await client.query('SELECT * FROM companies WHERE id = $1', [enrollment.company_id]);
+    const { rows: afterContactRows } = enrollment.contact_id
+      ? await client.query('SELECT * FROM contacts WHERE id = $1', [enrollment.contact_id])
+      : { rows: [] };
+    const afterSnapshot = await snapshotEnrollments(client, beforeSnapshot.enrollmentIds);
+    await auditRowDiff(client, auditBatchId, 'companies', beforeCompanyRows, afterCompanyRows, { route: 'sequence_enrollment.replied.company' });
+    await auditRowDiff(client, auditBatchId, 'contacts', beforeContactRows, afterContactRows, { route: 'sequence_enrollment.replied.contact' });
+    await auditRowDiff(client, auditBatchId, 'tasks', beforeSnapshot.tasks, afterSnapshot.tasks, { route: 'sequence_enrollment.replied.tasks' });
+    await auditRowDiff(client, auditBatchId, 'sequence_step_runs', beforeSnapshot.runs, afterSnapshot.runs, { route: 'sequence_enrollment.replied.runs' });
+    await auditRowDiff(client, auditBatchId, 'sequence_enrollments', beforeSnapshot.enrollments, afterSnapshot.enrollments, { route: 'sequence_enrollment.replied.enrollments' });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-  res.json({ ok: true });
+  res.json({ ok: true, stopped_enrollments: stoppedEnrollments, audit_batch_id: auditBatchId });
 }));
 
 router.post('/enrollments/:id/unenroll', h(async (req, res) => {
-  const { rows } = await query('SELECT id FROM sequence_enrollments WHERE id = $1', [req.params.id]);
-  if (!rows[0]) throw notFound('Enrollment not found');
-  await cancelPendingSteps(req.params.id);
-  await query(
-    `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now() WHERE id = $1`,
-    [req.params.id]
-  );
-  res.json({ ok: true });
+  const client = await pool.connect();
+  let auditBatchId;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT * FROM sequence_enrollments WHERE id = $1', [req.params.id]);
+    const enrollment = rows[0];
+    if (!enrollment) throw notFound('Enrollment not found');
+    const beforeSnapshot = { enrollmentIds: [enrollment.id], ...(await snapshotEnrollments(client, [enrollment.id])) };
+    auditBatchId = await createAuditBatch(client, {
+      action: 'sequence_enrollment.unenroll',
+      summary: `Unenroll enrollment ${req.params.id}`,
+      req,
+      metadata: { enrollment_id: req.params.id, company_id: enrollment.company_id, contact_id: enrollment.contact_id },
+    });
+    await cancelPendingSteps(req.params.id, client);
+    await client.query(
+      `UPDATE sequence_enrollments SET status = 'unenrolled', finished_at = now() WHERE id = $1`,
+      [req.params.id]
+    );
+    const afterSnapshot = await snapshotEnrollments(client, beforeSnapshot.enrollmentIds);
+    await auditRowDiff(client, auditBatchId, 'tasks', beforeSnapshot.tasks, afterSnapshot.tasks, { route: 'sequence_enrollment.unenroll.tasks' });
+    await auditRowDiff(client, auditBatchId, 'sequence_step_runs', beforeSnapshot.runs, afterSnapshot.runs, { route: 'sequence_enrollment.unenroll.runs' });
+    await auditRowDiff(client, auditBatchId, 'sequence_enrollments', beforeSnapshot.enrollments, afterSnapshot.enrollments, { route: 'sequence_enrollment.unenroll.enrollments' });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  res.json({ ok: true, audit_batch_id: auditBatchId });
 }));
 
 // ================= scheduler =================

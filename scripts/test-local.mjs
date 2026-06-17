@@ -411,6 +411,7 @@ try {
   runNodeScript('scripts/smoke-local-api.mjs', [], smokeEnv);
   runNodeScript('scripts/smoke-local-browser.mjs', [], smokeEnv);
   runNodeScript('scripts/smoke-sequence-workflow.mjs', [], smokeEnv);
+  runNodeScript('scripts/smoke-audit-undo.mjs', [], smokeEnv);
   runNodeScript('scripts/smoke-backup-restore.mjs', [], smokeEnv);
 
   console.log('');

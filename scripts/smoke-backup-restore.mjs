@@ -31,6 +31,8 @@ const RESTORE_TABLES = [
   'saved_views',
   'email_templates',
   'webhooks',
+  'data_audit_batches',
+  'data_audit_events',
 ];
 
 const psql = findPgTool('psql');

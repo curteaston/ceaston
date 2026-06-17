@@ -20,6 +20,8 @@ const TABLES = [
   ['contact_tags', 'contact_id, tag_id'],
   ['saved_views', 'id'],
   ['email_templates', 'id'],
+  ['data_audit_batches', 'created_at, id'],
+  ['data_audit_events', 'id'],
 ];
 
 async function readTable(table, orderBy) {
