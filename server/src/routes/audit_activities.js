@@ -27,6 +27,27 @@ function nullableDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+function parseEmbeddedData(body) {
+  const rawPayload = body.raw_payload;
+  const embedded = rawPayload && typeof rawPayload === 'object' ? rawPayload.data : null;
+  if (!embedded) return {};
+  if (typeof embedded === 'object') return embedded;
+  if (typeof embedded !== 'string') return {};
+  try {
+    const parsed = JSON.parse(embedded);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function firstValue(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return null;
+}
+
 function eventType(value) {
   const cleaned = text(value);
   if (!EVENT_TYPES.includes(cleaned)) throw badRequest(`event_type must be one of: ${EVENT_TYPES.join(', ')}`);
@@ -69,35 +90,37 @@ async function resolveCompanyId(body) {
 }
 
 function rowFromBody(body, type, key, companyId) {
+  const embedded = parseEmbeddedData(body);
+
   return {
     event_key: key,
     event_type: type,
-    audit_id: nullableText(body.audit_id),
-    event_id: nullableText(body.event_id || body.call_id || body.conversation_id),
+    audit_id: nullableText(firstValue(body.audit_id, embedded.matched_audit_id)),
+    event_id: nullableText(firstValue(body.event_id, body.call_id, body.conversation_id, embedded.event_id, embedded.call_id, embedded.conversation_id)),
     company_id: companyId,
     external_company_id: nullableText(body.external_company_id || body.company_external_id || body.company_id),
     company_name: requireNonBlank('company_name', body.company_name),
     contact_form_url: nullableText(body.contact_form_url),
     submitted_at: nullableDate(body.submitted_at || body.started_at),
-    occurred_at: nullableDate(body.occurred_at || body.responded_at || body.finished_at || body.received_at || body.submitted_at || body.started_at) || new Date().toISOString(),
+    occurred_at: nullableDate(firstValue(body.occurred_at, body.responded_at, body.finished_at, body.received_at, embedded.received_at, body.submitted_at, body.started_at)) || new Date().toISOString(),
     submission_status: nullableText(body.submission_status),
     audit_status: nullableText(body.audit_status),
-    match_status: nullableText(body.match_status),
-    response_kind: nullableText(body.response_kind),
-    response_label: nullableText(body.response_label),
+    match_status: nullableText(firstValue(body.match_status, embedded.match_status)),
+    response_kind: nullableText(firstValue(body.response_kind, embedded.response_kind)),
+    response_label: nullableText(firstValue(body.response_label, embedded.response_label)),
     response_time_hours: nullableNumber(body.response_time_hours),
-    response_bucket: nullableText(body.response_bucket),
-    match_reason: nullableText(body.match_reason),
-    match_score: nullableNumber(body.match_score),
+    response_bucket: nullableText(firstValue(body.response_bucket, embedded.response_bucket)),
+    match_reason: nullableText(firstValue(body.match_reason, embedded.match_reason)),
+    match_score: nullableNumber(firstValue(body.match_score, embedded.match_score)),
     confidence: nullableText(body.confidence),
     ai_confidence: nullableNumber(body.ai_confidence),
     final_url: nullableText(body.final_url),
     evidence_dir: nullableText(body.evidence_dir),
     result_json: body.result_json || body.result || null,
-    transcript: nullableText(body.transcript),
-    recording_url: nullableText(body.recording_url),
-    caller_phone: nullableText(body.caller_phone || body.caller_number),
-    called_number: nullableText(body.called_number),
+    transcript: nullableText(firstValue(body.transcript, body.message_body, embedded.transcript, embedded.message_body)),
+    recording_url: nullableText(firstValue(body.recording_url, embedded.recording_url)),
+    caller_phone: nullableText(firstValue(body.caller_phone, body.caller_number, embedded.caller_phone)),
+    called_number: nullableText(firstValue(body.called_number, embedded.called_number)),
     raw_payload: body.raw_payload || body,
   };
 }
