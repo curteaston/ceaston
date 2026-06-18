@@ -92,6 +92,12 @@ export default function ContactDetail() {
   const pinNote = (noteId, pinned) =>
     run(async () => { await api.patch(`/notes/${noteId}`, { pinned }); await loadHistory(); }, pinned ? 'Note pinned' : 'Note unpinned');
 
+  const completeTask = (taskId) =>
+    run(async () => { await api.patch(`/tasks/${taskId}`, { completed: true }); await loadHistory(); }, 'Task completed');
+
+  const deleteTask = (taskId) =>
+    run(async () => { await api.del(`/tasks/${taskId}`); await loadHistory(); }, 'Task deleted');
+
   const updateContact = (form) =>
     run(async () => {
       await api.patch(`/contacts/${id}`, form);
@@ -299,6 +305,8 @@ export default function ContactDetail() {
             onEditNote={editNote}
             onDeleteNote={deleteNote}
             onPinNote={pinNote}
+            onCompleteTask={completeTask}
+            onDeleteTask={deleteTask}
             emptyText="No activities match."
           />
         </div>

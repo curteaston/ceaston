@@ -116,6 +116,7 @@ function toWorkbenchAccount(company) {
     suppressed,
     suppression_reason: company.suppression_reason,
     contact_count: contacts.length,
+    contacts,
     roles,
     missing_roles: missingRoles,
     primary_contact: primaryContact,

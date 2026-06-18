@@ -1,4 +1,10 @@
 import { normalizeHttpBase, resolveUiBase } from './local-smoke-env.mjs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { loadLocalEnv } from './local-env.mjs';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+loadLocalEnv({ root });
 
 const apiBase = normalizeHttpBase(process.env.CRM_API_URL || process.env.CRM_URL || `http://localhost:${process.env.LOCAL_CRM_API_PORT || 3001}`);
 const uiBase = await resolveUiBase({ apiBase });
@@ -44,6 +50,13 @@ try {
   failures.push(`API metadata failed: ${err.message}`);
 }
 
+let microsoftStatus = null;
+try {
+  microsoftStatus = await getJson(`${apiBase}/api/integrations/microsoft/status`);
+} catch (err) {
+  failures.push(`Office 365 status failed: ${err.message}`);
+}
+
 try {
   const html = await getText(`${uiBase}/companies/1`);
   if (!html.includes('<div id="root"></div>')) {
@@ -62,3 +75,13 @@ if (failures.length) {
 console.log('Local dev check passed.');
 console.log(`API: ${apiBase}`);
 console.log(`UI:  ${uiBase}${uiBase === apiBase ? ' (single-port API)' : ''}`);
+if (microsoftStatus) {
+  const state = microsoftStatus.connected
+    ? `connected as ${microsoftStatus.account || 'unknown account'}`
+    : microsoftStatus.configured
+      ? 'configured but not connected'
+      : microsoftStatus.token_stored
+        ? 'server config missing; saved token still exists'
+        : 'not configured';
+  console.log(`Office 365: ${state}`);
+}

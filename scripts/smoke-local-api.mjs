@@ -555,6 +555,80 @@ async function smokeContactRequiresCompany() {
   );
 }
 
+async function smokeContactTaskTimeline() {
+  const stamp = Date.now();
+  const companyName = `Task Timeline Smoke ${stamp}`;
+  let companyId = null;
+  try {
+    const company = (await post('/companies', {
+      name: companyName,
+      domain: `task-timeline-${stamp}.example`,
+      industry: 'HVAC',
+    })).data;
+    companyId = company.id;
+    const contact = (await post('/contacts', {
+      company_id: companyId,
+      name: `Task Contact ${stamp}`,
+      email: `task-contact-${stamp}@example.com`,
+    })).data;
+    const description = `Call owner about RunWise audit ${stamp}`;
+    const task = (await post('/tasks', {
+      contact_id: contact.id,
+      description,
+      due_date: '2026-06-30',
+      priority: 'high',
+      owner: 'Smoke',
+    })).data;
+
+    const tasks = (await get(`/tasks?contact_id=${contact.id}`)).data;
+    assert(tasks.some((row) => row.id === task.id && row.description === description), 'Contact-created task should appear in /tasks');
+
+    const history = (await get(`/contacts/${contact.id}/history`)).data;
+    assert(
+      history.some((row) => row.kind === 'task' && row.type === 'task' && row.id === task.id && row.body.includes(description)),
+      'Contact-created task should appear in contact history / All activities',
+    );
+
+    const full = (await get(`/companies/${companyId}/full`)).data;
+    assert(
+      full.timeline.some((row) => row.kind === 'task' && row.type === 'task' && row.id === task.id && row.body.includes(description)),
+      'Contact-created task should appear in company timeline',
+    );
+    assert(history.find((row) => row.kind === 'task' && row.id === task.id)?.completed === false, 'New contact task should show as open in contact history');
+
+    await patch(`/tasks/${task.id}`, { completed: true });
+    const completedHistory = (await get(`/contacts/${contact.id}/history`)).data;
+    const completedTask = completedHistory.find((row) => row.kind === 'task' && row.id === task.id);
+    assert(completedTask?.completed === true, 'Completed contact task should show completed in contact history');
+    assert(completedTask?.outcome === 'completed', 'Completed contact task should show completed outcome in contact history');
+
+    await del(`/tasks/${task.id}`);
+    const deletedTasks = (await get(`/tasks?contact_id=${contact.id}`)).data;
+    assert(!deletedTasks.some((row) => row.id === task.id), 'Deleted contact task should disappear from /tasks');
+    const deletedHistory = (await get(`/contacts/${contact.id}/history`)).data;
+    assert(!deletedHistory.some((row) => row.kind === 'task' && row.id === task.id), 'Deleted contact task should disappear from contact history');
+
+    const noteBody = `Pinned note smoke ${stamp}`;
+    const note = (await post('/notes', {
+      contact_id: contact.id,
+      body: noteBody,
+      source: 'typed',
+    })).data;
+    await patch(`/notes/${note.id}`, { pinned: true });
+
+    const pinnedHistory = (await get(`/contacts/${contact.id}/history`)).data;
+    const pinnedContactNote = pinnedHistory.find((row) => row.kind === 'note' && row.id === note.id);
+    assert(pinnedContactNote?.pinned === true, 'Pinned contact note should remain pinned after contact history reload');
+    assert(pinnedHistory[0]?.kind === 'note' && pinnedHistory[0]?.id === note.id, 'Pinned contact note should sort to the top of contact history');
+
+    const pinnedFull = (await get(`/companies/${companyId}/full`)).data;
+    const pinnedCompanyNote = pinnedFull.timeline.find((row) => row.kind === 'note' && row.id === note.id);
+    assert(pinnedCompanyNote?.pinned === true, 'Pinned contact note should remain pinned in company timeline');
+  } finally {
+    if (companyId) await deleteCompany(companyId, companyName, { expectOk: false });
+  }
+}
+
 async function smoke() {
   const health = (await get('/health')).data;
   assert(health?.ok === true, 'API health did not return ok=true');
@@ -571,6 +645,13 @@ async function smoke() {
     hasValues(meta, 'contact_roles', ['owner', 'marketing', 'ops', 'office_manager']),
     'API meta contact_roles is missing expected prospecting roles',
   );
+
+  const microsoft = (await get('/integrations/microsoft/status')).data;
+  assert(typeof microsoft?.configured === 'boolean', 'Microsoft status should include configured boolean');
+  assert(typeof microsoft?.connected === 'boolean', 'Microsoft status should include connected boolean');
+  assert(Array.isArray(microsoft?.missing_env), 'Microsoft status should include missing_env array');
+  assert(Object.prototype.hasOwnProperty.call(microsoft, 'token_stored'), 'Microsoft status should include token_stored');
+  assert(microsoft?.redirect_uri, 'Microsoft status should include redirect_uri');
 
   const list = (await get('/companies?limit=1')).data;
   assert(Number.isInteger(list?.total), 'Companies list did not include integer total');
@@ -603,6 +684,7 @@ async function smoke() {
   await smokeValidationGuardrails();
   await smokeBackupSnapshot();
   await smokeContactRequiresCompany();
+  await smokeContactTaskTimeline();
   await smokeCompanyDeleteConfirmation();
   await smokeCompanyArchiveRestore();
 

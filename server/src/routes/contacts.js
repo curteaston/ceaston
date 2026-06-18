@@ -266,12 +266,17 @@ router.get('/:id', h(async (req, res) => {
 router.get('/:id/history', h(async (req, res) => {
   const { rows } = await query(
     `SELECT * FROM (
-       SELECT 'note' AS kind, id, body, source, NULL AS type, NULL AS outcome, created_at AS occurred_at, updated_at
+       SELECT 'note' AS kind, id, body, source, NULL AS type, NULL AS outcome, created_at AS occurred_at, updated_at, pinned, false AS completed
          FROM notes WHERE contact_id = $1
        UNION ALL
-       SELECT 'activity', id, body, NULL, type, outcome, occurred_at, NULL
+       SELECT 'activity', id, body, NULL, type, outcome, occurred_at, NULL, false, false
          FROM activities WHERE contact_id = $1
-     ) t ORDER BY occurred_at DESC`,
+       UNION ALL
+       SELECT 'task', id,
+              concat(description, CASE WHEN due_date IS NOT NULL THEN E'\nDue: ' || due_date::text ELSE '' END),
+              NULL, 'task', CASE WHEN completed THEN 'completed' ELSE priority END, created_at, NULL, false, completed
+         FROM tasks WHERE contact_id = $1
+      ) t ORDER BY pinned DESC, occurred_at DESC`,
     [req.params.id]
   );
   res.json(rows);

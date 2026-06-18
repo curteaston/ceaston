@@ -19,14 +19,17 @@ function EmailBody({ body, outcome, contactName }) {
 }
 
 const ICONS = {
+  task: '☑️',
   call: '📞', email: '✉️', sms: '💬', meeting: '📅',
   linkedin: '💼', stage_change: '🔀', other: '📌', note: '📝',
 };
 
-function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
+function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote, onCompleteTask, onDeleteTask }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const isNote = item.kind === 'note';
+  const isTask = item.kind === 'task' || item.type === 'task';
+  const taskCompleted = item.completed || item.outcome === 'completed';
   const icon = isNote ? ICONS.note : ICONS[item.type] || ICONS.other;
 
   const startEdit = () => { setDraft(item.body); setEditing(true); };
@@ -67,11 +70,23 @@ function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
         )}
         {isNote && !editing && (
           <div className="tl-actions">
-            <button className="link-btn" onClick={() => onPinNote(item.id, !item.pinned)}>
-              {item.pinned ? 'Unpin' : 'Pin'}
-            </button>
-            <button className="link-btn" onClick={startEdit}>Edit</button>
-            <button className="link-btn danger" onClick={() => onDeleteNote(item.id)}>Delete</button>
+            {onPinNote && (
+              <button className="link-btn" onClick={() => onPinNote(item.id, !item.pinned)}>
+                {item.pinned ? 'Unpin' : 'Pin'}
+              </button>
+            )}
+            {onEditNote && <button className="link-btn" onClick={startEdit}>Edit</button>}
+            {onDeleteNote && <button className="link-btn danger" onClick={() => onDeleteNote(item.id)}>Delete</button>}
+          </div>
+        )}
+        {isTask && !editing && (onCompleteTask || onDeleteTask) && (
+          <div className="tl-actions">
+            {!taskCompleted && onCompleteTask && (
+              <button className="link-btn" onClick={() => onCompleteTask(item.id)}>Complete</button>
+            )}
+            {onDeleteTask && (
+              <button className="link-btn danger" onClick={() => onDeleteTask(item.id)}>Delete</button>
+            )}
           </div>
         )}
       </div>
@@ -79,7 +94,15 @@ function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
   );
 }
 
-export default function Timeline({ items, onEditNote, onDeleteNote, onPinNote, emptyText = 'No activity yet.' }) {
+export default function Timeline({
+  items,
+  onEditNote,
+  onDeleteNote,
+  onPinNote,
+  onCompleteTask,
+  onDeleteTask,
+  emptyText = 'No activity yet.',
+}) {
   if (!items?.length) return <p className="muted">{emptyText}</p>;
   return (
     <div className="timeline">
@@ -90,6 +113,8 @@ export default function Timeline({ items, onEditNote, onDeleteNote, onPinNote, e
           onEditNote={onEditNote}
           onDeleteNote={onDeleteNote}
           onPinNote={onPinNote}
+          onCompleteTask={onCompleteTask}
+          onDeleteTask={onDeleteTask}
         />
       ))}
     </div>
