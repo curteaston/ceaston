@@ -271,6 +271,11 @@ router.get('/:id/history', h(async (req, res) => {
        UNION ALL
        SELECT 'activity', id, body, NULL, type, outcome, occurred_at, NULL
          FROM activities WHERE contact_id = $1
+       UNION ALL
+       SELECT 'task', id, description AS body, NULL, 'task',
+              CASE WHEN completed THEN 'completed' ELSE 'open' END,
+              created_at AS occurred_at, NULL
+         FROM tasks WHERE contact_id = $1
      ) t ORDER BY occurred_at DESC`,
     [req.params.id]
   );

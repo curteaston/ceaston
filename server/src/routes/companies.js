@@ -83,6 +83,13 @@ export async function companyTimeline(companyId) {
               false
          FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id
         WHERE a.company_id = $1
+       UNION ALL
+       SELECT 'task', t.id, t.contact_id, c.name, t.description,
+              NULL, 'task', CASE WHEN t.completed THEN 'completed' ELSE 'open' END,
+              t.created_at, NULL,
+              false
+         FROM tasks t LEFT JOIN contacts c ON c.id = t.contact_id
+        WHERE t.company_id = $1 OR t.contact_id IN (SELECT id FROM contacts WHERE company_id = $1)
      ) t ORDER BY pinned DESC, occurred_at DESC`,
     [companyId]
   );

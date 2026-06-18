@@ -27,6 +27,7 @@ function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const isNote = item.kind === 'note';
+  const isTask = item.kind === 'task' || item.type === 'task';
   const icon = isNote ? ICONS.note : ICONS[item.type] || ICONS.other;
 
   const startEdit = () => { setDraft(item.body); setEditing(true); };
@@ -41,7 +42,7 @@ function TimelineItem({ item, onEditNote, onDeleteNote, onPinNote }) {
       <div className="tl-body">
         <div className="tl-head">
           <span className="tl-type">
-            {isNote ? 'Note' : (item.type || 'activity').replace('_', ' ')}
+            {isNote ? 'Note' : isTask ? 'Task' : (item.type || 'activity').replace('_', ' ')}
             {isNote && item.pinned && <span className="chip tl-pin-chip">📌 pinned</span>}
             {isNote && item.source === 'voice' && <span className="chip voice">🎙 voice</span>}
             {item.outcome && <span className="chip outcome">{item.outcome}</span>}
