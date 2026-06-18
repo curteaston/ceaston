@@ -14,6 +14,7 @@ const VIEWS = [
   { key: 'role_gaps', label: 'Role gaps' },
   { key: 'needs_next_step', label: 'No next step' },
   { key: 'replies', label: 'Replies' },
+  { key: 'audit_signals', label: 'Audit signals' },
   { key: 'suppressed', label: 'Suppressed' },
 ];
 
@@ -33,6 +34,14 @@ const STATUS_CLASS = {
   reply_review: 'outcome',
   blocked_no_contacts: 'danger-chip',
   suppressed: 'danger-chip',
+};
+
+const AUDIT_SEVERITY_CLASS = {
+  high: 'danger-chip',
+  medium: 'prio-medium',
+  low: 'ok-chip',
+  watch: 'outcome',
+  neutral: '',
 };
 
 function contactLine(contact) {
@@ -64,6 +73,17 @@ function SummaryCard({ label, value }) {
   );
 }
 
+function AuditSignal({ signal }) {
+  if (!signal) return null;
+  const className = AUDIT_SEVERITY_CLASS[signal.severity] || '';
+  return (
+    <div className="audit-signal">
+      <span className={`chip ${className}`}>{signal.label}</span>
+      <div className="muted small pad-top">{signal.reason}</div>
+    </div>
+  );
+}
+
 function AccountRow({ account }) {
   const statusClass = STATUS_CLASS[account.status] || '';
   const source = [account.source, account.campaign].filter(Boolean).join(' / ') || 'No source';
@@ -82,6 +102,7 @@ function AccountRow({ account }) {
           <span className={`chip ${statusClass}`}>{STATUS_LABELS[account.status] || account.status}</span>
         </div>
         <div className="muted small pad-top">{account.reason}</div>
+        <AuditSignal signal={account.audit_signal} />
       </td>
       <td>
         <div>{contactLine(account.primary_contact)}</div>
@@ -95,6 +116,9 @@ function AccountRow({ account }) {
       <td>
         <div>{nextStep}</div>
         <div className="muted small">{account.sequence_angle}</div>
+        {account.audit_signal?.next_action && (
+          <div className="muted small pad-top">Audit: {account.audit_signal.next_action}</div>
+        )}
       </td>
       <td>
         <div>{source}</div>
@@ -156,6 +180,7 @@ export default function Prospecting() {
         <SummaryCard label="Role gaps" value={data?.summary?.role_gaps ?? '-'} />
         <SummaryCard label="No next step" value={data?.summary?.needs_next_step ?? '-'} />
         <SummaryCard label="Replies" value={data?.summary?.replies ?? '-'} />
+        <SummaryCard label="Audit signals" value={data?.summary?.audit_signals ?? '-'} />
         <SummaryCard label="Suppressed" value={data?.summary?.suppressed ?? '-'} />
       </div>
 

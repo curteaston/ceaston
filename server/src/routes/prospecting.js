@@ -75,7 +75,151 @@ function sequenceAngle(company) {
   return 'HVAC growth and paid lead recovery';
 }
 
-function scoreAccount({ company, contacts, missingRoles, status, primaryContact }) {
+function dateMs(value) {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function hoursBetween(start, end) {
+  const startMs = dateMs(start);
+  const endMs = dateMs(end);
+  if (startMs === null || endMs === null) return null;
+  return Math.max(0, Math.round(((endMs - startMs) / 36e5) * 10) / 10);
+}
+
+function latestActivity(activities, type) {
+  return activities.find((activity) => activity.event_type === type) || null;
+}
+
+function matchingSubmissionForResponse(activities, response) {
+  if (!response) return null;
+  const responseAuditId = response.audit_id;
+  if (responseAuditId) {
+    const sameAuditSubmission = activities.find((activity) => (
+      activity.event_type === 'submission' && activity.audit_id === responseAuditId
+    ));
+    if (sameAuditSubmission) return sameAuditSubmission;
+  }
+  return latestActivity(activities, 'submission');
+}
+
+function responseHoursFor(submission, response) {
+  const explicit = Number(response?.response_time_hours);
+  if (Number.isFinite(explicit)) return explicit;
+  return hoursBetween(submission?.submitted_at || submission?.occurred_at, response?.occurred_at);
+}
+
+function isVerifiedSubmission(activity) {
+  return ['submitted_verified', 'assisted_submitted_verified'].includes(activity?.submission_status);
+}
+
+function deriveAuditSignal(company) {
+  const activities = Array.isArray(company.audit_activities) ? company.audit_activities : [];
+  if (!activities.length) return null;
+
+  const latest = activities[0];
+  const latestSubmission = latestActivity(activities, 'submission');
+  const latestResponse = latestActivity(activities, 'inbound_response');
+
+  if (latestResponse) {
+    const responseSubmission = matchingSubmissionForResponse(activities, latestResponse);
+    const responseHours = responseHoursFor(responseSubmission, latestResponse);
+    const responseText = responseHours === null ? 'response captured' : `response in ${responseHours}h`;
+    const manualReview = latestResponse.match_status === 'manual_review_required';
+    const matchText = manualReview ? 'Needs human match review.' : 'Response is linked to this audit.';
+
+    if (responseHours !== null && responseHours < 1) {
+      return {
+        label: manualReview ? 'Fast reply - review' : 'Fast reply',
+        severity: 'low',
+        score_delta: -20,
+        reason: `Fast callback (${responseText}) lowers missed-lead pain. ${matchText}`,
+        next_action: manualReview ? 'Confirm match, then deprioritize unless another pain signal exists.' : 'Deprioritize unless another pain signal exists.',
+        response_time_hours: responseHours,
+        latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
+      };
+    }
+
+    if (responseHours !== null && responseHours > 24) {
+      return {
+        label: manualReview ? 'Slow reply - review' : 'Slow reply',
+        severity: 'high',
+        score_delta: 25,
+        reason: `Response took ${responseHours}h after a verified form submission. ${matchText}`,
+        next_action: 'Review the transcript, then call if the account otherwise fits.',
+        response_time_hours: responseHours,
+        latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
+      };
+    }
+
+    return {
+      label: manualReview ? 'Reply needs review' : 'Reply captured',
+      severity: 'medium',
+      score_delta: manualReview ? 2 : 0,
+      reason: `${responseText}. ${matchText}`,
+      next_action: manualReview ? 'Confirm whether this response belongs to the audit.' : 'Use the response as context, not automatic pain proof.',
+      response_time_hours: responseHours,
+      latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
+    };
+  }
+
+  if (!latestSubmission) {
+    return {
+      label: 'Audit activity',
+      severity: 'neutral',
+      score_delta: 0,
+      reason: `Latest audit event: ${latest.event_type}.`,
+      next_action: 'Review audit activity before changing priority.',
+      latest_status: latest.submission_status || latest.match_status || latest.event_type,
+    };
+  }
+
+  if (!isVerifiedSubmission(latestSubmission)) {
+    return {
+      label: 'Submission not verified',
+      severity: 'neutral',
+      score_delta: -5,
+      reason: `Form attempt status is ${latestSubmission.submission_status || 'unknown'}; do not treat this as outreach proof.`,
+      next_action: 'Retry or review evidence before scoring account pain.',
+      latest_status: latestSubmission.submission_status || 'submission_unverified',
+    };
+  }
+
+  const ageHours = hoursBetween(latestSubmission.occurred_at, new Date());
+  if (ageHours !== null && ageHours >= 48) {
+    return {
+      label: 'No reply 48h+',
+      severity: 'high',
+      score_delta: 35,
+      reason: `Verified form submission has no captured response after ${Math.round(ageHours)}h.`,
+      next_action: 'Prioritize follow-up; this is missed-response pain evidence.',
+      latest_status: 'awaiting_response',
+    };
+  }
+
+  if (ageHours !== null && ageHours >= 24) {
+    return {
+      label: 'No reply 24h+',
+      severity: 'medium',
+      score_delta: 20,
+      reason: `Verified form submission has no captured response after ${Math.round(ageHours)}h.`,
+      next_action: 'Queue for follow-up if account fit is otherwise strong.',
+      latest_status: 'awaiting_response',
+    };
+  }
+
+  return {
+    label: 'Awaiting response',
+    severity: 'watch',
+    score_delta: 3,
+    reason: 'Verified form submission is pending response.',
+    next_action: 'Wait before treating this as pain evidence.',
+    latest_status: 'awaiting_response',
+  };
+}
+
+function scoreAccount({ company, contacts, missingRoles, status, primaryContact, auditSignal }) {
   if (status === 'suppressed') return -100;
   let score = tierScore(company.target_tier);
   if (company.replied) score += 35;
@@ -86,6 +230,7 @@ function scoreAccount({ company, contacts, missingRoles, status, primaryContact 
   if (Number(company.open_deal_value) > 0) score += 12;
   if (!contacts.length) score -= 35;
   if (missingRoles.length) score -= missingRoles.length * 6;
+  if (auditSignal) score += auditSignal.score_delta;
   return score;
 }
 
@@ -96,7 +241,8 @@ function toWorkbenchAccount(company) {
   const suppressed = isSuppressed(company);
   const [primaryContact, secondaryContact] = pickContacts(contacts);
   const status = statusFor({ company, contacts, missingRoles, suppressed });
-  const score = scoreAccount({ company, contacts, missingRoles, status, primaryContact });
+  const auditSignal = deriveAuditSignal(company);
+  const score = scoreAccount({ company, contacts, missingRoles, status, primaryContact, auditSignal });
 
   return {
     id: company.id,
@@ -125,6 +271,8 @@ function toWorkbenchAccount(company) {
     latest_deal_stage: company.latest_deal_stage,
     last_activity_at: company.last_activity_at,
     next_task: company.next_task,
+    audit_signal: auditSignal,
+    audit_activities: company.audit_activities || [],
     status,
     score,
     reason: reasonFor({ company, contacts, missingRoles, status, primaryContact }),
@@ -138,6 +286,7 @@ function matchesView(account, view) {
   if (view === 'role_gaps') return !account.suppressed && account.missing_roles.length > 0;
   if (view === 'needs_next_step') return !account.suppressed && !account.next_step;
   if (view === 'replies') return !account.suppressed && account.replied;
+  if (view === 'audit_signals') return !account.suppressed && Boolean(account.audit_signal);
   if (view === 'suppressed') return account.suppressed;
   return !account.suppressed;
 }
@@ -160,6 +309,41 @@ router.get('/workbench', h(async (req, res) => {
               WHERE t.company_id = co.id AND NOT t.completed
               ORDER BY t.due_date NULLS LAST, CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END
               LIMIT 1) AS next_task,
+            (SELECT coalesce(json_agg(json_build_object(
+                'id', aa.id,
+                'event_key', aa.event_key,
+                'event_type', aa.event_type,
+                'audit_id', aa.audit_id,
+                'event_id', aa.event_id,
+                'company_name', aa.company_name,
+                'contact_form_url', aa.contact_form_url,
+                'submitted_at', aa.submitted_at,
+                'occurred_at', aa.occurred_at,
+                'submission_status', aa.submission_status,
+                'audit_status', aa.audit_status,
+                'match_status', aa.match_status,
+                'response_kind', aa.response_kind,
+                'response_label', aa.response_label,
+                'response_time_hours', aa.response_time_hours,
+                'response_bucket', aa.response_bucket,
+                'match_reason', aa.match_reason,
+                'match_score', aa.match_score,
+                'confidence', aa.confidence,
+                'ai_confidence', aa.ai_confidence,
+                'final_url', aa.final_url,
+                'evidence_dir', aa.evidence_dir,
+                'transcript', aa.transcript,
+                'recording_url', aa.recording_url,
+                'caller_phone', aa.caller_phone,
+                'called_number', aa.called_number
+              ) ORDER BY aa.occurred_at DESC), '[]'::json)
+               FROM (
+                 SELECT *
+                   FROM audit_activities aa
+                  WHERE aa.company_id = co.id
+                  ORDER BY aa.occurred_at DESC
+                  LIMIT 5
+               ) aa) AS audit_activities,
             coalesce(
               json_agg(
                 json_build_object(
@@ -224,6 +408,9 @@ router.get('/workbench', h(async (req, res) => {
       role_gaps: visibleAccounts.filter((account) => !account.suppressed && account.missing_roles.length > 0).length,
       needs_next_step: visibleAccounts.filter((account) => !account.suppressed && !account.next_step).length,
       replies: visibleAccounts.filter((account) => !account.suppressed && account.replied).length,
+      audit_signals: visibleAccounts.filter((account) => !account.suppressed && account.audit_signal).length,
+      audit_high_pain: visibleAccounts.filter((account) => !account.suppressed && account.audit_signal?.severity === 'high').length,
+      audit_low_pain: visibleAccounts.filter((account) => !account.suppressed && account.audit_signal?.severity === 'low').length,
       suppressed: visibleAccounts.filter((account) => account.suppressed).length,
       no_contacts: visibleAccounts.filter((account) => !account.suppressed && account.contact_count === 0).length,
     },

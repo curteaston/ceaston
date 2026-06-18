@@ -165,6 +165,7 @@ tr:last-child td { border-bottom: none; }
   display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
 }
 .role-chip-row .chip { margin-left: 0; }
+.audit-signal { margin-top: 10px; }
 
 .prospecting-metrics {
   display: grid;

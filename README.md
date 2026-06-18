@@ -398,6 +398,26 @@ Lead statuses: `new, attempted, connected, qualified, unqualified, customer`
 | `GET`  | `/api/activities` | `?company_id=` `?contact_id=` `?type=`                                                                  |
 | `POST` | `/api/activities` | `{ contact_id or company_id*, type: call/email/sms/meeting/linkedin/other, outcome, body, occurred_at }` — updates last-contact dates automatically |
 
+### Audit activity intake
+
+Use this for n8n form-audit events. `event_type` must be `submission` or
+`inbound_response`. Send `company_name` and either `event_key`, `audit_id`, or
+`event_id`; the endpoint upserts by `event_key`. Submission events should include
+`submission_status`, `audit_status`, `submitted_at`, `occurred_at`, `final_url`,
+and evidence fields when available. Inbound response events should include
+`response_kind`, `match_status`, `response_time_hours`, `response_bucket`,
+`caller_phone`, `called_number`, `transcript`, and the matched `audit_id` when
+known.
+
+| Method | Path                           | Notes                                                                                 |
+| ------ | ------------------------------ | ------------------------------------------------------------------------------------- |
+| `POST` | `/api/audit-activities/upsert` | Upserts a submission or inbound response and touches the matched company activity date |
+| `GET`  | `/api/audit-activities`        | Optional filters: `?company_id=` or `?audit_id=`                                      |
+
+Prospecting treats fast replies as lower missed-lead pain, slow replies as higher
+pain, and verified submissions with no captured reply after 24/48 hours as growing
+priority. Unverified submissions are not treated as proof.
+
 ### Notes
 
 | Method   | Path             | Notes                                                                              |
