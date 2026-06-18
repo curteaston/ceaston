@@ -335,12 +335,67 @@ function DataSafety() {
   );
 }
 
+function MicrosoftStatusBadge({ ms }) {
+  if (!ms) return null;
+  if (ms.error) return null;
+  if (ms.connected) return <span className="chip stage stage-won">Connected</span>;
+  if (!ms.configured && ms.token_stored) return <span className="chip">Server config missing</span>;
+  if (!ms.configured) return <span className="chip">Not configured</span>;
+  return <span className="chip">Reconnect needed</span>;
+}
+
+function MicrosoftConfigHelp({ ms }) {
+  const missing = ms?.missing_env || ['MS_CLIENT_ID', 'MS_CLIENT_SECRET'];
+
+  return (
+    <>
+      <p>
+        Connect Office 365 to send one-off emails from the CRM, log them to the timeline,
+        and show calendar events on Home.
+      </p>
+      {ms?.token_stored && (
+        <div className="outline-card">
+          <b>Saved Microsoft token found.</b>
+          <p className="small">
+            The CRM still has a Microsoft sign-in token in this database, but the server restarted without
+            the Microsoft app credentials. Put the missing values back, restart, and the connection may recover
+            without a fresh sign-in.
+          </p>
+        </div>
+      )}
+      <p><b>Missing server values:</b> <code>{missing.join(', ')}</code></p>
+      <p className="small">
+        For local development, copy <code>local.env.example</code> to <code>{ms?.local_env_hint || '.local/local.env'}</code>,
+        fill in the real values, then restart with <code>npm.cmd run dev:local</code>.
+      </p>
+      <pre>{'MS_CLIENT_ID=...\nMS_CLIENT_SECRET=...\nAPP_BASE_URL=http://localhost:3001'}</pre>
+      <p><b>One-time Microsoft setup</b> - register an app in Microsoft Entra:</p>
+      <ol className="small">
+        <li>Go to <a href="https://entra.microsoft.com" target="_blank" rel="noreferrer">entra.microsoft.com</a> - App registrations - New registration.</li>
+        <li>Supported account types: <i>Accounts in any organizational directory and personal Microsoft accounts</i>.</li>
+        <li>Redirect URI (type "Web"): <code>{ms?.redirect_uri}</code></li>
+        <li>Under <i>Certificates &amp; secrets</i>, create a client secret.</li>
+        <li>Under <i>API permissions</i>, add delegated Microsoft Graph permissions: <code>Mail.ReadWrite</code>, <code>Mail.Send</code>, <code>Calendars.ReadWrite</code>, <code>User.Read</code>, <code>offline_access</code>.</li>
+      </ol>
+    </>
+  );
+}
+
 export default function Settings() {
   const { run, notify } = useStore();
   const [ms, setMs] = useState(null);
+  const [msError, setMsError] = useState(null);
   const [name, setName] = useState(() => localStorage.getItem('crm_display_name') || 'Curt');
 
-  const loadStatus = () => api.get('/integrations/microsoft/status').then(setMs).catch(() => {});
+  const loadStatus = () => api.get('/integrations/microsoft/status')
+    .then((data) => {
+      setMs(data);
+      setMsError(null);
+    })
+    .catch((e) => {
+      setMs({ error: true });
+      setMsError(e.message || 'Could not reach the CRM API');
+    });
   useEffect(() => {
     loadStatus();
     const params = new URLSearchParams(window.location.search);
@@ -380,12 +435,24 @@ export default function Settings() {
       <div className="card">
         <div className="card-head">
           <h3>Office 365 (email & calendar)</h3>
-          {ms?.connected && <span className="chip stage stage-won">Connected</span>}
+          <MicrosoftStatusBadge ms={ms} />
         </div>
 
         {!ms && <p className="muted">Checking status…</p>}
 
-        {ms && !ms.configured && (
+        {msError && (
+          <div className="outline-card">
+            <b>Status unavailable.</b>
+            <p className="small">
+              The CRM API did not answer the Office 365 status check: {msError}. Start or restart the local stack,
+              then reload Settings.
+            </p>
+          </div>
+        )}
+
+        {ms && !ms.error && !ms.configured && <MicrosoftConfigHelp ms={ms} />}
+
+        {false && ms && !ms.configured && (
           <>
             <p>
               Connect Office 365 to send emails directly from the CRM (logged to the timeline automatically)
@@ -406,16 +473,25 @@ export default function Settings() {
           </>
         )}
 
-        {ms?.configured && !ms.connected && (
+        {ms?.configured && !ms.error && !ms.connected && (
           <>
-            <p>Sign in with your Microsoft account to send email from the CRM and show your calendar on Home.</p>
+            <p>
+              Microsoft app credentials are loaded, but this database does not have a usable Office 365 sign-in token.
+              Reconnect once here; normal local restarts should keep working after that.
+            </p>
             <a className="btn primary" href="/api/integrations/microsoft/connect">Connect Office 365</a>
           </>
         )}
 
-        {ms?.connected && (
+        {ms?.connected && !ms.error && (
           <>
             <p>Connected as <b>{ms.account}</b>. Emails sent from the CRM use this mailbox and are logged to the company timeline. Meetings created in the CRM sync to your Outlook calendar.</p>
+            {ms.expires_at && (
+              <p className="muted small">
+                Token stored in this local database. Current access token expires {new Date(ms.expires_at).toLocaleString()};
+                the CRM will refresh it automatically when needed.
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               <SyncEmailsButton />
               <button className="btn danger" onClick={disconnect}>Disconnect</button>

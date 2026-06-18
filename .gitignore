@@ -3,5 +3,7 @@ client/dist/
 .local/
 work-pgdata/
 .env
+.env.local
+.env.*.local
 *.log
 .DS_Store

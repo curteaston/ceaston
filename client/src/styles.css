@@ -181,7 +181,13 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   flex-direction: column;
   gap: 4px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
 }
+.prospecting-metric:hover { border-color: #b9c7db; background: #fbfdff; }
+.prospecting-metric.active { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
 .prospecting-metric span { color: var(--muted); font-size: 12px; }
 .prospecting-metric b { font-size: 22px; }
 .prospecting-controls {
@@ -190,6 +196,203 @@ tr:last-child td { border-bottom: none; }
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+.prospecting-head h1 { font-size: 24px; }
+.eyebrow {
+  margin: 0 0 5px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.quiet-note {
+  color: #94a3b8;
+  font-size: 12px;
+}
+.prospecting-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+}
+.prospecting-table-card { margin-bottom: 0; }
+.prospecting-table { min-width: 980px; }
+.prospecting-table th:nth-child(1) { width: 21%; }
+.prospecting-table th:nth-child(2) { width: 30%; }
+.prospecting-table th:nth-child(3) { width: 18%; }
+.prospecting-table th:nth-child(4) { width: 16%; }
+.prospecting-table th:nth-child(5) { width: 15%; }
+.prospecting-row {
+  cursor: pointer;
+  outline: none;
+}
+.prospecting-row:hover { background: #f8fbff; }
+.prospecting-row.selected { background: #eef5ff; }
+.prospecting-row:focus-visible { box-shadow: inset 3px 0 0 var(--primary); }
+.account-cell { min-width: 190px; }
+.account-name {
+  color: var(--primary-dark);
+  font-weight: 800;
+  line-height: 1.25;
+}
+.account-badges {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.account-badges .chip { margin-left: 0; }
+.next-action-cell { min-width: 250px; }
+.next-action-text {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #111827;
+  margin-bottom: 4px;
+}
+.role-coverage {
+  display: grid;
+  gap: 6px;
+}
+.role-coverage.compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.role-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 8px;
+  background: #f8fafc;
+  min-width: 0;
+}
+.role-pill span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.role-pill b {
+  font-size: 12px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.role-pill.covered { border-color: #b6e2c4; background: #f2fbf5; }
+.role-pill.missing { border-color: #f5dda0; background: #fff9e8; }
+.role-coverage.compact .role-pill {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+.role-coverage.compact .role-pill span {
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.prospecting-panel {
+  position: sticky;
+  top: 72px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 10px 26px rgba(16, 24, 38, 0.06);
+}
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+}
+.panel-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.panel-section {
+  border-bottom: 1px solid #eef1f6;
+  padding: 14px 0;
+}
+.panel-section h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.primary-action {
+  background: #f8fbff;
+  border: 1px solid #dbe8ff;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 14px;
+}
+.primary-action span {
+  display: block;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.primary-action b {
+  display: block;
+  font-size: 16px;
+  line-height: 1.35;
+}
+.detail-line {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+  padding: 6px 0;
+}
+.detail-line span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.detail-line b {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.panel-link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  text-align: center;
+}
+.panel-empty {
+  padding: 16px 4px;
+}
+.panel-empty h3 { margin-bottom: 6px; }
+.prospecting-empty {
+  padding: 28px;
+  max-width: 560px;
+}
+.prospecting-empty h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+.prospecting-empty p {
+  color: var(--muted);
+  margin-bottom: 14px;
 }
 
 .archive-banner {
@@ -618,8 +821,15 @@ pre {
   white-space: nowrap; overflow: hidden; text-decoration: none;
 }
 .nav-item:hover { background: #1c2940; color: #fff; }
-.nav-item.active { background: var(--primary); color: #fff; }
-.nav-icon { font-size: 17px; flex-shrink: 0; line-height: 1; }
+.nav-item.active {
+  background: linear-gradient(90deg, #f3c847 0%, #f0b429 4px, var(--primary) 4px, var(--primary) 100%);
+  color: #fff;
+}
+.nav-icon {
+  width: 19px; height: 19px; flex-shrink: 0; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.nav-svg { width: 19px; height: 19px; display: block; }
 .nav-label { font-size: 14px; }
 
 /* Collapse toggle button */
@@ -631,13 +841,41 @@ pre {
 .nav-toggle:hover { color: #fff; background: #1c2940; }
 
 /* Logo layout */
-.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: #fff; margin-bottom: 8px; padding: 0 8px; }
-.logo-icon { flex-shrink: 0; }
-.logo-text { white-space: nowrap; overflow: hidden; }
+.logo {
+  display: flex; align-items: center; gap: 8px; color: #fff;
+  margin-bottom: 12px; padding: 0 6px; min-height: 42px; overflow: hidden;
+}
+.logo-img {
+  width: 146px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  flex-shrink: 0;
+}
+.logo-text {
+  color: #d9e3f5;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  display: none;
+}
 
 /* Collapsed state */
 .nav-collapsed .sidebar { width: 60px; }
-.nav-collapsed .sidebar .logo { justify-content: center; padding: 0 4px; }
+.nav-collapsed .sidebar .logo {
+  justify-content: flex-start;
+  padding: 0;
+  width: 36px;
+  align-self: center;
+}
+.nav-collapsed .logo-img {
+  width: 118px;
+  max-width: none;
+  transform: translateX(-1px);
+}
 
 /* Tooltip for collapsed nav items */
 .nav-collapsed .nav-item { position: relative; justify-content: center; padding: 9px; }
@@ -953,7 +1191,8 @@ pre {
   .sidebar nav {
     flex-direction: row; gap: 4px; overflow-x: auto; flex: 1; padding-bottom: 2px;
   }
-  .logo { margin: 0; padding: 0 4px; flex-shrink: 0; }
+  .logo { margin: 0; padding: 0; flex-shrink: 0; width: 36px; min-height: 34px; }
+  .logo-img { width: 112px; max-width: none; transform: translateX(-1px); }
   .logo-text { display: none; }
   .nav-toggle { display: none; }
   .nav-item {
@@ -975,6 +1214,7 @@ pre {
   .toggle-group button { flex: 1; }
   .table-card { overflow-x: auto; }
   .table-card table { min-width: 820px; }
+  .prospecting-table-card table { min-width: 920px; }
   .pagination { justify-content: flex-start; overflow-x: auto; padding-bottom: 4px; }
   .detail-grid { grid-template-columns: 1fr; gap: 10px; }
   .company-header-card { min-width: 0; }
@@ -991,6 +1231,11 @@ pre {
   .fd-drawer { width: min(100vw, 380px); }
 }
 
+@media (max-width: 1180px) {
+  .prospecting-workbench { grid-template-columns: 1fr; }
+  .prospecting-panel { position: static; }
+}
+
 @media (max-width: 980px) {
   .prospecting-metrics { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
 }
@@ -1001,4 +1246,6 @@ pre {
   .prospecting-controls .segmented,
   .prospecting-controls .filter-bar,
   .prospecting-controls .filter-search { width: 100%; }
+  .prospecting-head h1 { font-size: 21px; }
+  .prospecting-empty { padding: 20px 12px; }
 }

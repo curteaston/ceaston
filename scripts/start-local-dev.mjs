@@ -1,10 +1,12 @@
 import { spawn, spawnSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
 import { createConnection } from 'net';
-import { dirname, join } from 'path';
+import { dirname, join, relative } from 'path';
 import { fileURLToPath } from 'url';
+import { loadLocalEnv, missingConfiguredEnv } from './local-env.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const localEnv = loadLocalEnv({ root });
 const isWindows = process.platform === 'win32';
 
 const pgPort = process.env.LOCAL_CRM_PGPORT || '55432';
@@ -40,6 +42,23 @@ function redactDatabaseUrl(value) {
     return url.toString();
   } catch {
     return value;
+  }
+}
+
+function printLocalEnvStatus() {
+  if (localEnv.files.length) {
+    const files = localEnv.files.map((file) => relative(root, file)).join(', ');
+    console.log(`Loaded local env: ${files}`);
+  }
+  for (const warning of localEnv.warnings) console.warn(warning);
+
+  const missingMicrosoft = missingConfiguredEnv(['MS_CLIENT_ID', 'MS_CLIENT_SECRET']);
+  if (missingMicrosoft.length === 0) {
+    console.log('Office 365 env: configured.');
+  } else if (missingMicrosoft.length === 2) {
+    console.log('Office 365 env: not configured. Add MS_CLIENT_ID and MS_CLIENT_SECRET to .local/local.env to enable email/calendar.');
+  } else {
+    console.warn(`Office 365 env: incomplete; missing ${missingMicrosoft.join(', ')}.`);
   }
 }
 
@@ -373,6 +392,7 @@ try {
   console.log(`DATABASE_URL=${redactDatabaseUrl(databaseUrl)}`);
   console.log(`API=${apiBase}`);
   console.log(`UI=${uiBase}`);
+  printLocalEnvStatus();
   console.log('');
 
   spawnService('api', join(root, 'server'), ['run', 'dev'], {

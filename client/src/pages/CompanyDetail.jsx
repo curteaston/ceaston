@@ -554,7 +554,7 @@ const ACTIVITY_TABS = [
   { key: 'meeting', label: 'Meetings' },
 ];
 
-function TimelineWithFilters({ items, onEditNote, onDeleteNote, onPinNote }) {
+function TimelineWithFilters({ items, onEditNote, onDeleteNote, onPinNote, onCompleteTask, onDeleteTask }) {
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -593,7 +593,8 @@ function TimelineWithFilters({ items, onEditNote, onDeleteNote, onPinNote }) {
         />
       </div>
       <Timeline items={filtered} onEditNote={onEditNote} onDeleteNote={onDeleteNote}
-        onPinNote={onPinNote} emptyText="No activities match." />
+        onPinNote={onPinNote} onCompleteTask={onCompleteTask} onDeleteTask={onDeleteTask}
+        emptyText="No activities match." />
     </>
   );
 }
@@ -624,6 +625,8 @@ export default function CompanyDetail() {
   const editNote = (noteId, body) => mutateCompany(() => api.patch(`/notes/${noteId}`, { body }), 'Note updated');
   const deleteNote = (noteId) => mutateCompany(() => api.del(`/notes/${noteId}`), 'Note deleted');
   const pinNote = (noteId, pinned) => mutateCompany(() => api.patch(`/notes/${noteId}`, { pinned }), pinned ? 'Note pinned' : 'Note unpinned');
+  const completeTimelineTask = (taskId) => mutateCompany(() => api.patch(`/tasks/${taskId}`, { completed: true }), 'Task completed');
+  const deleteTimelineTask = (taskId) => mutateCompany(() => api.del(`/tasks/${taskId}`), 'Task deleted');
   const archived = Boolean(company.archived_at);
 
   const archiveCompany = () => {
@@ -881,6 +884,8 @@ export default function CompanyDetail() {
             onEditNote={editNote}
             onDeleteNote={deleteNote}
             onPinNote={pinNote}
+            onCompleteTask={completeTimelineTask}
+            onDeleteTask={deleteTimelineTask}
           />
         </div>
 

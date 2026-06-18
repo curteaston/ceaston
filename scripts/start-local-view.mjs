@@ -1,3 +1,9 @@
+import { dirname, join, relative } from 'path';
+import { fileURLToPath } from 'url';
+import { loadLocalEnv } from './local-env.mjs';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const localEnv = loadLocalEnv({ root });
 const requestedApiBase = process.env.CRM_API_URL || 'http://localhost:3001';
 const apiUrl = new URL(requestedApiBase);
 const apiBase = apiUrl.origin;
@@ -35,6 +41,8 @@ process.env.PORT ||= apiUrl.port || (apiUrl.protocol === 'https:' ? '443' : '80'
 
 console.log('Starting single-port local CRM view.');
 console.log(`DATABASE_URL=${redactDatabaseUrl(process.env.DATABASE_URL)}`);
+if (localEnv.files.length) console.log(`Loaded local env: ${localEnv.files.map((file) => relative(root, file)).join(', ')}`);
+for (const warning of localEnv.warnings) console.warn(warning);
 console.log(`Open ${apiBase}/companies/1 after the server starts.`);
 console.log('Press Ctrl+C to stop.');
 

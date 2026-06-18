@@ -73,24 +73,25 @@ export async function companyTimeline(companyId) {
   const { rows } = await query(
     `SELECT * FROM (
        SELECT 'note' AS kind, n.id, n.contact_id, c.name AS contact_name, n.body,
-              n.source, NULL AS type, NULL AS outcome, n.created_at AS occurred_at, n.updated_at,
-              n.pinned
-         FROM notes n LEFT JOIN contacts c ON c.id = n.contact_id
-        WHERE n.company_id = $1
+               n.source, NULL AS type, NULL AS outcome, n.created_at AS occurred_at, n.updated_at,
+               n.pinned, false AS completed
+          FROM notes n LEFT JOIN contacts c ON c.id = n.contact_id
+         WHERE n.company_id = $1
        UNION ALL
        SELECT 'activity', a.id, a.contact_id, c.name, a.body,
-              NULL, a.type, a.outcome, a.occurred_at, NULL,
-              false
-         FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id
-        WHERE a.company_id = $1
+               NULL, a.type, a.outcome, a.occurred_at, NULL,
+               false, false
+          FROM activities a LEFT JOIN contacts c ON c.id = a.contact_id
+          WHERE a.company_id = $1
        UNION ALL
-       SELECT 'task', t.id, t.contact_id, c.name, t.description,
-              NULL, 'task', CASE WHEN t.completed THEN 'completed' ELSE 'open' END,
+       SELECT 'task', t.id, t.contact_id, c.name,
+              concat(t.description, CASE WHEN t.due_date IS NOT NULL THEN E'\nDue: ' || t.due_date::text ELSE '' END),
+              NULL, 'task', CASE WHEN t.completed THEN 'completed' ELSE t.priority END,
               t.created_at, NULL,
-              false
+              false, t.completed
          FROM tasks t LEFT JOIN contacts c ON c.id = t.contact_id
         WHERE t.company_id = $1 OR t.contact_id IN (SELECT id FROM contacts WHERE company_id = $1)
-     ) t ORDER BY pinned DESC, occurred_at DESC`,
+      ) t ORDER BY pinned DESC, occurred_at DESC`,
     [companyId]
   );
   return rows;

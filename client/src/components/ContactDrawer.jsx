@@ -123,6 +123,24 @@ export default function ContactDrawer({ contact, onClose }) {
       await refreshAll();
     }, 'Note deleted');
 
+  const pinNote = (id, pinned) =>
+    run(async () => {
+      await api.patch(`/notes/${id}`, { pinned });
+      await refreshAll();
+    }, pinned ? 'Note pinned' : 'Note unpinned');
+
+  const completeTask = (id) =>
+    run(async () => {
+      await api.patch(`/tasks/${id}`, { completed: true });
+      await refreshAll();
+    }, 'Task completed');
+
+  const deleteTask = (id) =>
+    run(async () => {
+      await api.del(`/tasks/${id}`);
+      await refreshAll();
+    }, 'Task deleted');
+
   const updateContact = (form) =>
     run(async () => {
       await api.patch(`/contacts/${contact.id}`, form);
@@ -178,6 +196,9 @@ export default function ContactDrawer({ contact, onClose }) {
             items={history}
             onEditNote={editNote}
             onDeleteNote={deleteNote}
+            onPinNote={pinNote}
+            onCompleteTask={completeTask}
+            onDeleteTask={deleteTask}
             emptyText="No interactions logged with this contact yet."
           />
         )}

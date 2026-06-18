@@ -1,10 +1,12 @@
 import { existsSync, readdirSync, statSync } from 'fs';
 import { createConnection } from 'net';
-import { dirname, join } from 'path';
+import { dirname, join, relative } from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { loadLocalEnv, missingConfiguredEnv } from './local-env.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const localEnv = loadLocalEnv({ root });
 const isWindows = process.platform === 'win32';
 const pgPort = process.env.LOCAL_CRM_PGPORT || '55432';
 const dbName = process.env.LOCAL_CRM_DB || 'hvac_crm';
@@ -147,6 +149,27 @@ function checkInstallState() {
   else add('pass', 'Dependencies installed', 'server and client node_modules found');
 }
 
+function checkLocalEnv() {
+  if (localEnv.files.length) {
+    const files = localEnv.files.map((file) => relative(root, file)).join(', ');
+    add('pass', 'Local env file', `${files} loaded (${localEnv.keys.length} setting${localEnv.keys.length === 1 ? '' : 's'})`);
+  } else {
+    add('pass', 'Local env file', 'Optional .local/local.env not present');
+  }
+  for (const warning of localEnv.warnings) add('warn', 'Local env file', warning);
+}
+
+function checkMicrosoftConfig() {
+  const missing = missingConfiguredEnv(['MS_CLIENT_ID', 'MS_CLIENT_SECRET']);
+  if (missing.length === 0) {
+    add('pass', 'Office 365 server config', 'MS_CLIENT_ID and MS_CLIENT_SECRET are loaded');
+  } else if (missing.length === 2) {
+    add('warn', 'Office 365 server config', 'Not configured. Add credentials to .local/local.env to enable email/calendar.');
+  } else {
+    add('warn', 'Office 365 server config', `Incomplete; missing ${missing.join(', ')}.`);
+  }
+}
+
 function directoryHasFiles(path) {
   try {
     return statSync(path).isDirectory() && readdirSync(path).length > 0;
@@ -217,6 +240,20 @@ async function checkPortsAndServices() {
       const health = await httpJson(apiUrl);
       if (health?.ok && health?.schema_version === 'prospecting-v1') {
         add('pass', 'API service', `${apiUrl} returned prospecting-v1`);
+        try {
+          const ms = await httpJson(`${apiBase}/api/integrations/microsoft/status`);
+          if (ms.connected) {
+            add('pass', 'Office 365 API status', `Connected as ${ms.account || 'unknown account'}`);
+          } else if (ms.token_stored && !ms.configured) {
+            add('warn', 'Office 365 API status', 'Saved OAuth token exists, but server credentials are missing. Restore .local/local.env and restart.');
+          } else if (ms.configured) {
+            add('warn', 'Office 365 API status', 'Server credentials are loaded, but no Microsoft sign-in token is saved. Reconnect in Settings.');
+          } else {
+            add('warn', 'Office 365 API status', 'Not configured. Email/calendar integration is disabled.');
+          }
+        } catch (err) {
+          add('warn', 'Office 365 API status', `Could not read status: ${err.message}`);
+        }
       } else {
         add('fail', 'API service', `${apiUrl} responded, but schema/version was unexpected: ${JSON.stringify(health)}`);
       }
@@ -254,6 +291,8 @@ async function checkPortsAndServices() {
 checkNode();
 checkNpm();
 checkInstallState();
+checkLocalEnv();
+checkMicrosoftConfig();
 const { psql } = checkPostgresTools();
 checkDatabase(psql);
 await checkPortsAndServices();

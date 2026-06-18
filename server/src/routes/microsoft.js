@@ -5,8 +5,14 @@ import { h, badRequest, HttpError } from '../util.js';
 
 const router = Router();
 
-const CLIENT_ID = process.env.MS_CLIENT_ID;
-const CLIENT_SECRET = process.env.MS_CLIENT_SECRET;
+function configValue(key) {
+  const value = String(process.env[key] || '').trim();
+  if (!value || value.startsWith('your-') || value === '...') return '';
+  return value;
+}
+
+const CLIENT_ID = configValue('MS_CLIENT_ID');
+const CLIENT_SECRET = configValue('MS_CLIENT_SECRET');
 const BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
 const REDIRECT_URI = `${BASE_URL}/api/integrations/microsoft/callback`;
 const SCOPES = 'offline_access User.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite';
@@ -15,6 +21,18 @@ const GRAPH = 'https://graph.microsoft.com/v1.0';
 
 const configured = Boolean(CLIENT_ID && CLIENT_SECRET);
 const pendingStates = new Map(); // state -> expiry (CSRF protection for the OAuth flow)
+
+function missingConfigKeys() {
+  return [
+    !CLIENT_ID ? 'MS_CLIENT_ID' : null,
+    !CLIENT_SECRET ? 'MS_CLIENT_SECRET' : null,
+  ].filter(Boolean);
+}
+
+function configError() {
+  const missing = missingConfigKeys();
+  return `Office 365 server config is missing ${missing.join(' and ')}. Add it to .local/local.env or the server environment, then restart the CRM.`;
+}
 
 async function getSetting(key) {
   const { rows } = await query('SELECT value FROM app_settings WHERE key = $1', [key]);
@@ -56,9 +74,11 @@ async function saveTokens(tokens, account) {
 
 // Returns a valid access token, refreshing through the stored refresh token when expired.
 async function getAccessToken() {
+  if (!configured) throw new HttpError(400, configError());
   const stored = await getSetting('microsoft');
   if (!stored) throw new HttpError(400, 'Office 365 is not connected. Connect it in Settings.');
-  if (Date.now() < stored.expires_at) return { token: stored.access_token, account: stored.account };
+  if (stored.access_token && Date.now() < stored.expires_at) return { token: stored.access_token, account: stored.account };
+  if (!stored.refresh_token) throw new HttpError(400, 'Office 365 token is incomplete. Reconnect it in Settings.');
   const refreshed = await exchangeToken({ grant_type: 'refresh_token', refresh_token: stored.refresh_token });
   await saveTokens({ ...refreshed, refresh_token: refreshed.refresh_token || stored.refresh_token }, stored.account);
   return { token: refreshed.access_token, account: stored.account };
@@ -79,11 +99,28 @@ async function graphFetch(path, options = {}) {
 // --- OAuth flow ---
 
 router.get('/integrations/microsoft/status', h(async (req, res) => {
-  const stored = configured ? await getSetting('microsoft') : null;
+  const stored = await getSetting('microsoft');
+  const expiresAt = Number(stored?.expires_at) || null;
+  const tokenStored = Boolean(stored);
+  const tokenUsable = Boolean(stored?.refresh_token || stored?.access_token);
+  const connected = configured && tokenStored && tokenUsable;
+  const status = connected
+    ? 'connected'
+    : !configured
+      ? tokenStored ? 'server_config_missing' : 'not_configured'
+      : tokenStored ? 'token_incomplete' : 'not_connected';
+
   res.json({
     configured,
-    connected: Boolean(stored),
+    connected,
     account: stored?.account || null,
+    token_stored: tokenStored,
+    token_usable: tokenUsable,
+    token_expired: expiresAt ? Date.now() >= expiresAt : null,
+    expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+    missing_env: missingConfigKeys(),
+    status,
+    local_env_hint: '.local/local.env',
     redirect_uri: REDIRECT_URI,
   });
 }));

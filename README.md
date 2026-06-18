@@ -127,6 +127,25 @@ If you already have a Postgres database you want to use, set `DATABASE_URL` befo
 startup. When `DATABASE_URL` is set, `npm run dev:local` skips local Postgres
 initialization and uses that database for the API process.
 
+### Local secrets and integrations
+
+Local development commands load `.local/local.env` automatically. This keeps
+Office 365, AI, auth, and API secrets out of git while still surviving normal
+PowerShell restarts.
+
+```cmd
+copy local.env.example .local\local.env
+notepad .local\local.env
+npm run dev:local
+```
+
+Office 365 uses `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, and `APP_BASE_URL`.
+`npm run doctor`, `npm run dev:local`, and `npm run dev:local:check` report
+whether those values are loaded. The OAuth sign-in token is stored in the local
+database under `app_settings`, while backup/restore intentionally excludes
+`app_settings`; after a database restore you may need to reconnect Office 365
+once in Settings.
+
 `npm run test:local` builds the client, creates a disposable Postgres database,
 starts a temporary single-port API on a free local port, seeds known demo data,
 runs API, browser, sequence workflow, and backup/restore recovery smokes, then
