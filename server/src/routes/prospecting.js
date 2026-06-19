@@ -110,8 +110,21 @@ function responseHoursFor(submission, response) {
   return hoursBetween(submission?.submitted_at || submission?.occurred_at, response?.occurred_at);
 }
 
+function normalizedStatus(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+}
+
 function isVerifiedSubmission(activity) {
-  return ['submitted_verified', 'assisted_submitted_verified'].includes(activity?.submission_status);
+  return ['submitted_verified', 'assisted_submitted_verified'].includes(normalizedStatus(activity?.submission_status));
+}
+
+function isBlockedSubmission(activity) {
+  const statuses = [
+    activity?.submission_status,
+    activity?.audit_status,
+    activity?.match_status,
+  ].map(normalizedStatus);
+  return statuses.some((status) => status === 'blocked_captcha');
 }
 
 function deriveAuditSignal(company) {
@@ -126,16 +139,16 @@ function deriveAuditSignal(company) {
     const responseSubmission = matchingSubmissionForResponse(activities, latestResponse);
     const responseHours = responseHoursFor(responseSubmission, latestResponse);
     const responseText = responseHours === null ? 'response captured' : `response in ${responseHours}h`;
-    const manualReview = latestResponse.match_status === 'manual_review_required';
-    const matchText = manualReview ? 'Needs human match review.' : 'Response is linked to this audit.';
+    const uncertainMatch = latestResponse.match_status === 'manual_review_required';
+    const matchText = uncertainMatch ? 'Human match check needed before treating this as proof.' : 'Response is linked to this audit.';
 
     if (responseHours !== null && responseHours < 1) {
       return {
-        label: manualReview ? 'Fast reply - review' : 'Fast reply',
+        label: uncertainMatch ? 'Fast reply - match check' : 'Fast reply',
         severity: 'low',
         score_delta: -20,
         reason: `Fast callback (${responseText}) lowers missed-lead pain. ${matchText}`,
-        next_action: manualReview ? 'Confirm match, then deprioritize unless another pain signal exists.' : 'Deprioritize unless another pain signal exists.',
+        next_action: uncertainMatch ? 'Confirm the match, then deprioritize unless another pain signal exists.' : 'Deprioritize unless another pain signal exists.',
         response_time_hours: responseHours,
         latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
       };
@@ -143,22 +156,22 @@ function deriveAuditSignal(company) {
 
     if (responseHours !== null && responseHours > 24) {
       return {
-        label: manualReview ? 'Slow reply - review' : 'Slow reply',
+        label: uncertainMatch ? 'Slow reply - match check' : 'Slow reply',
         severity: 'high',
         score_delta: 25,
         reason: `Response took ${responseHours}h after a verified form submission. ${matchText}`,
-        next_action: 'Review the transcript, then call if the account otherwise fits.',
+        next_action: 'Use the transcript as context, then call if the account otherwise fits.',
         response_time_hours: responseHours,
         latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
       };
     }
 
     return {
-      label: manualReview ? 'Reply needs review' : 'Reply captured',
+      label: uncertainMatch ? 'Response match check' : 'Responded',
       severity: 'medium',
-      score_delta: manualReview ? 2 : 0,
+      score_delta: uncertainMatch ? 2 : 0,
       reason: `${responseText}. ${matchText}`,
-      next_action: manualReview ? 'Confirm whether this response belongs to the audit.' : 'Use the response as context, not automatic pain proof.',
+      next_action: uncertainMatch ? 'Confirm whether this response belongs to the audit.' : 'Use the response as context, not automatic pain proof.',
       response_time_hours: responseHours,
       latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
     };
@@ -170,18 +183,29 @@ function deriveAuditSignal(company) {
       severity: 'neutral',
       score_delta: 0,
       reason: `Latest audit event: ${latest.event_type}.`,
-      next_action: 'Review audit activity before changing priority.',
+      next_action: 'Inspect audit activity before changing priority.',
       latest_status: latest.submission_status || latest.match_status || latest.event_type,
+    };
+  }
+
+  if (isBlockedSubmission(latestSubmission)) {
+    return {
+      label: 'Blocked - CAPTCHA',
+      severity: 'neutral',
+      score_delta: -10,
+      reason: 'CAPTCHA blocked the form attempt, so this is not valid audit evidence.',
+      next_action: 'Manually submit in a normal browser or leave the account unscored for audit pain.',
+      latest_status: 'Blocked - CAPTCHA',
     };
   }
 
   if (!isVerifiedSubmission(latestSubmission)) {
     return {
-      label: 'Submission not verified',
+      label: 'Pending',
       severity: 'neutral',
       score_delta: -5,
       reason: `Form attempt status is ${latestSubmission.submission_status || 'unknown'}; do not treat this as outreach proof.`,
-      next_action: 'Retry or review evidence before scoring account pain.',
+      next_action: 'Submit manually or wait for verified evidence before scoring account pain.',
       latest_status: latestSubmission.submission_status || 'submission_unverified',
     };
   }
@@ -189,7 +213,7 @@ function deriveAuditSignal(company) {
   const ageHours = hoursBetween(latestSubmission.occurred_at, new Date());
   if (ageHours !== null && ageHours >= 48) {
     return {
-      label: 'No reply 48h+',
+      label: 'No Response 48h+',
       severity: 'high',
       score_delta: 35,
       reason: `Verified form submission has no captured response after ${Math.round(ageHours)}h.`,
@@ -200,7 +224,7 @@ function deriveAuditSignal(company) {
 
   if (ageHours !== null && ageHours >= 24) {
     return {
-      label: 'No reply 24h+',
+      label: 'No Response 24h+',
       severity: 'medium',
       score_delta: 20,
       reason: `Verified form submission has no captured response after ${Math.round(ageHours)}h.`,

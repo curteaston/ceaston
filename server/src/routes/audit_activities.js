@@ -82,7 +82,7 @@ async function resolveCompanyId(body) {
 
   const created = await query(
     `INSERT INTO companies (name, industry, source, campaign, lifecycle_stage, next_step)
-     VALUES ($1, 'HVAC', 'RunWise audit activity', 'Form audit', 'lead', 'Review audit activity and decide whether this account shows real missed-lead pain.')
+     VALUES ($1, 'HVAC', 'RunWise audit activity', 'Form audit', 'lead', 'Inspect audit activity and decide whether this account shows real missed-lead pain.')
      RETURNING id`,
     [companyName],
   );
