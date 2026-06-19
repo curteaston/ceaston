@@ -24,7 +24,7 @@ const STATUS_LABELS = {
   ready_now: 'Ready',
   find_roles: 'Find roles',
   needs_next_step: 'Needs next step',
-  reply_review: 'Reply review',
+  responded: 'Responded',
   blocked_no_contacts: 'No contacts',
   suppressed: 'Suppressed',
 };
@@ -33,7 +33,7 @@ const STATUS_CLASS = {
   ready_now: 'ok-chip',
   find_roles: 'prio-medium',
   needs_next_step: 'prio-medium',
-  reply_review: 'outcome',
+  responded: 'outcome',
   blocked_no_contacts: 'danger-chip',
   suppressed: 'danger-chip',
 };
@@ -121,7 +121,7 @@ function EmptyState({ view, hasFilters }) {
     ready: ['No ready accounts yet.', 'Find missing owner, marketing, and ops coverage, then add a concrete next step.'],
     role_gaps: ['No role gaps in this view.', 'Move to Ready or Work now to decide who deserves outreach today.'],
     needs_next_step: ['Every matching account has a next step.', 'That is good hygiene. Work the queue or import a fresh HVAC list.'],
-    replies: ['No replies need review.', 'Work role gaps or ready accounts until a prospect responds.'],
+    replies: ['No responded accounts match.', 'Work role gaps or ready accounts until a prospect responds.'],
     audit_signals: ['No audit signals match.', 'Submit real audit forms and let responses prove whether there is actual missed-lead pain.'],
     suppressed: ['No suppressed accounts match.', 'Suppressed records will stay out of active outreach.'],
     work_now: ['No active accounts match.', 'Import a focused HVAC list or loosen the filters to rebuild the queue.'],

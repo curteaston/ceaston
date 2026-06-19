@@ -51,7 +51,7 @@ function tierScore(tier) {
 function statusFor({ company, contacts, missingRoles, suppressed }) {
   if (suppressed) return 'suppressed';
   if (!contacts.length) return 'blocked_no_contacts';
-  if (company.replied) return 'reply_review';
+  if (company.replied) return 'responded';
   if (!company.next_step) return 'needs_next_step';
   if (missingRoles.length) return 'find_roles';
   return 'ready_now';
@@ -60,12 +60,12 @@ function statusFor({ company, contacts, missingRoles, suppressed }) {
 function reasonFor({ company, contacts, missingRoles, status, primaryContact }) {
   if (status === 'suppressed') return company.suppression_reason || 'Suppressed from active outreach.';
   if (status === 'blocked_no_contacts') return 'No contacts are attached yet.';
-  if (status === 'reply_review') return 'Prospect has replied; review before the next touch.';
+  if (status === 'responded') return 'Prospect has responded; use the response before the next touch.';
   if (status === 'needs_next_step') return 'Account has no concrete next step.';
   if (status === 'find_roles') return `Missing ${missingRoles.join(', ')} coverage.`;
   if (primaryContact) return `Ready with ${primaryContact.name} as the primary contact path.`;
   if (contacts.length) return 'Ready with imported contact coverage.';
-  return 'Needs review.';
+  return 'Needs a concrete next step.';
 }
 
 function sequenceAngle(company) {
