@@ -46,6 +46,13 @@ const DUE_PRESETS = [
   { label: 'Custom', days: null },
 ];
 
+const SUPPRESSION_OPTIONS = [
+  { key: 'do_not_contact', label: 'Do not contact', defaultReason: 'Manual do-not-contact' },
+  { key: 'not_interested', label: 'Not interested', defaultReason: 'Prospect not interested' },
+  { key: 'bad_fit', label: 'Bad fit', defaultReason: 'Bad fit' },
+];
+const DEFAULT_SUPPRESSION_REASONS = SUPPRESSION_OPTIONS.map((option) => option.defaultReason);
+
 const SpeechRecognition =
   typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -628,6 +635,22 @@ export default function CompanyDetail() {
   const completeTimelineTask = (taskId) => mutateCompany(() => api.patch(`/tasks/${taskId}`, { completed: true }), 'Task completed');
   const deleteTimelineTask = (taskId) => mutateCompany(() => api.del(`/tasks/${taskId}`), 'Task deleted');
   const archived = Boolean(company.archived_at);
+  const updateSuppression = (key, checked) => {
+    const nextFlags = Object.fromEntries(
+      SUPPRESSION_OPTIONS.map((option) => [option.key, option.key === key ? checked : Boolean(company[option.key])])
+    );
+    const activeOption = SUPPRESSION_OPTIONS.find((option) => nextFlags[option.key]);
+    const currentReason = company.suppression_reason || '';
+    const shouldUseDefault = !currentReason || DEFAULT_SUPPRESSION_REASONS.includes(currentReason);
+    const suppression_reason = activeOption
+      ? (shouldUseDefault ? activeOption.defaultReason : currentReason)
+      : null;
+
+    mutateCompany(
+      () => api.patch(`/companies/${company.id}`, { [key]: checked, suppression_reason }),
+      activeOption ? 'Account suppressed' : 'Account eligible'
+    );
+  };
 
   const archiveCompany = () => {
     const reason = prompt(
@@ -783,17 +806,31 @@ export default function CompanyDetail() {
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">Suppression</span>
-                <label className="checkbox-inline">
-                  <input
-                    type="checkbox"
-                    checked={!!company.do_not_contact}
-                    onChange={(e) => mutateCompany(() => api.patch(`/companies/${company.id}`, {
-                      do_not_contact: e.target.checked,
-                      suppression_reason: e.target.checked ? (company.suppression_reason || 'Manual do-not-contact') : null,
-                    }), e.target.checked ? 'Account suppressed' : 'Account eligible')}
-                  />
-                  Do not contact account
-                </label>
+                <div className="suppression-detail-fields">
+                  {SUPPRESSION_OPTIONS.map((option) => (
+                    <label key={option.key} className="checkbox-inline">
+                      <input
+                        type="checkbox"
+                        checked={!!company[option.key]}
+                        onChange={(e) => updateSuppression(option.key, e.target.checked)}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                  {isSuppressed(company) && (
+                    <input
+                      key={`${company.id}:${company.suppression_reason || ''}`}
+                      className="key-info-input suppression-reason-input"
+                      defaultValue={company.suppression_reason || ''}
+                      placeholder="Reason"
+                      onBlur={(e) => {
+                        if (e.target.value !== (company.suppression_reason || '')) {
+                          mutateCompany(() => api.patch(`/companies/${company.id}`, { suppression_reason: e.target.value || null }), 'Saved');
+                        }
+                      }}
+                    />
+                  )}
+                </div>
               </div>
               <div className="key-info-row">
                 <span className="key-info-label">City</span>

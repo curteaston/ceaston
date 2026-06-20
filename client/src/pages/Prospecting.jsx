@@ -148,6 +148,7 @@ function AccountRow({ account, selected, onSelect }) {
   const openValue = account.open_deal_value > 0 ? `${fmtMoney(account.open_deal_value)} open` : null;
 
   const handleKeyDown = (event) => {
+    if (event.target.closest?.('a,button,input,select,textarea')) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onSelect(account.id);
@@ -163,7 +164,14 @@ function AccountRow({ account, selected, onSelect }) {
       aria-selected={selected}
     >
       <td className="account-cell">
-        <div className="account-name">{account.name}</div>
+        <Link
+          to={`/companies/${account.id}`}
+          className="account-name account-name-link"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          {account.name}
+        </Link>
         <div className="muted small">{account.domain || 'No domain'}</div>
         <div className="account-badges">
           {account.target_tier && <span className="chip tier-chip">{TARGET_TIER_LABELS[account.target_tier] || account.target_tier}</span>}

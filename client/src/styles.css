@@ -236,6 +236,14 @@ tr:last-child td { border-bottom: none; }
   font-weight: 800;
   line-height: 1.25;
 }
+.account-name-link {
+  display: inline-block;
+  text-decoration: none;
+}
+.account-name-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
 .account-badges {
   display: flex;
   gap: 5px;
@@ -1041,6 +1049,14 @@ pre {
   line-height: 1.35;
   resize: vertical;
   white-space: pre-wrap;
+}
+.suppression-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.suppression-reason-input {
+  margin-top: 2px;
 }
 
 /* Activity / Note / Task modals */
