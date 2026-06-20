@@ -6,6 +6,8 @@ const router = Router();
 
 const EVENT_TYPES = ['submission', 'inbound_response', 'no_response'];
 const NO_RESPONSE_TASK_PREFIX = 'RunWise audit no response';
+const MANUAL_REVIEW_TASK_PREFIX = 'RunWise audit manual review';
+const MANUAL_REVIEW_STATUSES = new Set(['manual_review_required', 'needs_ai_review']);
 
 function text(value) {
   return String(value ?? '').trim();
@@ -14,6 +16,10 @@ function text(value) {
 function nullableText(value) {
   const cleaned = text(value);
   return cleaned || null;
+}
+
+function normalizedStatus(value) {
+  return text(value).toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
 }
 
 function nullableNumber(value) {
@@ -47,6 +53,13 @@ function firstValue(...values) {
     if (value !== undefined && value !== null && value !== '') return value;
   }
   return null;
+}
+
+function responseBucketFor(matchStatus, body, embedded) {
+  const normalized = normalizedStatus(matchStatus);
+  if (MANUAL_REVIEW_STATUSES.has(normalized)) return 'Review';
+  if (normalized === 'response_received_unmatched') return 'Unmatched';
+  return nullableText(firstValue(body.response_bucket, embedded.response_bucket));
 }
 
 function eventType(value) {
@@ -92,6 +105,7 @@ async function resolveCompanyId(body) {
 
 function rowFromBody(body, type, key, companyId) {
   const embedded = parseEmbeddedData(body);
+  const matchStatus = nullableText(firstValue(body.match_status, embedded.match_status));
 
   return {
     event_key: key,
@@ -106,11 +120,11 @@ function rowFromBody(body, type, key, companyId) {
     occurred_at: nullableDate(firstValue(body.occurred_at, body.responded_at, body.finished_at, body.received_at, embedded.received_at, body.submitted_at, body.started_at)) || new Date().toISOString(),
     submission_status: nullableText(body.submission_status),
     audit_status: nullableText(body.audit_status),
-    match_status: nullableText(firstValue(body.match_status, embedded.match_status)),
+    match_status: matchStatus,
     response_kind: nullableText(firstValue(body.response_kind, embedded.response_kind)),
     response_label: nullableText(firstValue(body.response_label, embedded.response_label)),
     response_time_hours: nullableNumber(body.response_time_hours),
-    response_bucket: nullableText(firstValue(body.response_bucket, embedded.response_bucket)),
+    response_bucket: responseBucketFor(matchStatus, body, embedded),
     match_reason: nullableText(firstValue(body.match_reason, embedded.match_reason)),
     match_score: nullableNumber(firstValue(body.match_score, embedded.match_score)),
     confidence: nullableText(body.confidence),
@@ -129,6 +143,13 @@ function rowFromBody(body, type, key, companyId) {
 function noResponseTaskDescription(row) {
   const auditRef = row.audit_id ? ` (${row.audit_id})` : '';
   return `${NO_RESPONSE_TASK_PREFIX}: follow up with ${row.company_name}${auditRef}`;
+}
+
+function manualReviewTaskDescription(row) {
+  const ref = row.audit_id || row.event_id || row.event_key;
+  const refText = ref ? ` (${ref})` : '';
+  const label = row.response_label ? ` ${row.response_label.toLowerCase()}` : '';
+  return `${MANUAL_REVIEW_TASK_PREFIX}: review inbound${label} match for ${row.company_name}${refText}`;
 }
 
 function requestedTaskOwner(body) {
@@ -164,6 +185,44 @@ async function ensureNoResponseTask(client, row, body) {
      SELECT * FROM inserted
      LIMIT 1`,
     [row.company_id, description, auditId, owner],
+  );
+  return rows[0] || null;
+}
+
+async function ensureManualReviewTask(client, row, body) {
+  if (row.event_type !== 'inbound_response' || !row.company_id) return null;
+  if (!MANUAL_REVIEW_STATUSES.has(normalizedStatus(row.match_status))) return null;
+
+  const description = manualReviewTaskDescription(row);
+  const ref = nullableText(row.audit_id || row.event_id);
+  const owner = requestedTaskOwner(body);
+  const { rows } = await client.query(
+    `WITH existing AS (
+       SELECT t.*, false AS created_for_audit
+         FROM tasks t
+        WHERE t.company_id = $1
+          AND NOT t.completed
+          AND (
+            t.description = $2
+            OR (
+              $3::text IS NOT NULL
+              AND t.description ILIKE $4
+              AND t.description ILIKE '%' || $3::text || '%'
+            )
+          )
+        ORDER BY t.id
+        LIMIT 1
+     ), inserted AS (
+       INSERT INTO tasks (company_id, description, due_date, priority, owner)
+       SELECT $1, $2, CURRENT_DATE, 'high', $5
+        WHERE NOT EXISTS (SELECT 1 FROM existing)
+       RETURNING *, true AS created_for_audit
+     )
+     SELECT * FROM existing
+     UNION ALL
+     SELECT * FROM inserted
+     LIMIT 1`,
+    [row.company_id, description, ref, `${MANUAL_REVIEW_TASK_PREFIX}%`, owner],
   );
   return rows[0] || null;
 }
@@ -265,6 +324,7 @@ router.post('/upsert', h(async (req, res) => {
         [companyId, row.occurred_at],
       );
       crmTask = await ensureNoResponseTask(client, row, body);
+      if (!crmTask) crmTask = await ensureManualReviewTask(client, row, body);
     }
     await client.query('COMMIT');
 

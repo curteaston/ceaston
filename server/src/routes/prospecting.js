@@ -114,6 +114,16 @@ function normalizedStatus(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
 }
 
+function isManualReviewResponse(activity) {
+  const statuses = [activity?.match_status, activity?.response_bucket].map(normalizedStatus);
+  return statuses.some((status) => ['manual_review_required', 'needs_ai_review', 'review'].includes(status));
+}
+
+function isUnmatchedResponse(activity) {
+  const statuses = [activity?.match_status, activity?.response_bucket].map(normalizedStatus);
+  return statuses.some((status) => ['response_received_unmatched', 'unmatched'].includes(status));
+}
+
 function isVerifiedSubmission(activity) {
   return ['submitted_verified', 'assisted_submitted_verified'].includes(normalizedStatus(activity?.submission_status));
 }
@@ -140,16 +150,29 @@ function deriveAuditSignal(company) {
     const responseSubmission = matchingSubmissionForResponse(activities, latestResponse);
     const responseHours = responseHoursFor(responseSubmission, latestResponse);
     const responseText = responseHours === null ? 'response captured' : `response in ${responseHours}h`;
-    const uncertainMatch = latestResponse.match_status === 'manual_review_required';
-    const matchText = uncertainMatch ? 'Human match check needed before treating this as proof.' : 'Response is linked to this audit.';
+    const reviewNeeded = isManualReviewResponse(latestResponse);
+    const unmatchedResponse = isUnmatchedResponse(latestResponse);
+    const matchText = 'Response is linked to this audit.';
+
+    if (reviewNeeded || unmatchedResponse) {
+      return {
+        label: reviewNeeded ? 'Manual Review Required' : 'Unmatched Response',
+        severity: reviewNeeded ? 'medium' : 'neutral',
+        score_delta: 0,
+        reason: `${responseText}. This is not reliable proof until the inbound response is matched to the right audit.`,
+        next_action: reviewNeeded ? 'Review the inbound response match before changing priority.' : 'Inspect the inbound response before using it as audit evidence.',
+        response_time_hours: responseHours,
+        latest_status: latestResponse.match_status || latestResponse.response_bucket || latestResponse.response_kind || 'inbound_response',
+      };
+    }
 
     if (responseHours !== null && responseHours < 1) {
       return {
-        label: uncertainMatch ? 'Fast reply - match check' : 'Fast reply',
+        label: 'Fast reply',
         severity: 'low',
         score_delta: -20,
         reason: `Fast callback (${responseText}) lowers missed-lead pain. ${matchText}`,
-        next_action: uncertainMatch ? 'Confirm the match, then deprioritize unless another pain signal exists.' : 'Deprioritize unless another pain signal exists.',
+        next_action: 'Deprioritize unless another pain signal exists.',
         response_time_hours: responseHours,
         latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
       };
@@ -157,7 +180,7 @@ function deriveAuditSignal(company) {
 
     if (responseHours !== null && responseHours > 24) {
       return {
-        label: uncertainMatch ? 'Slow reply - match check' : 'Slow reply',
+        label: 'Slow reply',
         severity: 'high',
         score_delta: 25,
         reason: `Response took ${responseHours}h after a verified form submission. ${matchText}`,
@@ -168,11 +191,11 @@ function deriveAuditSignal(company) {
     }
 
     return {
-      label: uncertainMatch ? 'Response match check' : 'Responded',
+      label: 'Responded',
       severity: 'medium',
-      score_delta: uncertainMatch ? 2 : 0,
+      score_delta: 0,
       reason: `${responseText}. ${matchText}`,
-      next_action: uncertainMatch ? 'Confirm whether this response belongs to the audit.' : 'Use the response as context, not automatic pain proof.',
+      next_action: 'Use the response as context, not automatic pain proof.',
       response_time_hours: responseHours,
       latest_status: latestResponse.match_status || latestResponse.response_kind || 'inbound_response',
     };
