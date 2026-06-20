@@ -4,7 +4,7 @@ import { badRequest, h, requireNonBlank } from '../util.js';
 
 const router = Router();
 
-const EVENT_TYPES = ['submission', 'inbound_response'];
+const EVENT_TYPES = ['submission', 'inbound_response', 'no_response'];
 
 function text(value) {
   return String(value ?? '').trim();

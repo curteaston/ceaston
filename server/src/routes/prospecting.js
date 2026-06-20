@@ -134,6 +134,7 @@ function deriveAuditSignal(company) {
   const latest = activities[0];
   const latestSubmission = latestActivity(activities, 'submission');
   const latestResponse = latestActivity(activities, 'inbound_response');
+  const latestNoResponse = latestActivity(activities, 'no_response');
 
   if (latestResponse) {
     const responseSubmission = matchingSubmissionForResponse(activities, latestResponse);
@@ -185,6 +186,21 @@ function deriveAuditSignal(company) {
       reason: `Latest audit event: ${latest.event_type}.`,
       next_action: 'Inspect audit activity before changing priority.',
       latest_status: latest.submission_status || latest.match_status || latest.event_type,
+    };
+  }
+
+  if (latestNoResponse) {
+    const noResponseHours = responseHoursFor(latestSubmission, latestNoResponse);
+    const hoursText = noResponseHours === null ? 'after the response threshold' : `after ${Math.round(noResponseHours)}h`;
+
+    return {
+      label: 'No Response',
+      severity: 'high',
+      score_delta: 35,
+      reason: `Verified form submission has no captured response ${hoursText}.`,
+      next_action: 'Prioritize follow-up from the CRM; this is missed-response pain evidence.',
+      response_time_hours: noResponseHours,
+      latest_status: latestNoResponse.audit_status || latestNoResponse.match_status || 'no_response',
     };
   }
 

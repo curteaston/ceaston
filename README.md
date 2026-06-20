@@ -419,18 +419,19 @@ Lead statuses: `new, attempted, connected, qualified, unqualified, customer`
 
 ### Audit activity intake
 
-Use this for n8n form-audit events. `event_type` must be `submission` or
-`inbound_response`. Send `company_name` and either `event_key`, `audit_id`, or
+Use this for n8n form-audit events. `event_type` must be `submission`,
+`inbound_response`, or `no_response`. Send `company_name` and either `event_key`, `audit_id`, or
 `event_id`; the endpoint upserts by `event_key`. Submission events should include
 `submission_status`, `audit_status`, `submitted_at`, `occurred_at`, `final_url`,
 and evidence fields when available. Inbound response events should include
 `response_kind`, `match_status`, `response_time_hours`, `response_bucket`,
 `caller_phone`, `called_number`, `transcript`, and the matched `audit_id` when
-known.
+known. No-response events should include `audit_id`, `submitted_at`,
+`occurred_at`, `audit_status`, `response_bucket`, and the matched company fields.
 
 | Method | Path                           | Notes                                                                                 |
 | ------ | ------------------------------ | ------------------------------------------------------------------------------------- |
-| `POST` | `/api/audit-activities/upsert` | Upserts a submission or inbound response and touches the matched company activity date |
+| `POST` | `/api/audit-activities/upsert` | Upserts a submission, inbound response, or no-response signal and touches the matched company activity date |
 | `GET`  | `/api/audit-activities`        | Optional filters: `?company_id=` or `?audit_id=`                                      |
 
 Prospecting treats fast replies as lower missed-lead pain, slow replies as higher
