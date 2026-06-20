@@ -428,9 +428,13 @@ and evidence fields when available. Inbound response events should include
 `caller_phone`, `called_number`, `transcript`, and the matched `audit_id` when
 known. No-response events should include `audit_id`, `submitted_at`,
 `occurred_at`, `audit_status`, `response_bucket`, and the matched company fields.
-When a no-response event matches a CRM company, the endpoint also creates or
-confirms one open high-priority CRM task for that audit. It does not create GHL
-tasks.
+The endpoint links events to CRM companies by explicit CRM company ID, prior
+linked audit activity with the same `audit_id` or external company ID, domain,
+and then conservative normalized name matching. Submission events may create a
+company when `create_company_if_missing` is true; response and no-response
+events should usually attach to the company created by the submission. When a
+no-response event matches a CRM company, the endpoint also creates or confirms
+one open high-priority CRM task for that audit. It does not create GHL tasks.
 
 | Method | Path                           | Notes                                                                                 |
 | ------ | ------------------------------ | ------------------------------------------------------------------------------------- |

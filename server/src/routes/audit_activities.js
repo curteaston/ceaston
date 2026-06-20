@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool, query } from '../db.js';
-import { badRequest, h, requireNonBlank } from '../util.js';
+import { badRequest, h, normalizeDomain, requireNonBlank } from '../util.js';
 
 const router = Router();
 
@@ -79,18 +79,110 @@ function eventKey(body, type) {
   throw badRequest('event_key or audit_id is required');
 }
 
-async function resolveCompanyId(body) {
-  const explicit = nullableNumber(body.crm_company_id || body.company_record_id);
-  if (explicit) return explicit;
+function compactCompanyName(value) {
+  return text(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
 
-  const companyName = nullableText(body.company_name);
-  if (!companyName) return null;
+async function companyIdFromPriorAuditActivity(body) {
+  const auditId = nullableText(firstValue(body.audit_id, body.matched_audit_id));
+  if (auditId) {
+    const { rows } = await query(
+      `SELECT company_id
+         FROM audit_activities
+        WHERE audit_id = $1
+          AND company_id IS NOT NULL
+        ORDER BY CASE WHEN event_type = 'submission' THEN 0 ELSE 1 END,
+                 occurred_at DESC,
+                 id DESC
+        LIMIT 1`,
+      [auditId],
+    );
+    if (rows[0]?.company_id) return rows[0].company_id;
+  }
 
+  const externalCompanyId = nullableText(body.external_company_id || body.company_external_id || body.company_id);
+  if (!externalCompanyId) return null;
+
+  const { rows } = await query(
+    `SELECT company_id
+       FROM audit_activities
+      WHERE external_company_id = $1
+        AND company_id IS NOT NULL
+      ORDER BY CASE WHEN event_type = 'submission' THEN 0 ELSE 1 END,
+               occurred_at DESC,
+               id DESC
+      LIMIT 1`,
+    [externalCompanyId],
+  );
+  return rows[0]?.company_id || null;
+}
+
+async function companyIdFromDomain(body) {
+  const domain = normalizeDomain(firstValue(
+    body.company_domain,
+    body.domain,
+    body.website,
+    body.contact_form_url,
+    body.final_url,
+  ));
+  if (!domain) return null;
+
+  const { rows } = await query(
+    'SELECT id FROM companies WHERE lower(domain) = lower($1) AND archived_at IS NULL ORDER BY id LIMIT 1',
+    [domain],
+  );
+  return rows[0]?.id || null;
+}
+
+async function companyIdFromName(companyName) {
   const exact = await query(
     'SELECT id FROM companies WHERE lower(name) = lower($1) AND archived_at IS NULL ORDER BY id LIMIT 1',
     [companyName],
   );
   if (exact.rows[0]?.id) return exact.rows[0].id;
+
+  const compactName = compactCompanyName(companyName);
+  if (compactName.length < 10) return null;
+
+  const normalized = await query(
+    `WITH candidates AS (
+       SELECT id,
+              regexp_replace(lower(name), '[^a-z0-9]+', '', 'g') AS compact_name
+         FROM companies
+        WHERE archived_at IS NULL
+     )
+     SELECT id
+       FROM candidates
+      WHERE length(compact_name) >= 10
+        AND (
+          compact_name = $1
+          OR compact_name LIKE '%' || $1 || '%'
+          OR $1 LIKE '%' || compact_name || '%'
+        )
+      ORDER BY CASE WHEN compact_name = $1 THEN 0 ELSE 1 END,
+               length(compact_name) DESC,
+               id
+      LIMIT 1`,
+    [compactName],
+  );
+  return normalized.rows[0]?.id || null;
+}
+
+async function resolveCompanyId(body) {
+  const explicit = nullableNumber(body.crm_company_id || body.company_record_id);
+  if (explicit) return explicit;
+
+  const priorAuditCompanyId = await companyIdFromPriorAuditActivity(body);
+  if (priorAuditCompanyId) return priorAuditCompanyId;
+
+  const domainCompanyId = await companyIdFromDomain(body);
+  if (domainCompanyId) return domainCompanyId;
+
+  const companyName = nullableText(body.company_name);
+  if (!companyName) return null;
+
+  const namedCompanyId = await companyIdFromName(companyName);
+  if (namedCompanyId) return namedCompanyId;
 
   if (body.create_company_if_missing !== true) return null;
 
