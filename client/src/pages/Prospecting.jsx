@@ -12,6 +12,7 @@ const VIEWS = [
   { key: 'work_now', label: 'Work now' },
   { key: 'ready', label: 'Ready' },
   { key: 'role_gaps', label: 'Role gaps' },
+  { key: 'no_contacts', label: 'No contacts' },
   { key: 'needs_next_step', label: 'No next step' },
   { key: 'replies', label: 'Replies' },
   { key: 'audit_signals', label: 'Audit signals' },
@@ -120,6 +121,7 @@ function EmptyState({ view, hasFilters }) {
   const copy = {
     ready: ['No ready accounts yet.', 'Find missing owner, marketing, and ops coverage, then add a concrete next step.'],
     role_gaps: ['No role gaps in this view.', 'Move to Ready or Work now to decide who deserves outreach today.'],
+    no_contacts: ['No accounts are missing contacts.', 'New audit companies without a contact path will appear here.'],
     needs_next_step: ['Every matching account has a next step.', 'That is good hygiene. Work the queue or import a fresh HVAC list.'],
     replies: ['No responded accounts match.', 'Work role gaps or ready accounts until a prospect responds.'],
     audit_signals: ['No audit signals match.', 'Submit real audit forms and let responses prove whether there is actual missed-lead pain.'],
@@ -326,6 +328,7 @@ export default function Prospecting() {
         <SummaryCard label="Work now" value={data?.summary?.work_now ?? '-'} active={view === 'work_now'} onClick={() => setView('work_now')} />
         <SummaryCard label="Ready" value={data?.summary?.ready ?? '-'} active={view === 'ready'} onClick={() => setView('ready')} />
         <SummaryCard label="Role gaps" value={data?.summary?.role_gaps ?? '-'} active={view === 'role_gaps'} onClick={() => setView('role_gaps')} />
+        <SummaryCard label="No contacts" value={data?.summary?.no_contacts ?? '-'} active={view === 'no_contacts'} onClick={() => setView('no_contacts')} />
         <SummaryCard label="No next step" value={data?.summary?.needs_next_step ?? '-'} active={view === 'needs_next_step'} onClick={() => setView('needs_next_step')} />
         <SummaryCard label="Replies" value={data?.summary?.replies ?? '-'} active={view === 'replies'} onClick={() => setView('replies')} />
         <SummaryCard label="Audit signals" value={data?.summary?.audit_signals ?? '-'} active={view === 'audit_signals'} onClick={() => setView('audit_signals')} />

@@ -348,6 +348,7 @@ function toWorkbenchAccount(company) {
 function matchesView(account, view) {
   if (view === 'ready') return account.status === 'ready_now';
   if (view === 'role_gaps') return !account.suppressed && account.missing_roles.length > 0;
+  if (view === 'no_contacts') return !account.suppressed && account.contact_count === 0;
   if (view === 'needs_next_step') return !account.suppressed && !account.next_step;
   if (view === 'replies') return !account.suppressed && account.replied;
   if (view === 'audit_signals') return !account.suppressed && Boolean(account.audit_signal);
