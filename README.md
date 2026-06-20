@@ -428,10 +428,13 @@ and evidence fields when available. Inbound response events should include
 `caller_phone`, `called_number`, `transcript`, and the matched `audit_id` when
 known. No-response events should include `audit_id`, `submitted_at`,
 `occurred_at`, `audit_status`, `response_bucket`, and the matched company fields.
+When a no-response event matches a CRM company, the endpoint also creates or
+confirms one open high-priority CRM task for that audit. It does not create GHL
+tasks.
 
 | Method | Path                           | Notes                                                                                 |
 | ------ | ------------------------------ | ------------------------------------------------------------------------------------- |
-| `POST` | `/api/audit-activities/upsert` | Upserts a submission, inbound response, or no-response signal and touches the matched company activity date |
+| `POST` | `/api/audit-activities/upsert` | Upserts a submission, inbound response, or no-response signal; no-response events create/confirm CRM tasks |
 | `GET`  | `/api/audit-activities`        | Optional filters: `?company_id=` or `?audit_id=`                                      |
 
 Prospecting treats fast replies as lower missed-lead pain, slow replies as higher

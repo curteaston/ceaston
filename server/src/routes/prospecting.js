@@ -198,7 +198,7 @@ function deriveAuditSignal(company) {
       severity: 'high',
       score_delta: 35,
       reason: `Verified form submission has no captured response ${hoursText}.`,
-      next_action: 'Prioritize follow-up from the CRM; this is missed-response pain evidence.',
+      next_action: 'Work the generated CRM follow-up task; this is missed-response pain evidence.',
       response_time_hours: noResponseHours,
       latest_status: latestNoResponse.audit_status || latestNoResponse.match_status || 'no_response',
     };

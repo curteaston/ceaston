@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { query } from '../db.js';
+import { pool, query } from '../db.js';
 import { badRequest, h, requireNonBlank } from '../util.js';
 
 const router = Router();
 
 const EVENT_TYPES = ['submission', 'inbound_response', 'no_response'];
+const NO_RESPONSE_TASK_PREFIX = 'RunWise audit no response';
 
 function text(value) {
   return String(value ?? '').trim();
@@ -125,6 +126,48 @@ function rowFromBody(body, type, key, companyId) {
   };
 }
 
+function noResponseTaskDescription(row) {
+  const auditRef = row.audit_id ? ` (${row.audit_id})` : '';
+  return `${NO_RESPONSE_TASK_PREFIX}: follow up with ${row.company_name}${auditRef}`;
+}
+
+function requestedTaskOwner(body) {
+  return nullableText(body.task_owner || body.owner) || 'me';
+}
+
+async function ensureNoResponseTask(client, row, body) {
+  if (row.event_type !== 'no_response' || !row.company_id) return null;
+
+  const description = noResponseTaskDescription(row);
+  const auditId = nullableText(row.audit_id);
+  const owner = requestedTaskOwner(body);
+  const { rows } = await client.query(
+    `WITH existing AS (
+       SELECT t.*, false AS created_for_audit
+         FROM tasks t
+        WHERE t.company_id = $1
+          AND NOT t.completed
+          AND (
+            t.description = $2
+            OR ($3::text IS NOT NULL AND t.description ILIKE '%' || $3::text || '%')
+          )
+        ORDER BY t.id
+        LIMIT 1
+     ), inserted AS (
+       INSERT INTO tasks (company_id, description, due_date, priority, owner)
+       SELECT $1, $2, CURRENT_DATE + 1, 'high', $4
+        WHERE NOT EXISTS (SELECT 1 FROM existing)
+       RETURNING *, true AS created_for_audit
+     )
+     SELECT * FROM existing
+     UNION ALL
+     SELECT * FROM inserted
+     LIMIT 1`,
+    [row.company_id, description, auditId, owner],
+  );
+  return rows[0] || null;
+}
+
 router.post('/upsert', h(async (req, res) => {
   const body = req.body || {};
   const type = eventType(body.event_type);
@@ -132,94 +175,111 @@ router.post('/upsert', h(async (req, res) => {
   const companyId = await resolveCompanyId(body);
   const row = rowFromBody(body, type, key, companyId);
 
-  const { rows } = await query(
-    `INSERT INTO audit_activities (
-       event_key, event_type, audit_id, event_id, company_id, external_company_id, company_name,
-       contact_form_url, submitted_at, occurred_at, submission_status, audit_status, match_status,
-       response_kind, response_label, response_time_hours, response_bucket, match_reason, match_score,
-       confidence, ai_confidence, final_url, evidence_dir, result_json, transcript, recording_url,
-       caller_phone, called_number, raw_payload, updated_at
-     ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7,
-       $8, $9, $10, $11, $12, $13,
-       $14, $15, $16, $17, $18, $19,
-       $20, $21, $22, $23, $24, $25, $26,
-       $27, $28, $29, now()
-     )
-     ON CONFLICT (event_key) DO UPDATE SET
-       event_type = EXCLUDED.event_type,
-       audit_id = EXCLUDED.audit_id,
-       event_id = EXCLUDED.event_id,
-       company_id = coalesce(EXCLUDED.company_id, audit_activities.company_id),
-       external_company_id = EXCLUDED.external_company_id,
-       company_name = EXCLUDED.company_name,
-       contact_form_url = EXCLUDED.contact_form_url,
-       submitted_at = EXCLUDED.submitted_at,
-       occurred_at = EXCLUDED.occurred_at,
-       submission_status = EXCLUDED.submission_status,
-       audit_status = EXCLUDED.audit_status,
-       match_status = EXCLUDED.match_status,
-       response_kind = EXCLUDED.response_kind,
-       response_label = EXCLUDED.response_label,
-       response_time_hours = EXCLUDED.response_time_hours,
-       response_bucket = EXCLUDED.response_bucket,
-       match_reason = EXCLUDED.match_reason,
-       match_score = EXCLUDED.match_score,
-       confidence = EXCLUDED.confidence,
-       ai_confidence = EXCLUDED.ai_confidence,
-       final_url = EXCLUDED.final_url,
-       evidence_dir = EXCLUDED.evidence_dir,
-       result_json = EXCLUDED.result_json,
-       transcript = EXCLUDED.transcript,
-       recording_url = EXCLUDED.recording_url,
-       caller_phone = EXCLUDED.caller_phone,
-       called_number = EXCLUDED.called_number,
-       raw_payload = EXCLUDED.raw_payload,
-       updated_at = now()
-     RETURNING *`,
-    [
-      row.event_key,
-      row.event_type,
-      row.audit_id,
-      row.event_id,
-      row.company_id,
-      row.external_company_id,
-      row.company_name,
-      row.contact_form_url,
-      row.submitted_at,
-      row.occurred_at,
-      row.submission_status,
-      row.audit_status,
-      row.match_status,
-      row.response_kind,
-      row.response_label,
-      row.response_time_hours,
-      row.response_bucket,
-      row.match_reason,
-      row.match_score,
-      row.confidence,
-      row.ai_confidence,
-      row.final_url,
-      row.evidence_dir,
-      row.result_json,
-      row.transcript,
-      row.recording_url,
-      row.caller_phone,
-      row.called_number,
-      row.raw_payload,
-    ],
-  );
-
-  if (companyId) {
-    await query(
-      `UPDATE companies
-          SET last_activity_at = GREATEST(coalesce(last_activity_at, 'epoch'), $2::timestamptz)
-        WHERE id = $1`,
-      [companyId, row.occurred_at],
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO audit_activities (
+         event_key, event_type, audit_id, event_id, company_id, external_company_id, company_name,
+         contact_form_url, submitted_at, occurred_at, submission_status, audit_status, match_status,
+         response_kind, response_label, response_time_hours, response_bucket, match_reason, match_score,
+         confidence, ai_confidence, final_url, evidence_dir, result_json, transcript, recording_url,
+         caller_phone, called_number, raw_payload, updated_at
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7,
+         $8, $9, $10, $11, $12, $13,
+         $14, $15, $16, $17, $18, $19,
+         $20, $21, $22, $23, $24, $25, $26,
+         $27, $28, $29, now()
+       )
+       ON CONFLICT (event_key) DO UPDATE SET
+         event_type = EXCLUDED.event_type,
+         audit_id = EXCLUDED.audit_id,
+         event_id = EXCLUDED.event_id,
+         company_id = coalesce(EXCLUDED.company_id, audit_activities.company_id),
+         external_company_id = EXCLUDED.external_company_id,
+         company_name = EXCLUDED.company_name,
+         contact_form_url = EXCLUDED.contact_form_url,
+         submitted_at = EXCLUDED.submitted_at,
+         occurred_at = EXCLUDED.occurred_at,
+         submission_status = EXCLUDED.submission_status,
+         audit_status = EXCLUDED.audit_status,
+         match_status = EXCLUDED.match_status,
+         response_kind = EXCLUDED.response_kind,
+         response_label = EXCLUDED.response_label,
+         response_time_hours = EXCLUDED.response_time_hours,
+         response_bucket = EXCLUDED.response_bucket,
+         match_reason = EXCLUDED.match_reason,
+         match_score = EXCLUDED.match_score,
+         confidence = EXCLUDED.confidence,
+         ai_confidence = EXCLUDED.ai_confidence,
+         final_url = EXCLUDED.final_url,
+         evidence_dir = EXCLUDED.evidence_dir,
+         result_json = EXCLUDED.result_json,
+         transcript = EXCLUDED.transcript,
+         recording_url = EXCLUDED.recording_url,
+         caller_phone = EXCLUDED.caller_phone,
+         called_number = EXCLUDED.called_number,
+         raw_payload = EXCLUDED.raw_payload,
+         updated_at = now()
+       RETURNING *`,
+      [
+        row.event_key,
+        row.event_type,
+        row.audit_id,
+        row.event_id,
+        row.company_id,
+        row.external_company_id,
+        row.company_name,
+        row.contact_form_url,
+        row.submitted_at,
+        row.occurred_at,
+        row.submission_status,
+        row.audit_status,
+        row.match_status,
+        row.response_kind,
+        row.response_label,
+        row.response_time_hours,
+        row.response_bucket,
+        row.match_reason,
+        row.match_score,
+        row.confidence,
+        row.ai_confidence,
+        row.final_url,
+        row.evidence_dir,
+        row.result_json,
+        row.transcript,
+        row.recording_url,
+        row.caller_phone,
+        row.called_number,
+        row.raw_payload,
+      ],
     );
-  }
 
-  res.status(201).json({ audit_activity: rows[0], matched_company: Boolean(companyId) });
+    let crmTask = null;
+    if (companyId) {
+      await client.query(
+        `UPDATE companies
+            SET last_activity_at = GREATEST(coalesce(last_activity_at, 'epoch'), $2::timestamptz)
+          WHERE id = $1`,
+        [companyId, row.occurred_at],
+      );
+      crmTask = await ensureNoResponseTask(client, row, body);
+    }
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      audit_activity: rows[0],
+      matched_company: Boolean(companyId),
+      crm_task: crmTask,
+      crm_task_created: Boolean(crmTask?.created_for_audit),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 
 router.get('/', h(async (req, res) => {
