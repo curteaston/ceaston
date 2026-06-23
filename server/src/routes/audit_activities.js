@@ -248,12 +248,20 @@ function requestedTaskOwner(body) {
   return nullableText(body.task_owner || body.owner) || 'me';
 }
 
+function requestedNoResponseTaskPriority(row, body) {
+  const explicit = normalizedStatus(body.task_priority || body.priority);
+  if (['low', 'medium', 'high'].includes(explicit)) return explicit;
+  const responseHours = Number(row.response_time_hours);
+  return Number.isFinite(responseHours) && responseHours >= 48 ? 'high' : 'medium';
+}
+
 async function ensureNoResponseTask(client, row, body) {
   if (row.event_type !== 'no_response' || !row.company_id) return null;
 
   const description = noResponseTaskDescription(row);
   const auditId = nullableText(row.audit_id);
   const owner = requestedTaskOwner(body);
+  const priority = requestedNoResponseTaskPriority(row, body);
   const { rows } = await client.query(
     `WITH existing AS (
        SELECT t.*, false AS created_for_audit
@@ -266,17 +274,31 @@ async function ensureNoResponseTask(client, row, body) {
           )
         ORDER BY t.id
         LIMIT 1
+     ), updated AS (
+       UPDATE tasks t
+          SET priority = CASE
+                WHEN $5 = 'high' THEN 'high'
+                WHEN t.priority = 'low' AND $5 = 'medium' THEN 'medium'
+                ELSE t.priority
+              END,
+              due_date = CASE
+                WHEN $5 = 'high' THEN LEAST(coalesce(t.due_date, CURRENT_DATE), CURRENT_DATE)
+                ELSE t.due_date
+              END
+         FROM existing e
+        WHERE t.id = e.id
+       RETURNING t.*, false AS created_for_audit
      ), inserted AS (
        INSERT INTO tasks (company_id, description, due_date, priority, owner)
-       SELECT $1, $2, CURRENT_DATE + 1, 'high', $4
+       SELECT $1, $2, CURRENT_DATE + CASE WHEN $5 = 'high' THEN 0 ELSE 1 END, $5, $4
         WHERE NOT EXISTS (SELECT 1 FROM existing)
        RETURNING *, true AS created_for_audit
      )
-     SELECT * FROM existing
+     SELECT * FROM updated
      UNION ALL
      SELECT * FROM inserted
      LIMIT 1`,
-    [row.company_id, description, auditId, owner],
+    [row.company_id, description, auditId, owner, priority],
   );
   return rows[0] || null;
 }

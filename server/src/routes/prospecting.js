@@ -110,6 +110,15 @@ function responseHoursFor(submission, response) {
   return hoursBetween(submission?.submitted_at || submission?.occurred_at, response?.occurred_at);
 }
 
+function noResponseHoursFor(submission, noResponse) {
+  const explicit = Number(noResponse?.response_time_hours);
+  const currentAge = hoursBetween(submission?.submitted_at || submission?.occurred_at, new Date());
+  if (Number.isFinite(explicit) && currentAge !== null) return Math.max(explicit, currentAge);
+  if (Number.isFinite(explicit)) return explicit;
+  if (currentAge !== null) return currentAge;
+  return hoursBetween(submission?.submitted_at || submission?.occurred_at, noResponse?.occurred_at);
+}
+
 function normalizedStatus(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
 }
@@ -213,15 +222,18 @@ function deriveAuditSignal(company) {
   }
 
   if (latestNoResponse) {
-    const noResponseHours = responseHoursFor(latestSubmission, latestNoResponse);
+    const noResponseHours = noResponseHoursFor(latestSubmission, latestNoResponse);
     const hoursText = noResponseHours === null ? 'after the response threshold' : `after ${Math.round(noResponseHours)}h`;
+    const isHighPain = noResponseHours !== null && noResponseHours >= 48;
 
     return {
-      label: 'No Response',
-      severity: 'high',
-      score_delta: 35,
+      label: isHighPain ? 'No Response 48h+' : 'No Response 24h+',
+      severity: isHighPain ? 'high' : 'medium',
+      score_delta: isHighPain ? 35 : 20,
       reason: `Verified form submission has no captured response ${hoursText}.`,
-      next_action: 'Work the generated CRM follow-up task; this is missed-response pain evidence.',
+      next_action: isHighPain
+        ? 'Prioritize follow-up; this is missed-response pain evidence.'
+        : 'Queue follow-up if account fit is otherwise strong; do not overstate pain until 48h.',
       response_time_hours: noResponseHours,
       latest_status: latestNoResponse.audit_status || latestNoResponse.match_status || 'no_response',
     };
