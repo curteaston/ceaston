@@ -132,7 +132,7 @@ const NAV_ITEMS = [
 ];
 
 export default function App() {
-  const { toast, fetchMeta, apiWarning } = useStore();
+  const { toast, fetchMeta, fetchDialerStatus, apiWarning } = useStore();
   const [auth, setAuth] = useState(null); // null = checking, true = ok, false = need login
   const [authRequired, setAuthRequired] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(() => localStorage.getItem('nav_collapsed') === '1');
@@ -155,7 +155,12 @@ export default function App() {
     return () => window.removeEventListener('crm-unauthorized', onUnauth);
   }, []);
 
-  useEffect(() => { if (auth) fetchMeta(); }, [auth]);
+  useEffect(() => {
+    if (auth) {
+      fetchMeta();
+      fetchDialerStatus();
+    }
+  }, [auth]);
 
   const logout = async () => {
     await api.post('/auth/logout').catch(() => {});

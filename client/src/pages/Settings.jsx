@@ -216,6 +216,54 @@ function SequenceSending() {
   );
 }
 
+function TwilioDialer() {
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    api.get('/dialer/status')
+      .then(setStatus)
+      .catch(() => setStatus({ error: true, configured: false }));
+  }, []);
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Twilio click-to-dial</h3>
+        {status?.configured ? <span className="chip stage stage-won">Configured</span> : <span className="chip">Not configured</span>}
+      </div>
+      <p className="small">
+        Click-to-dial uses Twilio Voice in the browser: the CRM asks for microphone permission and places the call
+        from this tab using your Twilio number as caller ID. Suppressed, do-not-contact, not-interested, bad-fit,
+        and archived records are blocked before dialing.
+      </p>
+      {!status && <p className="muted small">Checking Twilio status...</p>}
+      {status?.configured && (
+        <p className="muted small">
+          From {status.from_number}. Browser calling requires HTTPS, or localhost during local development.
+        </p>
+      )}
+      {status && !status.configured && (
+        <>
+          <p className="small">
+            Add these server values to <code>.local/local.env</code> for local development or to the hosting
+            environment for production, then restart the CRM. Your TwiML App voice request URL should be
+            <code> https://your-crm-host/api/dialer/twiml</code>.
+          </p>
+          <pre>{`TWILIO_ACCOUNT_SID=AC...
+TWILIO_API_KEY_SID=SK...
+TWILIO_API_KEY_SECRET=...
+TWILIO_TWIML_APP_SID=AP...
+TWILIO_FROM_NUMBER=+15551234567
+`}</pre>
+          {status.missing_env?.length > 0 && (
+            <p className="muted small">Missing: <code>{status.missing_env.join(', ')}</code></p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function Webhooks() {
   const { run, notify } = useStore();
   const [hooks, setHooks] = useState([]);
@@ -501,6 +549,8 @@ export default function Settings() {
       </div>
 
       <SequenceSending />
+
+      <TwilioDialer />
 
       <EmailTemplates />
 

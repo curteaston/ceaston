@@ -25,6 +25,11 @@ services:
       PORT: 3001
       # Uncomment to require an API key (X-Api-Key header) — recommended when exposed to n8n
       # API_KEY: change-me
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_API_KEY_SID: ${TWILIO_API_KEY_SID:-}
+      TWILIO_API_KEY_SECRET: ${TWILIO_API_KEY_SECRET:-}
+      TWILIO_TWIML_APP_SID: ${TWILIO_TWIML_APP_SID:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
     ports:
       - '3001:3001'
 

@@ -28,6 +28,7 @@ export const LIFECYCLE_LABELS = {
 export const useStore = create((set, get) => ({
   meta: DEFAULT_META,
   apiWarning: null,
+  dialerStatus: null,
   toast: null,
 
   // Quick call logging: set when a phone number is clicked, read by the global modal.
@@ -67,6 +68,18 @@ export const useStore = create((set, get) => ({
         apiWarning: warningParts.length ? `API/client mismatch: ${warningParts.join('; ')}` : null,
       });
     } catch { /* defaults already set */ }
+  },
+
+  async fetchDialerStatus() {
+    try {
+      const status = await api.get('/dialer/status');
+      set({ dialerStatus: status });
+      return status;
+    } catch {
+      const status = { configured: false, error: true };
+      set({ dialerStatus: status });
+      return status;
+    }
   },
 
   // ---- Companies list ----

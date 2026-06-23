@@ -35,6 +35,9 @@ running concurrent outbound cadences.
   (enrollments / emails sent / replies), with CSV export.
 - **Quick call logging** — clicking a phone number dials *and* pops a one-tap dialog
   to record the call outcome (connected, voicemail, booked meeting, …) to the timeline.
+- **Twilio click-to-dial** — optionally place calls directly from the CRM browser tab
+  using Twilio Voice. The browser asks for microphone access, uses your Twilio number
+  as caller ID, and blocks suppressed or do-not-contact records before dialing.
 - **Sequence reply handling** — logging an interaction with outcome "replied" (or the
   "Mark replied" button on an enrollment) automatically pulls the contact out of every
   active sequence and cancels their remaining steps.
@@ -359,6 +362,10 @@ docker compose up --build
 | `ANTHROPIC_API_KEY` | _(unset)_          | Enables AI-powered company summaries (Claude); falls back to rules if unset |
 | `MS_CLIENT_ID` / `MS_CLIENT_SECRET` | _(unset)_ | Microsoft Entra app credentials for the Office 365 email + calendar integration |
 | `APP_BASE_URL`      | `http://localhost:3001` | Public base URL, used for the Office 365 OAuth redirect URI          |
+| `TWILIO_ACCOUNT_SID` | _(unset)_ | Twilio Account SID for browser calling |
+| `TWILIO_API_KEY_SID` / `TWILIO_API_KEY_SECRET` | _(unset)_ | Twilio API key used to mint short-lived browser Voice SDK tokens |
+| `TWILIO_TWIML_APP_SID` | _(unset)_ | TwiML App SID whose voice request URL points to `/api/dialer/twiml` |
+| `TWILIO_FROM_NUMBER` | _(unset)_ | Your owned Twilio number, used as caller ID |
 
 ## Authentication
 
@@ -483,6 +490,10 @@ Stages: `lead → contacted → qualified → proposal → negotiation → won /
 | `POST` | `/api/companies/:id/summary` | AI lead summary (Claude when `ANTHROPIC_API_KEY` set, rule-based otherwise)                    |
 | `POST` | `/api/email/send` | Send via connected Office 365 mailbox and log an email activity                                           |
 | `GET`  | `/api/calendar/today` | Today's Office 365 calendar events (`{connected:false}` when not connected)                          |
+| `GET`  | `/api/dialer/status` | Twilio click-to-dial configuration status                                                              |
+| `POST` | `/api/dialer/token` | Mint a short-lived Twilio Voice SDK browser token                                                       |
+| `POST` | `/api/dialer/authorize-call` | Check suppression and return a signed dial token for `{ phone, company_id or contact_id }`      |
+| `POST` | `/api/dialer/twiml` | Public Twilio TwiML App voice request URL; validates the signed dial token before dialing               |
 
 ### Sequences
 

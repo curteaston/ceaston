@@ -21,16 +21,77 @@ export function CompanySelect({ value, onChange, required = true }) {
 // Click-to-call link: dials via the OS handler (mobile, Teams, Google Voice, RingCentral, …)
 // and, when contact/company context is given, pops the quick call-log dialog.
 export function PhoneLink({ phone, contactId, companyId, contactName, companyName }) {
+  const dialerStatus = useStore((s) => s.dialerStatus);
+  const startCall = useStore((s) => s.startCall);
+  const clearCall = useStore((s) => s.clearCall);
+  const notify = useStore((s) => s.notify);
   if (!phone) return <span className="muted">--</span>;
   const href = `tel:${phone.replace(/[^+\d]/g, '')}`;
-  const onClick = (e) => {
+  const callContext = { phone, contactId, companyId, contactName, companyName };
+  const onClick = async (e) => {
     e.stopPropagation();
-    if (contactId || companyId) {
-      useStore.getState().startCall({ phone, contactId, companyId, contactName, companyName });
+    if (!contactId && !companyId) return;
+
+    if (!dialerStatus?.configured) {
+      startCall(callContext);
+      return;
+    }
+
+    e.preventDefault();
+    startCall({ ...callContext, dialedViaTwilio: true, dialerState: 'authorizing' });
+    try {
+      const auth = await api.post('/dialer/authorize-call', {
+        phone,
+        contact_id: contactId || null,
+        company_id: companyId || null,
+      });
+      startCall({ ...callContext, dialedViaTwilio: true, dialerState: 'starting' });
+      const token = await api.post('/dialer/token');
+      const { Device } = await import('@twilio/voice-sdk');
+      const device = new Device(token.token, { logLevel: 1 });
+      const twilioCall = await device.connect({
+        params: { To: auth.phone, CallToken: auth.dial_token },
+      });
+
+      const updateCall = (patch) => {
+        const current = useStore.getState().pendingCall;
+        if (!current || current.phone !== phone) return;
+        useStore.getState().startCall({ ...current, ...patch });
+      };
+      twilioCall.on('accept', () => updateCall({ dialerState: 'connected', twilioCallSid: twilioCall.parameters?.CallSid || null }));
+      twilioCall.on('disconnect', () => {
+        updateCall({ dialerState: 'ended', twilioCall: null, twilioDevice: null });
+        device.destroy();
+      });
+      twilioCall.on('cancel', () => {
+        updateCall({ dialerState: 'ended', twilioCall: null, twilioDevice: null });
+        device.destroy();
+      });
+      twilioCall.on('reject', () => {
+        updateCall({ dialerState: 'ended', twilioCall: null, twilioDevice: null });
+        device.destroy();
+      });
+      twilioCall.on('error', (err) => {
+        updateCall({ dialerState: 'failed', twilioCall: null, twilioDevice: null });
+        notify(err.message || 'Twilio browser call failed', true);
+        device.destroy();
+      });
+
+      startCall({
+        ...callContext,
+        dialedViaTwilio: true,
+        dialerState: 'calling',
+        twilioCall,
+        twilioDevice: device,
+      });
+      notify('Browser call started. Allow microphone access if prompted.');
+    } catch (err) {
+      clearCall();
+      notify(err.message, true);
     }
   };
   return (
-    <a href={href} className="phone-link" title={`Call ${phone}`} onClick={onClick}>
+    <a href={href} className="phone-link" title={dialerStatus?.configured ? `Call ${phone} from browser` : `Call ${phone}`} onClick={onClick}>
       📞 {phone}
     </a>
   );

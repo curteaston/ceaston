@@ -26,6 +26,7 @@ import reports from './routes/reports.js';
 import tags from './routes/tags.js';
 import emailTemplates from './routes/email_templates.js';
 import dataExport from './routes/data_export.js';
+import dialer, { publicDialer } from './routes/dialer.js';
 import audit from './routes/audit.js';
 import auditActivities from './routes/audit_activities.js';
 import prospecting from './routes/prospecting.js';
@@ -41,6 +42,7 @@ app.get('/api/health', h(async (req, res) => {
   res.json({ ok: true, schema_version: SCHEMA_VERSION });
 }));
 app.use('/api/auth', authRouter);
+app.use('/api/dialer', publicDialer);
 
 // Everything else under /api requires a session cookie (browser) or API key (n8n),
 // unless neither APP_PASSWORD nor API_KEY is configured.
@@ -96,6 +98,7 @@ app.use('/api/reports', reports);
 app.use('/api/tags', tags);
 app.use('/api/email-templates', emailTemplates);
 app.use('/api/export', dataExport);
+app.use('/api/dialer', dialer);
 app.use('/api/audit', audit);
 app.use('/api/audit-activities', auditActivities);
 app.use('/api/prospecting', prospecting);
