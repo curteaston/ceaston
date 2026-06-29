@@ -92,6 +92,29 @@ function latestActivity(activities, type) {
   return activities.find((activity) => activity.event_type === type) || null;
 }
 
+function isAutoAckResponse(activity) {
+  const values = [
+    activity?.match_status,
+    activity?.response_bucket,
+    activity?.response_label,
+    activity?.confidence,
+    activity?.raw_payload?.email_classification,
+    activity?.raw_payload?.classification,
+  ].map(normalizedStatus);
+  return values.some((value) => (
+    value === 'email_auto_ack'
+    || value === 'auto_ack'
+    || value === 'automated_acknowledgement'
+    || value.includes('auto_ack')
+  ));
+}
+
+function latestMeaningfulResponse(activities) {
+  return activities.find((activity) => (
+    activity.event_type === 'inbound_response' && !isAutoAckResponse(activity)
+  )) || null;
+}
+
 function matchingSubmissionForResponse(activities, response) {
   if (!response) return null;
   const responseAuditId = response.audit_id;
@@ -152,7 +175,7 @@ function deriveAuditSignal(company) {
 
   const latest = activities[0];
   const latestSubmission = latestActivity(activities, 'submission');
-  const latestResponse = latestActivity(activities, 'inbound_response');
+  const latestResponse = latestMeaningfulResponse(activities);
   const latestNoResponse = latestActivity(activities, 'no_response');
 
   if (latestResponse) {
